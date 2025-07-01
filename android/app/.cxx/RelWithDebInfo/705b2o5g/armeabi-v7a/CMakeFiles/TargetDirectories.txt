@@ -1,0 +1,2 @@
+/Users/6amtech/Documents/6amtech/StackFood/StackFood-Delivery-App/android/app/.cxx/RelWithDebInfo/705b2o5g/armeabi-v7a/CMakeFiles/edit_cache.dir
+/Users/6amtech/Documents/6amtech/StackFood/StackFood-Delivery-App/android/app/.cxx/RelWithDebInfo/705b2o5g/armeabi-v7a/CMakeFiles/rebuild_cache.dir

@@ -1,0 +1,1 @@
+/Users/6amtech/Documents/6amtech/StackFood/StackFood-Delivery-App/build/app/intermediates/cxx/RelWithDebInfo/705b2o5g/obj/x86_64
