@@ -36,6 +36,21 @@ Future<void> main() async {
         appId: '1:491987943015:android:a6fb4303cc4bf3d18f1ec2',
         messagingSenderId: '491987943015',
         projectId: 'stackmart-500c7',
+        storageBucket: 'stackmart-500c7.appspot.com',
+      ),
+    );
+  } else if(GetPlatform.isIOS) {
+    await Firebase.initializeApp();
+  } else if(GetPlatform.isMacOS) {
+    await Firebase.initializeApp(
+      options: const FirebaseOptions(
+        apiKey: 'AIzaSyA8lpofCi358diupbxu_E8l29g349P1INc',
+        appId: '1:410522356318:ios:6782d2452ecd04473dc2cf',
+        messagingSenderId: '410522356318',
+        projectId: 'e-food-9e6e3',
+        storageBucket: 'e-food-9e6e3.appspot.com',
+        iosClientId: '410522356318-lqa45bo7d289g8k4ns816b6g76qqmdhb.apps.googleusercontent.com',
+        iosBundleId: 'com.u6amtech.flutterRestaurant',
       ),
     );
   } else {

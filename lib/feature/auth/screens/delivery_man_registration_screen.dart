@@ -195,7 +195,7 @@ class _DeliveryManRegistrationScreenState extends State<DeliveryManRegistrationS
                         Positioned(
                           bottom: 0, right: 0, top: 0, left: 0,
                           child: InkWell(
-                            onTap: () => authController.pickDmImageForRegistration(true, false),
+                            onTap: () => pickProfileImage(),
                             child: DottedBorder(
                               color: Theme.of(context).primaryColor,
                               strokeWidth: 1,
@@ -562,6 +562,26 @@ class _DeliveryManRegistrationScreenState extends State<DeliveryManRegistrationS
         });
       }),
     );
+  }
+
+  Future<void> pickProfileImage() async {
+    if (!GetPlatform.isMacOS) {
+      Get.find<AuthController>().pickDmImageForRegistration(true, false);
+      return;
+    }
+
+    try {
+      final result = await FilePicker.platform.pickFiles(type: FileType.image);
+      if (result != null && result.files.single.path != null) {
+        final selectedPath = result.files.single.path!;
+        debugPrint('Selected profile image path: $selectedPath');
+        Get.find<AuthController>().setProfileImageFromPath(selectedPath);
+      } else {
+        debugPrint('Profile image selection cancelled or no path returned.');
+      }
+    } catch (error) {
+      debugPrint('Profile image picker error: $error');
+    }
   }
 
   void _addDeliveryMan(AuthController authController, AddressController addressController) async {

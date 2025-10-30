@@ -187,6 +187,11 @@ class AuthController extends GetxController implements GetxService {
     update();
   }
 
+  void setProfileImageFromPath(String path) {
+    _pickedImage = XFile(path);
+    update();
+  }
+
   void setIdentityTypeIndex(String? identityType, bool notify) {
     int index0 = 0;
     for(int index=0; index<_identityTypeList.length; index++) {

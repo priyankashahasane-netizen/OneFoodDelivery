@@ -12,9 +12,9 @@ ThemeData dark = ThemeData(
   scaffoldBackgroundColor: Color(0xFF161617),
   textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(foregroundColor: const Color(0xFFffbd5c))), colorScheme: const ColorScheme.dark(primary: Color(0xFFffbd5c), secondary: Color(0xFFffbd5c)).copyWith(error: const Color(0xFFdd3135)),
   popupMenuTheme: const PopupMenuThemeData(color: Color(0xFF29292D), surfaceTintColor: Color(0xFF29292D)),
-  dialogTheme: const DialogTheme(surfaceTintColor: Colors.white10),
+  dialogTheme: const DialogThemeData(surfaceTintColor: Colors.white10),
   floatingActionButtonTheme: FloatingActionButtonThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(500))),
-  bottomAppBarTheme: const BottomAppBarTheme(
+  bottomAppBarTheme: const BottomAppBarThemeData(
     surfaceTintColor: Colors.black, height: 60,
     padding: EdgeInsets.symmetric(vertical: 5),
   ),
