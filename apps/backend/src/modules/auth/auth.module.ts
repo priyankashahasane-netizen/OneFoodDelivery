@@ -10,6 +10,7 @@ import { JwtStrategy } from './jwt.strategy.js';
 import { RolesGuard } from './roles.guard.js';
 import { DriverOtpController } from './driver-auth.controller.js';
 import { DriverEntity } from '../drivers/entities/driver.entity.js';
+import { CustomJwtService } from './jwt.service.js';
 
 @Module({
   imports: [
@@ -22,7 +23,14 @@ import { DriverEntity } from '../drivers/entities/driver.entity.js';
     TypeOrmModule.forFeature([DriverEntity])
   ],
   controllers: [AuthController, DriverOtpController],
-  providers: [JwtStrategy, { provide: APP_GUARD, useClass: JwtAuthGuard }, { provide: APP_GUARD, useClass: RolesGuard }, RedisClientProvider]
+  providers: [
+    JwtStrategy,
+    CustomJwtService,
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+    RedisClientProvider
+  ],
+  exports: [CustomJwtService] // Export so other modules can use it
 })
 export class AuthModule {}
 

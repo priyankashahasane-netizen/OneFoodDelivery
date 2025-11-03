@@ -16,27 +16,47 @@ class DateConverter {
   }
 
   static String dateTimeStringToDateTime(String dateTime) {
-    return DateFormat('dd MMM yyyy  ${_timeFormatter()}').format(DateFormat('yyyy-MM-dd HH:mm:ss').parse(dateTime));
+    // Handle both ISO 8601 format (with 'Z' or 'T') and standard format
+    final DateTime parsedDate = dateTime.contains('T') || dateTime.contains('Z')
+        ? DateTime.parse(dateTime)
+        : DateFormat('yyyy-MM-dd HH:mm:ss').parse(dateTime);
+    return DateFormat('dd MMM yyyy  ${_timeFormatter()}').format(parsedDate);
   }
 
   static String dateTimeStringToTime(String dateTime) {
-    return DateFormat(_timeFormatter()).format(DateFormat('yyyy-MM-dd HH:mm:ss').parse(dateTime));
+    // Handle both ISO 8601 format (with 'Z' or 'T') and standard format
+    final DateTime parsedDate = dateTime.contains('T') || dateTime.contains('Z')
+        ? DateTime.parse(dateTime)
+        : DateFormat('yyyy-MM-dd HH:mm:ss').parse(dateTime);
+    return DateFormat(_timeFormatter()).format(parsedDate);
   }
 
   static String dateTimeStringToDateOnly(String dateTime) {
-    return DateFormat('dd MMM yyyy').format(DateFormat('yyyy-MM-dd HH:mm:ss').parse(dateTime));
+    // Handle both ISO 8601 format (with 'Z' or 'T') and standard format
+    final DateTime parsedDate = dateTime.contains('T') || dateTime.contains('Z')
+        ? DateTime.parse(dateTime)
+        : DateFormat('yyyy-MM-dd HH:mm:ss').parse(dateTime);
+    return DateFormat('dd MMM yyyy').format(parsedDate);
   }
 
   static DateTime dateTimeStringToDate(String dateTime) {
+    // Handle both ISO 8601 format (with 'Z' or 'T') and standard format
+    if (dateTime.contains('T') || dateTime.contains('Z')) {
+      return DateTime.parse(dateTime);
+    }
     return DateFormat('yyyy-MM-dd HH:mm:ss').parse(dateTime);
   }
 
   static DateTime convertStringToDatetime(String dateTime) {
-    return DateFormat("yyyy-MM-ddTHH:mm:ss.SSS").parse(dateTime);
+    // Handle ISO 8601 strings with 'Z' suffix
+    String cleanedDate = dateTime.endsWith('Z') ? dateTime.substring(0, dateTime.length - 1) : dateTime;
+    return DateFormat("yyyy-MM-ddTHH:mm:ss.SSS").parse(cleanedDate, true);
   }
 
   static DateTime isoStringToLocalDate(String dateTime) {
-    return DateFormat('yyyy-MM-ddTHH:mm:ss.SSS').parse(dateTime);
+    // Handle ISO 8601 strings with 'Z' suffix
+    String cleanedDate = dateTime.endsWith('Z') ? dateTime.substring(0, dateTime.length - 1) : dateTime;
+    return DateFormat('yyyy-MM-ddTHH:mm:ss.SSS').parse(cleanedDate, true);
   }
 
   static String isoStringToLocalTimeOnly(String dateTime) {
@@ -103,10 +123,26 @@ class DateConverter {
   }
 
   static String dateTimeStringForDisbursement(String time) {
-    var newTime = '${time.substring(0,10)} ${time.substring(11,23)}';
-    return DateFormat('dd MMM, yyyy').format(DateFormat('yyyy-MM-dd HH:mm:ss').parse(newTime));
-
-    // return DateFormat('${_timeFormatter()} | d-MMM-yyyy ').format(dateTime.toLocal());
+    try {
+      // Handle ISO 8601 format with 'Z' suffix (e.g., "2025-11-03T08:05:43.726Z")
+      if (time.contains('T')) {
+        // Use DateTime.parse for ISO 8601 format (handles 'Z' automatically)
+        DateTime dateTime = DateTime.parse(time);
+        return DateFormat('dd MMM, yyyy').format(dateTime.toLocal());
+      } else {
+        // Handle non-ISO format (e.g., "2025-11-03 08:05:43")
+        var newTime = '${time.substring(0,10)} ${time.substring(11,23)}';
+        return DateFormat('dd MMM, yyyy').format(DateFormat('yyyy-MM-dd HH:mm:ss').parse(newTime));
+      }
+    } catch (e) {
+      // Fallback: try to parse as-is
+      try {
+        DateTime dateTime = DateTime.parse(time);
+        return DateFormat('dd MMM, yyyy').format(dateTime.toLocal());
+      } catch (_) {
+        return time; // Return original string if parsing fails
+      }
+    }
   }
 
   static String dateTimeForCoupon(DateTime dateTime) {
@@ -118,7 +154,9 @@ class DateConverter {
   }
 
   static DateTime isoUtcStringToLocalTimeOnly(String dateTime) {
-    return DateFormat('yyyy-MM-ddTHH:mm:ss.SSS').parse(dateTime, true).toLocal();
+    // Handle ISO 8601 strings with 'Z' suffix
+    String cleanedDate = dateTime.endsWith('Z') ? dateTime.substring(0, dateTime.length - 1) : dateTime;
+    return DateFormat('yyyy-MM-ddTHH:mm:ss.SSS').parse(cleanedDate, true).toLocal();
   }
 
   static String isoStringToLocalDateAndTime(String dateTime) {
@@ -149,7 +187,10 @@ class DateConverter {
   }
 
   static String convertTodayYesterdayDate(String createdAt) {
-    final DateTime createdDate = DateFormat('yyyy-MM-dd HH:mm:ss').parse(createdAt);
+    // Handle both ISO 8601 format (with 'Z' or 'T') and standard format
+    final DateTime createdDate = createdAt.contains('T') || createdAt.contains('Z')
+        ? DateTime.parse(createdAt).toLocal()
+        : DateFormat('yyyy-MM-dd HH:mm:ss').parse(createdAt);
     final DateTime now = DateTime.now();
     final DateFormat formatter = DateFormat('dd MMM yyyy');
 
@@ -166,7 +207,10 @@ class DateConverter {
   }
 
   static String convertTimeDifferenceInMinutes(String createdAt) {
-    final DateTime createdDate = DateFormat('yyyy-MM-dd HH:mm:ss').parse(createdAt);
+    // Handle both ISO 8601 format (with 'Z' or 'T') and standard format
+    final DateTime createdDate = createdAt.contains('T') || createdAt.contains('Z')
+        ? DateTime.parse(createdAt).toLocal()
+        : DateFormat('yyyy-MM-dd HH:mm:ss').parse(createdAt);
     final DateTime now = DateTime.now();
 
     if (createdDate.year == now.year && createdDate.month == now.month && createdDate.day == now.day) {

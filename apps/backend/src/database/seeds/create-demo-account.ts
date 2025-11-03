@@ -106,17 +106,45 @@ async function createDemoAccount() {
     };
 
     if (driver) {
-      // Update existing driver
+      // Update existing driver - ensure all fields are populated
       console.log(`🔄 Updating existing driver with phone: ${phoneToUse}`);
-      driver.phone = phoneToUse; // Normalize to +91 format
+      
+      // Update phone to preferred format only if different and available
+      if (driver.phone !== phoneToUse) {
+        const existingWithPreferred = await driverRepo.findOne({ where: { phone: phoneToUse } });
+        if (!existingWithPreferred) {
+          driver.phone = phoneToUse;
+          console.log(`   ✅ Updated phone to preferred format: ${phoneToUse}`);
+        } else {
+          console.log(`   ⚠️  Phone ${phoneToUse} already exists, keeping current phone: ${driver.phone}`);
+        }
+      }
+      
       driver.name = driver.name || 'Demo Driver';
+      driver.vehicleType = driver.vehicleType || 'bike';
+      driver.capacity = driver.capacity || 5;
+      driver.online = driver.online ?? false;
+      
+      // Set location if not set (default to Bengaluru)
+      if (driver.latitude === null || driver.longitude === null) {
+        driver.latitude = 12.9716;
+        driver.longitude = 77.5946;
+        console.log(`   ✅ Set default location (Bengaluru)`);
+      }
+      
+      // Set last seen if not set
+      if (driver.lastSeenAt === null) {
+        driver.lastSeenAt = new Date();
+        console.log(`   ✅ Set last seen timestamp`);
+      }
+      
       driver.metadata = {
         ...mockProfileData,
         ...driver.metadata,
         password: hashedPassword, // Ensure password is set
       };
       await driverRepo.save(driver);
-      console.log(`✅ Updated driver account with password and profile data`);
+      console.log(`✅ Updated driver account with password and complete profile data`);
     } else {
       // Create new driver
       console.log(`➕ Creating new driver with phone: ${phoneToUse}`);
@@ -126,44 +154,25 @@ async function createDemoAccount() {
         vehicleType: 'bike',
         capacity: 5,
         online: false,
+        latitude: 12.9716,
+        longitude: 77.5946,
+        lastSeenAt: new Date(),
         metadata: mockProfileData,
       });
       driver = await driverRepo.save(driver);
-      console.log(`✅ Created new driver account with profile data`);
-    }
-
-    // Also create account without country code for flexibility
-    const phoneWithoutCode = '9975008124';
-    let driverWithoutCode = await driverRepo.findOne({ where: { phone: phoneWithoutCode } });
-    
-    if (!driverWithoutCode && driver.phone !== phoneWithoutCode) {
-      console.log(`➕ Also creating driver with phone: ${phoneWithoutCode} (without country code)`);
-      driverWithoutCode = driverRepo.create({
-        phone: phoneWithoutCode,
-        name: 'Demo Driver',
-        vehicleType: 'bike',
-        capacity: 5,
-        online: false,
-        metadata: mockProfileData,
-      });
-      await driverRepo.save(driverWithoutCode);
-      console.log(`✅ Created second driver account without country code`);
-    } else if (driverWithoutCode && driverWithoutCode.id !== driver.id) {
-      // Update existing driver without country code
-      driverWithoutCode.metadata = {
-        ...mockProfileData,
-        ...driverWithoutCode.metadata,
-        password: hashedPassword, // Ensure password is set
-      };
-      await driverRepo.save(driverWithoutCode);
-      console.log(`✅ Updated driver account without country code with profile data`);
+      console.log(`✅ Created new driver account with complete profile data`);
     }
 
     console.log('\n📋 Demo Account Details:');
-    console.log(`   Phone: 9975008124 (or +919975008124)`);
+    console.log(`   Phone: ${driver.phone}`);
     console.log(`   Password: ${password}`);
     console.log(`   Driver ID: ${driver.id}`);
+    console.log(`   Name: ${driver.name}`);
+    console.log(`   Vehicle Type: ${driver.vehicleType}`);
+    console.log(`   Capacity: ${driver.capacity}`);
+    console.log(`   Location: ${driver.latitude}, ${driver.longitude}`);
     console.log('\n✅ Demo account created/updated successfully!');
+    console.log('\n💡 Note: Only ONE demo account is created. Use both phone formats (9975008124 or +919975008124) to log in.');
 
     await AppDataSource.destroy();
     console.log('✅ Database connection closed');

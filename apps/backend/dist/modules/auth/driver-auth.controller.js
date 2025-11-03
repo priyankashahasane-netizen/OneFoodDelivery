@@ -11,7 +11,6 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 import { Body, Controller, Post } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { randomInt } from 'crypto';
@@ -19,12 +18,13 @@ import * as bcrypt from 'bcrypt';
 import { InjectRedis } from '../../common/redis/redis.provider.js';
 import { Public } from './public.decorator.js';
 import { DriverEntity } from '../drivers/entities/driver.entity.js';
+import { CustomJwtService } from './jwt.service.js';
 let DriverOtpController = class DriverOtpController {
-    jwt;
+    jwtService;
     drivers;
     redis;
-    constructor(jwt, drivers, redis) {
-        this.jwt = jwt;
+    constructor(jwtService, drivers, redis) {
+        this.jwtService = jwtService;
         this.drivers = drivers;
         this.redis = redis;
     }
@@ -81,11 +81,15 @@ let DriverOtpController = class DriverOtpController {
                 driver = this.drivers.create({ phone: body.phone, name: body.phone, vehicleType: 'unknown', capacity: 1, online: false });
                 driver = await this.drivers.save(driver);
             }
-            const token = await this.jwt.signAsync({ sub: driver.id, phone: driver.phone, role: 'driver' }, {
-                secret: process.env.JWT_SECRET ?? 'dev-secret',
-                expiresIn: '30d'
-            });
-            return { ok: true, access_token: token, token: token, driverId: driver.id };
+            const tokenResponse = await this.jwtService.generateDriverToken(driver.id, driver.phone);
+            return {
+                ok: true,
+                access_token: tokenResponse.access_token,
+                token: tokenResponse.token,
+                driverId: driver.id,
+                expiresIn: tokenResponse.expiresIn,
+                expiresAt: tokenResponse.expiresAt
+            };
         }
         catch (error) {
             console.error('OTP verify error:', error);
@@ -129,14 +133,13 @@ let DriverOtpController = class DriverOtpController {
             if (!isValidPassword) {
                 return { ok: false, message: 'Invalid phone number or password' };
             }
-            const token = await this.jwt.signAsync({ sub: driver.id, phone: driver.phone, role: 'driver' }, {
-                secret: process.env.JWT_SECRET ?? 'dev-secret',
-                expiresIn: '30d'
-            });
+            const tokenResponse = await this.jwtService.generateDriverToken(driver.id, driver.phone);
             return {
                 ok: true,
-                token: token,
-                access_token: token,
+                token: tokenResponse.token,
+                access_token: tokenResponse.access_token,
+                expiresIn: tokenResponse.expiresIn,
+                expiresAt: tokenResponse.expiresAt,
                 delivery_man: {
                     id: driver.id,
                     phone: driver.phone,
@@ -178,7 +181,7 @@ DriverOtpController = __decorate([
     Controller(),
     __param(1, InjectRepository(DriverEntity)),
     __param(2, InjectRedis()),
-    __metadata("design:paramtypes", [JwtService,
+    __metadata("design:paramtypes", [CustomJwtService,
         Repository, Object])
 ], DriverOtpController);
 export { DriverOtpController };

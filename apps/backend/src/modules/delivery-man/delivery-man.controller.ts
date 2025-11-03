@@ -24,11 +24,54 @@ export class DeliveryManController {
     try {
       // Get driver ID from JWT token
       let driverId = req?.user?.sub || req?.user?.driverId;
+      const phone = req?.user?.phone;
 
       // If no driver ID from token, try to extract from token query param (for backward compatibility)
       if (!driverId && token) {
         // Token is in Authorization header via JwtAuthGuard, but check user anyway
         driverId = req?.user?.sub || req?.user?.driverId;
+      }
+
+      // Check if driver ID is demo account placeholder
+      const isDemoAccount = req?.user?.driverId === 'demo-driver-id';
+      
+      // If driver ID is provided (not demo), verify it exists
+      if (driverId && !isDemoAccount) {
+        try {
+          await this.driversService.findById(driverId);
+        } catch (error) {
+          // Driver not found with this ID - try to resolve by phone if available
+          if (phone) {
+            const driverByPhone = await this.driversService.findByPhone(phone);
+            if (driverByPhone) {
+              driverId = driverByPhone.id;
+            }
+          }
+          
+          // If still not found, try demo phone variations
+          if (!driverId || driverId === req?.user?.sub) {
+            const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+            for (const demoPhone of demoPhones) {
+              const demoDriver = await this.driversService.findByPhone(demoPhone);
+              if (demoDriver) {
+                driverId = demoDriver.id;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      // Resolve demo account driver ID by phone
+      if (isDemoAccount || !driverId) {
+        const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+        for (const demoPhone of demoPhones) {
+          const demoDriver = await this.driversService.findByPhone(demoPhone);
+          if (demoDriver) {
+            driverId = demoDriver.id;
+            break;
+          }
+        }
       }
 
       if (!driverId) {

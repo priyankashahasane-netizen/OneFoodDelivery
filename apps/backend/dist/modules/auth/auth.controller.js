@@ -11,12 +11,12 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 import { Body, Controller, Post } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { Public } from './public.decorator.js';
+import { CustomJwtService } from './jwt.service.js';
 let AuthController = class AuthController {
-    jwt;
-    constructor(jwt) {
-        this.jwt = jwt;
+    jwtService;
+    constructor(jwtService) {
+        this.jwtService = jwtService;
     }
     async login(body) {
         const user = process.env.ADMIN_USER ?? 'admin';
@@ -24,8 +24,14 @@ let AuthController = class AuthController {
         if (body.username !== user || body.password !== pass) {
             return { ok: false };
         }
-        const token = await this.jwt.signAsync({ sub: 'admin', username: user, role: 'admin' }, { secret: process.env.JWT_SECRET ?? 'dev-secret' });
-        return { ok: true, access_token: token };
+        const tokenResponse = await this.jwtService.generateAdminToken(user);
+        return {
+            ok: true,
+            access_token: tokenResponse.access_token,
+            token: tokenResponse.token,
+            expiresIn: tokenResponse.expiresIn,
+            expiresAt: tokenResponse.expiresAt
+        };
     }
 };
 __decorate([
@@ -38,6 +44,6 @@ __decorate([
 ], AuthController.prototype, "login", null);
 AuthController = __decorate([
     Controller('auth'),
-    __metadata("design:paramtypes", [JwtService])
+    __metadata("design:paramtypes", [CustomJwtService])
 ], AuthController);
 export { AuthController };

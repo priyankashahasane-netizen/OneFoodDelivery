@@ -27,8 +27,43 @@ let DeliveryManController = class DeliveryManController {
     async getAllOrders(offset, limit, status, token, req) {
         try {
             let driverId = req?.user?.sub || req?.user?.driverId;
+            const phone = req?.user?.phone;
             if (!driverId && token) {
                 driverId = req?.user?.sub || req?.user?.driverId;
+            }
+            const isDemoAccount = req?.user?.driverId === 'demo-driver-id';
+            if (driverId && !isDemoAccount) {
+                try {
+                    await this.driversService.findById(driverId);
+                }
+                catch (error) {
+                    if (phone) {
+                        const driverByPhone = await this.driversService.findByPhone(phone);
+                        if (driverByPhone) {
+                            driverId = driverByPhone.id;
+                        }
+                    }
+                    if (!driverId || driverId === req?.user?.sub) {
+                        const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+                        for (const demoPhone of demoPhones) {
+                            const demoDriver = await this.driversService.findByPhone(demoPhone);
+                            if (demoDriver) {
+                                driverId = demoDriver.id;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            if (isDemoAccount || !driverId) {
+                const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+                for (const demoPhone of demoPhones) {
+                    const demoDriver = await this.driversService.findByPhone(demoPhone);
+                    if (demoDriver) {
+                        driverId = demoDriver.id;
+                        break;
+                    }
+                }
             }
             if (!driverId) {
                 throw new UnauthorizedException('Driver ID not found in token');

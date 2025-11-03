@@ -84,15 +84,90 @@ let OrdersService = class OrdersService {
     }
     async getAvailableOrders(driverId) {
         const qb = this.ordersRepository.createQueryBuilder('order')
-            .where('order.status IN (:...statuses)', { statuses: ['pending', 'assigned'] })
-            .orderBy('order.createdAt', 'DESC');
-        if (driverId) {
-            qb.andWhere('(order.driverId IS NULL OR order.driverId = :driverId)', { driverId });
-        }
-        else {
-            qb.andWhere('order.driverId IS NULL');
-        }
-        return qb.getMany();
+            .where('order.driverId IS NULL')
+            .orderBy('order.createdAt', 'DESC')
+            .take(50);
+        const orders = await qb.getMany();
+        const transformedOrders = orders.map((o) => {
+            const restaurantAddress = typeof o.pickup === 'object' && o.pickup !== null ? o.pickup.address || '' : '';
+            const deliveryAddressText = typeof o.dropoff === 'object' && o.dropoff !== null ? o.dropoff.address || '' : '';
+            const items = o.items || [];
+            const orderAmount = items.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0);
+            const numericId = Math.abs(o.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % 1000000;
+            return {
+                id: numericId,
+                user_id: null,
+                order_amount: orderAmount,
+                coupon_discount_amount: 0,
+                payment_status: 'unpaid',
+                order_status: o.status,
+                total_tax_amount: 0,
+                payment_method: o.paymentType || 'cash',
+                transaction_reference: null,
+                delivery_address_id: null,
+                delivery_man_id: null,
+                order_type: 'delivery',
+                restaurant_id: null,
+                created_at: o.createdAt?.toISOString() || new Date().toISOString(),
+                updated_at: o.updatedAt?.toISOString() || new Date().toISOString(),
+                delivery_charge: 0,
+                original_delivery_charge: 0,
+                dm_tips: 0,
+                schedule_at: null,
+                restaurant_name: restaurantAddress.split(',')[0] || 'Restaurant',
+                restaurant_discount_amount: 0,
+                restaurant_address: restaurantAddress,
+                restaurant_lat: typeof o.pickup === 'object' && o.pickup !== null ? String(o.pickup.lat || '') : '',
+                restaurant_lng: typeof o.pickup === 'object' && o.pickup !== null ? String(o.pickup.lng || '') : '',
+                restaurant_logo_full_url: null,
+                restaurant_phone: null,
+                restaurant_delivery_time: null,
+                vendor_id: null,
+                details_count: items.length,
+                order_note: null,
+                delivery_address: {
+                    id: null,
+                    address_type: 'home',
+                    contact_person_number: null,
+                    address: deliveryAddressText,
+                    latitude: typeof o.dropoff === 'object' && o.dropoff !== null ? o.dropoff.lat || 0 : 0,
+                    longitude: typeof o.dropoff === 'object' && o.dropoff !== null ? o.dropoff.lng || 0 : 0,
+                    zone_id: null,
+                    zone_ids: null,
+                    created_at: null,
+                    updated_at: null,
+                    user_id: null,
+                    contact_person_name: null,
+                    road: null,
+                    house: null,
+                    floor: null,
+                    postal_code: null,
+                    address_label: null,
+                },
+                customer: null,
+                processing_time: null,
+                chat_permission: null,
+                restaurant_model: null,
+                cutlery: false,
+                unavailable_item_note: null,
+                delivery_instruction: null,
+                order_proof_full_url: null,
+                payments: null,
+                restaurant_discount: 0,
+                tax_status: false,
+                additional_charge: 0,
+                extra_packaging_amount: 0,
+                ref_bonus_amount: 0,
+                bring_change_amount: 0,
+                external_ref: o.externalRef || null,
+                items: items.map((item) => ({
+                    name: item.name || 'Item',
+                    price: item.price || 0,
+                    quantity: item.quantity || 1,
+                })),
+            };
+        });
+        return transformedOrders;
     }
     async getCompletedOrdersByDriver(driverId, options) {
         const offset = options.offset || 1;

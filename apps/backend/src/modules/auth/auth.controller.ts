@@ -1,10 +1,10 @@
 import { Body, Controller, Post } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { Public } from './public.decorator.js';
+import { CustomJwtService } from './jwt.service.js';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly jwt: JwtService) {}
+  constructor(private readonly jwtService: CustomJwtService) {}
 
   @Public()
   @Post('login')
@@ -14,8 +14,14 @@ export class AuthController {
     if (body.username !== user || body.password !== pass) {
       return { ok: false };
     }
-    const token = await this.jwt.signAsync({ sub: 'admin', username: user, role: 'admin' }, { secret: process.env.JWT_SECRET ?? 'dev-secret' });
-    return { ok: true, access_token: token };
+    const tokenResponse = await this.jwtService.generateAdminToken(user);
+    return { 
+      ok: true, 
+      access_token: tokenResponse.access_token,
+      token: tokenResponse.token,
+      expiresIn: tokenResponse.expiresIn,
+      expiresAt: tokenResponse.expiresAt
+    };
   }
 }
 

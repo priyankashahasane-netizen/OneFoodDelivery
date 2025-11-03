@@ -1,5 +1,4 @@
 import { Body, Controller, Post } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { randomInt } from 'crypto';
@@ -8,11 +7,12 @@ import * as bcrypt from 'bcrypt';
 import { InjectRedis } from '../../common/redis/redis.provider.js';
 import { Public } from './public.decorator.js';
 import { DriverEntity } from '../drivers/entities/driver.entity.js';
+import { CustomJwtService } from './jwt.service.js';
 
 @Controller()
 export class DriverOtpController {
   constructor(
-    private readonly jwt: JwtService,
+    private readonly jwtService: CustomJwtService,
     @InjectRepository(DriverEntity) private readonly drivers: Repository<DriverEntity>,
     @InjectRedis() private readonly redis
   ) {}
@@ -85,14 +85,15 @@ export class DriverOtpController {
         driver = this.drivers.create({ phone: body.phone, name: body.phone, vehicleType: 'unknown', capacity: 1, online: false });
         driver = await this.drivers.save(driver);
       }
-      const token = await this.jwt.signAsync(
-        { sub: driver.id, phone: driver.phone, role: 'driver' },
-        { 
-          secret: process.env.JWT_SECRET ?? 'dev-secret',
-          expiresIn: '30d' // Token expires in 30 days
-        }
-      );
-      return { ok: true, access_token: token, token: token, driverId: driver.id };
+      const tokenResponse = await this.jwtService.generateDriverToken(driver.id, driver.phone);
+      return { 
+        ok: true, 
+        access_token: tokenResponse.access_token, 
+        token: tokenResponse.token, 
+        driverId: driver.id,
+        expiresIn: tokenResponse.expiresIn,
+        expiresAt: tokenResponse.expiresAt
+      };
     } catch (error) {
       console.error('OTP verify error:', error);
       // Return a proper error response instead of throwing
@@ -153,20 +154,16 @@ export class DriverOtpController {
         return { ok: false, message: 'Invalid phone number or password' };
       }
 
-      // Generate JWT token
-      const token = await this.jwt.signAsync(
-        { sub: driver.id, phone: driver.phone, role: 'driver' },
-        { 
-          secret: process.env.JWT_SECRET ?? 'dev-secret',
-          expiresIn: '30d' // Token expires in 30 days
-        }
-      );
+      // Generate JWT token using the new service
+      const tokenResponse = await this.jwtService.generateDriverToken(driver.id, driver.phone);
 
       // Return response in legacy format
       return {
         ok: true,
-        token: token,
-        access_token: token,
+        token: tokenResponse.token,
+        access_token: tokenResponse.access_token,
+        expiresIn: tokenResponse.expiresIn,
+        expiresAt: tokenResponse.expiresAt,
         delivery_man: {
           id: driver.id,
           phone: driver.phone,

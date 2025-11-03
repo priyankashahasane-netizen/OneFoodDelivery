@@ -133,8 +133,22 @@ class OrderModel {
   });
 
   OrderModel.fromJson(Map<String, dynamic> json) {
-    id = json['id'];
-    userId = json['user_id'];
+    // Handle both string UUID and int IDs from backend
+    if (json['id'] != null) {
+      if (json['id'] is String) {
+        // Convert string UUID to int hash for compatibility
+        final idStr = json['id'] as String;
+        id = idStr.hashCode.abs() % 1000000;
+      } else if (json['id'] is int) {
+        id = json['id'] as int;
+      } else {
+        id = int.tryParse(json['id'].toString());
+      }
+    }
+    // Handle userId which might be string or int
+    if (json['user_id'] != null) {
+      userId = json['user_id'] is int ? json['user_id'] : int.tryParse(json['user_id'].toString());
+    }
     orderAmount = json['order_amount']?.toDouble();
     couponDiscountAmount = json['coupon_discount_amount']?.toDouble();
     paymentStatus = json['payment_status'];
@@ -142,10 +156,17 @@ class OrderModel {
     totalTaxAmount = json['total_tax_amount']?.toDouble();
     paymentMethod = json['payment_method'];
     transactionReference = json['transaction_reference'];
-    deliveryAddressId = json['delivery_address_id'];
-    deliveryManId = json['delivery_man_id'];
+    // Handle ID fields that might be string or int
+    deliveryAddressId = json['delivery_address_id'] is int 
+        ? json['delivery_address_id'] 
+        : int.tryParse(json['delivery_address_id']?.toString() ?? '');
+    deliveryManId = json['delivery_man_id'] is int 
+        ? json['delivery_man_id'] 
+        : int.tryParse(json['delivery_man_id']?.toString() ?? '');
     orderType = json['order_type'];
-    restaurantId = json['restaurant_id'];
+    restaurantId = json['restaurant_id'] is int 
+        ? json['restaurant_id'] 
+        : int.tryParse(json['restaurant_id']?.toString() ?? '');
     createdAt = json['created_at'];
     updatedAt = json['updated_at'];
     deliveryCharge = json['delivery_charge']?.toDouble();
@@ -160,8 +181,12 @@ class OrderModel {
     restaurantLogoFullUrl = json['restaurant_logo_full_url'];
     restaurantPhone = json['restaurant_phone'];
     restaurantDeliveryTime = json['restaurant_delivery_time'];
-    vendorId = json['vendor_id'];
-    detailsCount = json['details_count'];
+    vendorId = json['vendor_id'] is int 
+        ? json['vendor_id'] 
+        : int.tryParse(json['vendor_id']?.toString() ?? '');
+    detailsCount = json['details_count'] is int 
+        ? json['details_count'] 
+        : int.tryParse(json['details_count']?.toString() ?? '');
     orderNote = json['order_note'];
     deliveryAddress = json['delivery_address'] != null ? DeliveryAddress.fromJson(json['delivery_address']) : null;
     customer = json['customer'] != null ? Customer.fromJson(json['customer']) : null;

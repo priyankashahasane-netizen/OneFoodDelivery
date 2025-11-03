@@ -25,7 +25,8 @@
     "seed": "ts-node --esm src/database/seeds/run-seed.ts",
     "add-mock-orders": "node --loader ts-node/esm src/database/seeds/add-mock-orders.ts",
     "reassign-orders-to-demo": "node --loader ts-node/esm src/database/seeds/reassign-orders-to-demo.ts",
-    "create-demo-account": "node --loader ts-node/esm src/database/seeds/create-demo-account.ts"
+    "create-demo-account": "node --loader ts-node/esm src/database/seeds/create-demo-account.ts",
+    "consolidate-demo-account": "node --loader ts-node/esm src/database/seeds/consolidate-demo-account.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.5",
