@@ -1,8 +1,8 @@
 import 'package:permission_handler/permission_handler.dart';
-import 'package:stackfood_multivendor_driver/common/widgets/custom_alert_dialog_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_bottom_sheet_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_card.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_confirmation_bottom_sheet.dart';
+import 'package:stackfood_multivendor_driver/feature/dashboard/controllers/drawer_controller.dart' as drawer_ctrl;
 import 'package:stackfood_multivendor_driver/feature/home/widgets/order_count_card_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/notification/controllers/notification_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/order/controllers/order_controller.dart';
@@ -24,7 +24,6 @@ import 'package:stackfood_multivendor_driver/common/widgets/order_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/title_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_switch/flutter_switch.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
 
@@ -78,62 +77,84 @@ class _HomeScreenState extends State<HomeScreen> {
     Get.find<OrderController>().removeFromIgnoreList();
     Get.find<ProfileController>().getShiftList();
     await Get.find<ProfileController>().getProfile();
-    await Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus!, isDataClear: false);
+    await Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus ?? 'all', isDataClear: false);
     await Get.find<OrderController>().getCompletedOrders(offset: 1, status: 'all', isUpdate: false);
     await Get.find<NotificationController>().getNotificationList();
   }
 
   Future<void> checkPermission() async {
-    var notificationStatus = await Permission.notification.status;
-    var batteryStatus = await Permission.ignoreBatteryOptimizations.status;
+    try {
+      var notificationStatus = await Permission.notification.status;
+      var batteryStatus = await Permission.ignoreBatteryOptimizations.status;
 
-    if(notificationStatus.isDenied || notificationStatus.isPermanentlyDenied) {
+      if(notificationStatus.isDenied || notificationStatus.isPermanentlyDenied) {
+        setState(() {
+          _isNotificationPermissionGranted = false;
+          _isBatteryOptimizationGranted = true;
+        });
+      } else if(batteryStatus.isDenied) {
+        setState(() {
+          _isBatteryOptimizationGranted = false;
+          _isNotificationPermissionGranted = true;
+        });
+      } else {
+        setState(() {
+          _isNotificationPermissionGranted = true;
+          _isBatteryOptimizationGranted = true;
+        });
+        Get.find<ProfileController>().setBackgroundNotificationActive(true);
+      }
+
+      if(batteryStatus.isDenied) {
+        Get.find<ProfileController>().setBackgroundNotificationActive(false);
+      }
+    } catch (e) {
+      // Permission handler not available on this platform (e.g., macOS/web)
+      // Default to granted state
       setState(() {
-        _isNotificationPermissionGranted = false;
+        _isNotificationPermissionGranted = true;
         _isBatteryOptimizationGranted = true;
       });
-    } else if(batteryStatus.isDenied) {
-      setState(() {
-        _isBatteryOptimizationGranted = false;
-        _isNotificationPermissionGranted = true;
-      });
-    } else {
-      setState(() {
-        _isNotificationPermissionGranted = true;
-        _isBatteryOptimizationGranted = true;
-      });
-      Get.find<ProfileController>().setBackgroundNotificationActive(true);
-    }
-
-    if(batteryStatus.isDenied) {
-      Get.find<ProfileController>().setBackgroundNotificationActive(false);
     }
   }
 
   Future<void> requestNotificationPermission() async {
-    if (await Permission.notification.request().isGranted) {
+    try {
+      if (await Permission.notification.request().isGranted) {
+        checkPermission();
+        return;
+      } else {
+        await openAppSettings();
+      }
       checkPermission();
-      return;
-    } else {
-      await openAppSettings();
+    } catch (e) {
+      // Permission handler not available on this platform
+      setState(() {
+        _isNotificationPermissionGranted = true;
+      });
     }
-
-    checkPermission();
   }
 
   void requestBatteryOptimization() async {
-    var status = await Permission.ignoreBatteryOptimizations.status;
+    try {
+      var status = await Permission.ignoreBatteryOptimizations.status;
 
-    if (status.isGranted) {
-      return;
-    } else if(status.isDenied) {
-      await Permission.ignoreBatteryOptimizations.request();
-    } else {
-      openAppSettings();
+      if (status.isGranted) {
+        return;
+      } else if(status.isDenied) {
+        await Permission.ignoreBatteryOptimizations.request();
+      } else {
+        openAppSettings();
+      }
+      checkPermission();
+    } catch (e) {
+      // Permission handler not available on this platform
+      setState(() {
+        _isBatteryOptimizationGranted = true;
+      });
     }
-
-    checkPermission();
   }
+
 
   @override
   void dispose() {
@@ -152,23 +173,45 @@ class _HomeScreenState extends State<HomeScreen> {
         surfaceTintColor: Theme.of(context).cardColor,
         shadowColor: Theme.of(context).disabledColor.withValues(alpha: 0.5),
         elevation: 2,
-        leading: Padding(
-          padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
-          child: Image.asset(Images.logo, height: 30, width: 30),
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () {
+              // Use the drawer controller to open the parent Scaffold's drawer
+              if (Get.isRegistered<drawer_ctrl.AppDrawerController>()) {
+                final controller = Get.find<drawer_ctrl.AppDrawerController>();
+                controller.openDrawer();
+              } else {
+                // Fallback: Find the parent Scaffold (DashboardScreen's Scaffold)
+                // We need to skip HomeScreen's Scaffold and find the one above it
+                ScaffoldState? parentScaffold = _findParentScaffold(context);
+                parentScaffold?.openDrawer();
+              }
+            },
+          ),
         ),
         titleSpacing: 0,
-        title: Image.asset(Images.logoName, width: 120),
+        title: Row(
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: Dimensions.paddingSizeSmall),
+              child: Image.asset(Images.logo, height: 30, width: 30),
+            ),
+            const SizedBox(width: Dimensions.paddingSizeSmall),
+            Image.asset(Images.logoName, width: 120),
+          ],
+        ),
         actions: [
 
           IconButton(
             icon: GetBuilder<NotificationController>(builder: (notificationController) {
               bool hasNewNotification = false;
-              if(notificationController.notificationList != null) {
+              if(notificationController.notificationList != null && notificationController.notificationList!.isNotEmpty) {
                 hasNewNotification = notificationController.notificationList!.length != notificationController.getSeenNotificationCount();
               }
               return Stack(children: [
 
-                Icon(Icons.notifications, size: 25, color: Theme.of(context).textTheme.bodyLarge!.color),
+                Icon(Icons.notifications, size: 25, color: Theme.of(context).textTheme.bodyLarge?.color ?? Theme.of(context).iconTheme.color ?? Colors.black),
 
                 hasNewNotification ? Positioned(top: 0, right: 0, child: Container(
                   height: 10, width: 10, decoration: BoxDecoration(
@@ -184,11 +227,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
           GetBuilder<ProfileController>(builder: (profileController) {
             return GetBuilder<OrderController>(builder: (orderController) {
-              return (profileController.profileModel != null && orderController.currentOrderList != null) ? FlutterSwitch(
+              final profileModel = profileController.profileModel;
+              final currentOrderList = orderController.currentOrderList;
+              
+              return (profileModel != null) ? FlutterSwitch(
                 width: 75, height: 30, valueFontSize: Dimensions.fontSizeExtraSmall, showOnOff: true,
                 activeText: 'online'.tr, inactiveText: 'offline'.tr, activeColor: Theme.of(context).primaryColor,
-                value: profileController.profileModel!.active == 1, onToggle: (bool isActive) async {
-                  if(!isActive && orderController.currentOrderList!.isNotEmpty) {
+                value: (profileModel.active ?? 0) == 1, onToggle: (bool isActive) async {
+                  if(!isActive && (currentOrderList != null && currentOrderList.isNotEmpty)) {
                     showCustomSnackBar('you_can_not_go_offline_now'.tr);
                   }else {
                     if(!isActive) {
@@ -202,23 +248,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       );
                     }else {
-                      LocationPermission permission = await Geolocator.checkPermission();
-                      if(permission == LocationPermission.denied || permission == LocationPermission.deniedForever
-                          || (GetPlatform.isIOS ? false : permission == LocationPermission.whileInUse)) {
-
-                        _checkPermission(() {
-                          if(profileController.shifts != null && profileController.shifts!.isNotEmpty) {
-                            Get.dialog(const ShiftDialogueWidget());
-                          }else{
-                            profileController.updateActiveStatus();
-                          }
-                        });
-                      }else {
-                        if(profileController.shifts != null && profileController.shifts!.isNotEmpty) {
-                          Get.dialog(const ShiftDialogueWidget());
-                        }else{
-                          profileController.updateActiveStatus();
-                        }
+                      // Go online - check for shifts first
+                      if(profileController.shifts != null && profileController.shifts!.isNotEmpty) {
+                        Get.dialog(const ShiftDialogueWidget());
+                      } else {
+                        profileController.updateActiveStatus();
                       }
                     }
                   }
@@ -256,6 +290,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
                 child: GetBuilder<ProfileController>(builder: (profileController) {
+                  final profileModel = profileController.profileModel;
 
                   return Column(children: [
 
@@ -271,17 +306,17 @@ class _HomeScreenState extends State<HomeScreen> {
                         ) : const SizedBox(),
                         SizedBox(height: hasActiveOrder ? Dimensions.paddingSizeSmall : 0),
 
-                        orderController.currentOrderList != null ? orderController.currentOrderList!.isNotEmpty ? OrderWidget(
+                        orderController.currentOrderList != null && orderController.currentOrderList!.isNotEmpty ? OrderWidget(
                           orderModel: orderController.currentOrderList![0], isRunningOrder: true, orderIndex: 0,
-                        ) : const SizedBox() : OrderShimmerWidget(
-                          isEnabled: orderController.currentOrderList == null,
-                        ),
+                        ) : orderController.currentOrderList == null ? OrderShimmerWidget(
+                          isEnabled: true,
+                        ) : const SizedBox(),
                         SizedBox(height: hasActiveOrder ? Dimensions.paddingSizeDefault : 0),
 
                       ]);
                     }),
 
-                    (profileController.profileModel != null && profileController.profileModel!.earnings == 1) ? Column(children: [
+                    (profileModel != null && (profileModel.earnings ?? 0) == 1) ? Column(children: [
 
                       TitleWidget(title: 'earnings'.tr),
                       const SizedBox(height: Dimensions.paddingSizeSmall),
@@ -309,8 +344,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               const SizedBox(height: Dimensions.paddingSizeSmall),
 
-                              profileController.profileModel != null ? Text(
-                                PriceConverter.convertPrice(profileController.profileModel!.balance),
+                              profileModel != null ? Text(
+                                PriceConverter.convertPrice(profileModel.balance ?? 0.0),
                                 style: robotoBold.copyWith(fontSize: 24, color: ColorResources.white),
                                 maxLines: 1, overflow: TextOverflow.ellipsis,
                               ) : Container(height: 30, width: 60, color: ColorResources.white),
@@ -323,19 +358,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
                             EarningWidget(
                               title: 'today'.tr,
-                              amount: profileController.profileModel?.todaysEarning,
+                              amount: profileModel?.todaysEarning,
                             ),
                             Container(height: 30, width: 1, color: Theme.of(context).cardColor),
 
                             EarningWidget(
                               title: 'this_week'.tr,
-                              amount: profileController.profileModel?.thisWeekEarning,
+                              amount: profileModel?.thisWeekEarning,
                             ),
                             Container(height: 30, width: 1, color: Theme.of(context).cardColor),
 
                             EarningWidget(
                               title: 'this_month'.tr,
-                              amount: profileController.profileModel?.thisMonthEarning,
+                              amount: profileModel?.thisMonthEarning,
                             ),
 
                           ]),
@@ -348,23 +383,23 @@ class _HomeScreenState extends State<HomeScreen> {
                     TitleWidget(title: 'orders'.tr),
                     const SizedBox(height: Dimensions.paddingSizeSmall),
 
-                    (profileController.profileModel != null && profileController.profileModel!.earnings == 1) ? Row(children: [
+                    (profileModel != null && (profileModel.earnings ?? 0) == 1) ? Row(children: [
 
                       OrderCountCardWidget(
                         title: 'todays_orders'.tr,
-                        value: profileController.profileModel?.todaysOrderCount.toString(),
+                        value: profileModel.todaysOrderCount?.toString(),
                       ),
                       const SizedBox(width: Dimensions.paddingSizeDefault),
 
                       OrderCountCardWidget(
                         title: 'this_week_orders'.tr,
-                        value: profileController.profileModel?.thisWeekOrderCount.toString(),
+                        value: profileModel.thisWeekOrderCount?.toString(),
                       ),
                       const SizedBox(width: Dimensions.paddingSizeDefault),
 
                       OrderCountCardWidget(
                         title: 'total_orders'.tr,
-                        value: profileController.profileModel?.orderCount.toString(),
+                        value: profileModel.orderCount?.toString(),
                       ),
 
                     ]) : Column(children: [
@@ -373,13 +408,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
                         Expanded(child: CountCardWidget(
                           title: 'todays_orders'.tr, backgroundColor: Theme.of(context).secondaryHeaderColor.withValues(alpha: 0.2), height: 180,
-                          value: profileController.profileModel?.todaysOrderCount.toString(),
+                          value: profileModel?.todaysOrderCount?.toString(),
                         )),
                         const SizedBox(width: Dimensions.paddingSizeSmall),
 
                         Expanded(child: CountCardWidget(
                           title: 'this_week_orders'.tr, backgroundColor: Theme.of(context).colorScheme.error.withValues(alpha: 0.2), height: 180,
-                          value: profileController.profileModel?.thisWeekOrderCount.toString(),
+                          value: profileModel?.thisWeekOrderCount?.toString(),
                         )),
 
                       ]),
@@ -387,20 +422,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       CountCardWidget(
                         title: 'total_orders'.tr, backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.2), height: 140,
-                        value: profileController.profileModel?.orderCount.toString(),
+                        value: profileModel?.orderCount?.toString(),
                       ),
 
                     ]),
                     const SizedBox(height: Dimensions.paddingSizeLarge),
 
-                    profileController.profileModel != null ? profileController.profileModel!.earnings == 1 ? CustomCard(
+                    profileModel != null ? (profileModel.earnings ?? 0) == 1 ? CustomCard(
                       height: 85, width: MediaQuery.of(context).size.width,
                       padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeDefault, vertical: Dimensions.paddingSizeLarge),
                       child: Row(children: [
 
                         Expanded(
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                            Text(PriceConverter.convertPrice(profileController.profileModel!.cashInHands), style: robotoBold.copyWith(fontSize: Dimensions.fontSizeLarge)),
+                            Text(PriceConverter.convertPrice(profileModel.cashInHands ?? 0.0), style: robotoBold.copyWith(fontSize: Dimensions.fontSizeLarge)),
 
                             RichText(
                               text: TextSpan(
@@ -496,31 +531,38 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _checkPermission(Function callback) async {
-    LocationPermission permission = await Geolocator.requestPermission();
-    permission = await Geolocator.checkPermission();
 
-    while(Get.isDialogOpen == true) {
-      Get.back();
+  // Helper method to find the parent Scaffold (DashboardScreen's Scaffold)
+  ScaffoldState? _findParentScaffold(BuildContext context) {
+    // Find the closest ScaffoldState that has a drawer
+    // First, try to find any ScaffoldState and check if it has a drawer
+    final scaffoldState = context.findAncestorStateOfType<ScaffoldState>();
+    if (scaffoldState != null && scaffoldState.mounted) {
+      try {
+        final scaffoldWidget = scaffoldState.context.findAncestorWidgetOfExactType<Scaffold>();
+        if (scaffoldWidget?.drawer != null) {
+          return scaffoldState;
+        }
+      } catch (e) {
+        // If we can't check, continue searching
+      }
     }
-
-    if(permission == LocationPermission.denied/* || (GetPlatform.isIOS ? false : permission == LocationPermission.whileInUse)*/) {
-      Get.dialog(CustomAlertDialogWidget(description: 'you_denied'.tr, onOkPressed: () async {
-        Get.back();
-        final perm = await Geolocator.requestPermission();
-        if(perm == LocationPermission.deniedForever) await Geolocator.openAppSettings();
-        if(GetPlatform.isAndroid) _checkPermission(callback);
-      }));
-    }else if(permission == LocationPermission.deniedForever || (GetPlatform.isIOS ? false : permission == LocationPermission.whileInUse)) {
-      Get.dialog(CustomAlertDialogWidget(description:  permission == LocationPermission.whileInUse ? 'you_denied'.tr : 'you_denied_forever'.tr, onOkPressed: () async {
-        Get.back();
-        await Geolocator.openAppSettings();
-        Future.delayed(Duration(seconds: 3), () {
-          if(GetPlatform.isAndroid) _checkPermission(callback);
-        });
-      }));
-    }else {
-      callback();
-    }
+    
+    // If not found, traverse up using visitAncestorElements
+    ScaffoldState? foundScaffold;
+    context.visitAncestorElements((element) {
+      final widget = element.widget;
+      if (widget is Scaffold && widget.drawer != null) {
+        // Found a Scaffold with a drawer, find its state
+        final state = element.findAncestorStateOfType<ScaffoldState>();
+        if (state != null && state.mounted) {
+          foundScaffold = state;
+          return false; // Stop visiting ancestors
+        }
+      }
+      return true; // Continue visiting ancestors
+    });
+    
+    return foundScaffold;
   }
 }

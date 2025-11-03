@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-stack_delivery}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    image: stackdelivery/backend:latest
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-stack_delivery}
+      REDIS_URL: redis://redis:6379
+      OPTIMOROUTE_API_KEY: ${OPTIMOROUTE_API_KEY}
+      IPSTACK_API_KEY: ${IPSTACK_API_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_USER: ${ADMIN_USER:-admin}
+      ADMIN_PASS: ${ADMIN_PASS}
+      TRACKING_BASE_URL: ${TRACKING_BASE_URL:-http://localhost:3001/track}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  tracking-web:
+    image: stackdelivery/tracking-web:latest
+    ports:
+      - "3001:3001"
+    environment:
+      NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-http://localhost:3000}
+      NEXT_PUBLIC_OSM_TILES: ${NEXT_PUBLIC_OSM_TILES:-https://tile.openstreetmap.org/{z}/{x}/{y}.png}
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  admin-dashboard:
+    image: stackdelivery/admin-dashboard:latest
+    ports:
+      - "3002:3002"
+    environment:
+      NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-http://localhost:3000}
+      NEXT_PUBLIC_OSM_TILES: ${NEXT_PUBLIC_OSM_TILES:-https://tile.openstreetmap.org/{z}/{x}/{y}.png}
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+
+

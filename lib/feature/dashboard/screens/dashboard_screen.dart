@@ -1,9 +1,10 @@
 import 'dart:async';
-import 'package:stackfood_multivendor_driver/feature/auth/controllers/auth_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/disbursements/helper/disbursement_helper.dart';
 import 'package:stackfood_multivendor_driver/feature/home/screens/home_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/order/controllers/order_controller.dart';
+import 'package:stackfood_multivendor_driver/feature/dashboard/controllers/drawer_controller.dart' as drawer_ctrl;
 import 'package:stackfood_multivendor_driver/feature/dashboard/widgets/bottom_nav_item_widget.dart';
+import 'package:stackfood_multivendor_driver/feature/dashboard/widgets/custom_drawer_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/dashboard/widgets/new_request_dialog_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/order/screens/order_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/order/screens/running_order_screen.dart';
@@ -39,6 +40,8 @@ class DashboardScreenState extends State<DashboardScreen> {
   late List<Widget> _screens;
   final _channel = const MethodChannel('com.sixamtech/app_retain');
   late StreamSubscription _stream;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  bool _scaffoldKeySet = false;
 
   @override
   void initState() {
@@ -48,6 +51,11 @@ class DashboardScreenState extends State<DashboardScreen> {
 
     _pageController = PageController(initialPage: widget.pageIndex);
 
+    // Register drawer controller if not already registered
+    if (!Get.isRegistered<drawer_ctrl.AppDrawerController>()) {
+      Get.put(drawer_ctrl.AppDrawerController());
+    }
+
     _screens = [
       const HomeScreen(),
       OrderRequestScreen(onTap: () => _setPage(0)),
@@ -55,6 +63,14 @@ class DashboardScreenState extends State<DashboardScreen> {
       const OrderScreen(),
       const ProfileScreen(),
     ];
+
+    // Set scaffold key after widget is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scaffoldKey.currentState != null && Get.isRegistered<drawer_ctrl.AppDrawerController>()) {
+        Get.find<drawer_ctrl.AppDrawerController>().setScaffoldKey(_scaffoldKey);
+        _scaffoldKeySet = true;
+      }
+    });
 
     showDisbursementWarningMessage();
     Get.find<OrderController>().getLatestOrders();
@@ -68,17 +84,16 @@ class DashboardScreenState extends State<DashboardScreen> {
         NotificationHelper.showNotification(message, flutterLocalNotificationsPlugin);
       }
       if(type == 'new_order'/* || type == 'order_request'*/) {
-        Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus!);
+        Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus ?? 'all');
         Get.find<OrderController>().getLatestOrders();
         Get.dialog(NewRequestDialogWidget(isRequest: true, onTap: () => _navigateRequestPage(), orderId: int.parse(orderID!)));
       }else if(type == 'assign' && orderID != null && orderID.isNotEmpty) {
-        Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus!);
+        Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus ?? 'all');
         Get.find<OrderController>().getLatestOrders();
         Get.dialog(NewRequestDialogWidget(isRequest: false, onTap: () => Get.toNamed(RouteHelper.getOrderDetailsRoute(int.parse(orderID))), orderId: int.parse(orderID)));
       }else if(type == 'block') {
-        Get.find<AuthController>().clearSharedData();
+        // Auth removed - just stop location record if needed
         Get.find<ProfileController>().stopLocationRecord();
-        Get.offAllNamed(RouteHelper.getSignInRoute());
       }
     });
   }
@@ -117,6 +132,24 @@ class DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Set scaffold key immediately when scaffold state is available
+    if (_scaffoldKey.currentState != null) {
+      if (Get.isRegistered<drawer_ctrl.AppDrawerController>()) {
+        Get.find<drawer_ctrl.AppDrawerController>().setScaffoldKey(_scaffoldKey);
+        _scaffoldKeySet = true;
+      }
+    }
+    
+    // Also set it after build to ensure it's captured
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scaffoldKey.currentState != null) {
+        if (Get.isRegistered<drawer_ctrl.AppDrawerController>()) {
+          Get.find<drawer_ctrl.AppDrawerController>().setScaffoldKey(_scaffoldKey);
+          _scaffoldKeySet = true;
+        }
+      }
+    });
+    
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async{
@@ -131,6 +164,11 @@ class DashboardScreenState extends State<DashboardScreen> {
         }
       },
       child: Scaffold(
+        key: _scaffoldKey,
+        drawer: CustomDrawerWidget(
+          currentPageIndex: _pageIndex,
+          onPageChange: _setPage,
+        ),
 
         bottomNavigationBar: Container(
           decoration: BoxDecoration(

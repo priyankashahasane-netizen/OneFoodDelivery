@@ -101,14 +101,14 @@ class _VerifyDeliverySheetWidgetState extends State<VerifyDeliverySheetWidget> {
                   Get.find<OrderController>().updateOrderStatus(widget.orderID, 'delivered').then((success) {
                     if(success) {
                       Get.find<ProfileController>().getProfile();
-                      Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus!);
+                      Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus ?? 'all');
                     }
                   });
                 } else {
                   Get.find<OrderController>().updateOrderStatus(widget.orderID, 'delivered').then((success) {
                     if(success) {
                       Get.find<ProfileController>().getProfile();
-                      Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus!);
+                      Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus ?? 'all');
                       Get.offAllNamed(RouteHelper.getInitialRoute());
                     }
                   });

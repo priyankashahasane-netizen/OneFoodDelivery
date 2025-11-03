@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
-import 'package:stackfood_multivendor_driver/feature/auth/controllers/auth_controller.dart';
+// Auth removed - no longer using AuthController
 import 'package:stackfood_multivendor_driver/feature/dashboard/screens/dashboard_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/order/controllers/order_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/chat/controllers/chat_controller.dart';
@@ -40,7 +40,8 @@ class NotificationHelper {
           }else if(payload.notificationType == NotificationType.message){
             Get.toNamed(RouteHelper.getChatRoute(notificationBody: payload, conversationId: payload.conversationId, fromNotification: true));
           }else if(payload.notificationType == NotificationType.block || payload.notificationType == NotificationType.unblock){
-            Get.toNamed(RouteHelper.getSignInRoute());
+            // Auth removed - navigate to home screen
+            Get.offAllNamed(RouteHelper.getInitialRoute());
           }else if(payload.notificationType == NotificationType.unassign){
             Get.to(const DashboardScreen(pageIndex: 1));
           }else{
@@ -61,25 +62,23 @@ class NotificationHelper {
       }
 
       if(message.data['type'] == 'message' && Get.currentRoute.startsWith(RouteHelper.chatScreen)){
-        if(Get.find<AuthController>().isLoggedIn()) {
-          Get.find<ChatController>().getConversationList(1, type: Get.find<ChatController>().type);
-          if(Get.find<ChatController>().messageModel!.conversation!.id.toString() == message.data['conversation_id'].toString()) {
-            Get.find<ChatController>().getMessages(
-              1, NotificationBodyModel(
-              notificationType: NotificationType.message,
-              customerId: message.data['sender_type'] == UserType.user.name ? 0 : null,
-              vendorId: message.data['sender_type'] == UserType.vendor.name ? 0 : null,
-            ),
-              null, int.parse(message.data['conversation_id'].toString()),
-            );
-          }else {
-            NotificationHelper.showNotification(message, flutterLocalNotificationsPlugin);
-          }
+        // Auth removed - always process messages
+        Get.find<ChatController>().getConversationList(1, type: Get.find<ChatController>().type);
+        if(Get.find<ChatController>().messageModel!.conversation!.id.toString() == message.data['conversation_id'].toString()) {
+          Get.find<ChatController>().getMessages(
+            1, NotificationBodyModel(
+            notificationType: NotificationType.message,
+            customerId: message.data['sender_type'] == UserType.user.name ? 0 : null,
+            vendorId: message.data['sender_type'] == UserType.vendor.name ? 0 : null,
+          ),
+            null, int.parse(message.data['conversation_id'].toString()),
+          );
+        }else {
+          NotificationHelper.showNotification(message, flutterLocalNotificationsPlugin);
         }
       }else if(message.data['type'] == 'message' && Get.currentRoute.startsWith(RouteHelper.conversationListScreen)) {
-        if(Get.find<AuthController>().isLoggedIn()) {
-          Get.find<ChatController>().getConversationList(1, type: Get.find<ChatController>().type);
-        }
+        // Auth removed - always process messages
+        Get.find<ChatController>().getConversationList(1, type: Get.find<ChatController>().type);
         NotificationHelper.showNotification(message, flutterLocalNotificationsPlugin);
       }else if(message.data['type'] == 'maintenance'){
       }else {
@@ -87,7 +86,7 @@ class NotificationHelper {
 
         if (type != 'assign' && type != 'new_order' && type != 'order_request') {
           NotificationHelper.showNotification(message, flutterLocalNotificationsPlugin);
-          Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus!);
+          Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus ?? 'all');
           Get.find<OrderController>().getLatestOrders();
         }
       }

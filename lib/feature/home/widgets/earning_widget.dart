@@ -21,13 +21,13 @@ class EarningWidget extends StatelessWidget {
       const SizedBox(height: Dimensions.paddingSizeSmall),
 
       amount != null ? Text(
-        PriceConverter.convertPrice(amount),
+        PriceConverter.convertPrice(amount!),
         style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeExtraLarge, color: ColorResources.white),
         maxLines: 1, overflow: TextOverflow.ellipsis,
       ) : Shimmer(
         duration: const Duration(seconds: 2),
         enabled: amount == null,
-        color: Colors.grey[500]!,
+        color: Colors.grey[500] ?? Colors.grey,
         child: Container(height: 20, width: 40, color: Theme.of(context).cardColor),
       ),
 

@@ -82,12 +82,12 @@ class CancellationDialogueWidget extends StatelessWidget {
                       orderController.updateOrderStatus(orderId, 'canceled', back: true, reason: orderController.cancelReason).then((success) {
                         if(success) {
                           Get.find<ProfileController>().getProfile();
-                          Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus!);
+                          Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus ?? 'all');
                         }
                       });
 
                     }else{
-                      if(Get.isDialogOpen!){
+                      if(Get.isDialogOpen ?? false){
                         Get.back();
                       }
 

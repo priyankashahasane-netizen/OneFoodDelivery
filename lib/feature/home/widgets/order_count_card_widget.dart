@@ -17,7 +17,7 @@ class OrderCountCardWidget extends StatelessWidget {
         child: Column(children: [
 
           value != null ? Text(
-            value!, style: robotoBold.copyWith(fontSize: Dimensions.fontSizeExtraLarge, color: Theme.of(context).textTheme.bodyLarge?.color), textAlign: TextAlign.center,
+            value ?? '', style: robotoBold.copyWith(fontSize: Dimensions.fontSizeExtraLarge, color: Theme.of(context).textTheme.bodyLarge?.color), textAlign: TextAlign.center,
             maxLines: 1, overflow: TextOverflow.ellipsis,
           ) : Shimmer(
             duration: const Duration(seconds: 2),

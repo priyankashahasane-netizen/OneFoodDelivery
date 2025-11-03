@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "module": "esnext",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "es2022",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./src",
+    "incremental": true,
+    "strict": false,
+    "skipLibCheck": true,
+    "strictPropertyInitialization": false,
+    "noImplicitAny": false,
+    "moduleResolution": "node",
+    "paths": {
+      "@app/*": ["./*"]
+    }
+  }
+}
+
+

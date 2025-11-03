@@ -5,22 +5,50 @@ class AppConstants {
   static const String appName = 'StackFood Delivery';
   static const double appVersion = 8.2;
 
-  static const String baseUrl = 'https://stackfood-admin.6amtech.com';
+  static const String baseUrl = 'http://localhost:3000';
+  static const String trackingBaseUrl = 'http://localhost:3001/track';
+  
+  // Authentication
+  static const String loginUri = '/api/v1/auth/delivery-man/login';
+  
+  // Driver Profile
+  static const String driverProfileUri = '/api/drivers/me';
+  static const String driverUpdateUri = '/api/drivers'; // /:id
+  static const String driverCapacityUri = '/api/drivers'; // /:id/capacity
+  static const String driverOnlineStatusUri = '/api/drivers'; // /:id/online
+  
+  // Orders
+  static const String availableOrdersUri = '/api/orders/available';
+  static const String activeOrdersUri = '/api/orders/driver'; // /:driverId/active
+  static const String orderDetailsUri = '/api/orders'; // /:id
+  static const String updateOrderStatusUri = '/api/orders'; // /:id/status
+  
+  // Assignments (Accept Orders)
+  static const String acceptOrderUri = '/api/assignments/assign';
+  
+  // Routes
+  static const String optimizeRouteUri = '/api/routes/optimize';
+  static const String latestRouteUri = '/api/routes/driver'; // /:driverId/latest
+  
+  // Tracking
+  static const String recordLocationUri = '/api/track'; // /:orderId
+  
+  // Legacy endpoints (keep for backward compatibility during migration)
+  @Deprecated('Use availableOrdersUri instead')
+  static const String latestOrdersUri = '/api/v1/delivery-man/latest-orders?token=';
+  @Deprecated('Use activeOrdersUri instead')
+  static const String currentOrdersUri = '/api/v1/delivery-man/current-orders';
+  @Deprecated('Use driverProfileUri instead')
+  static const String profileUri = '/api/v1/delivery-man/profile?token=';
+  
+  // Other legacy endpoints (may still be needed for some features)
   static const String configUri = '/api/v1/config';
   static const String forgerPasswordUri = '/api/v1/auth/delivery-man/forgot-password';
   static const String verifyTokenUri = '/api/v1/auth/delivery-man/verify-token';
   static const String resetPasswordUri = '/api/v1/auth/delivery-man/reset-password';
-  static const String loginUri = '/api/v1/auth/delivery-man/login';
   static const String tokenUri = '/api/v1/delivery-man/update-fcm-token';
-  static const String currentOrdersUri = '/api/v1/delivery-man/current-orders';
   static const String allOrdersUri = '/api/v1/delivery-man/all-orders';
-  static const String latestOrdersUri = '/api/v1/delivery-man/latest-orders?token=';
-  static const String recordLocationUri = '/api/v1/delivery-man/record-location-data';
-  static const String profileUri = '/api/v1/delivery-man/profile?token=';
-  static const String updateOrderStatusUri = '/api/v1/delivery-man/update-order-status';
   static const String updatePaymentStatusUri = '/api/v1/delivery-man/update-payment-status';
-  static const String orderDetailsUri = '/api/v1/delivery-man/order-details?token=';
-  static const String acceptOrderUri = '/api/v1/delivery-man/accept-order';
   static const String activeStatusUri = '/api/v1/delivery-man/update-active-status';
   static const String updateProfileUri = '/api/v1/delivery-man/update-profile';
   static const String notificationUri = '/api/v1/delivery-man/notifications?token=';

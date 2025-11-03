@@ -1,4 +1,4 @@
-import 'package:stackfood_multivendor_driver/feature/auth/controllers/auth_controller.dart';
+// Auth removed - no longer using AuthController
 import 'package:stackfood_multivendor_driver/feature/disbursements/controllers/disbursement_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/disbursements/domain/models/disbursement_report_model.dart';
 import 'package:stackfood_multivendor_driver/feature/disbursements/widgets/disbursement_status_card_widget.dart';
@@ -50,7 +50,7 @@ class _DisbursementScreenState extends State<DisbursementScreen> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(200),
                 child: CustomImageWidget(
-                  image: (profileController.profileModel != null && Get.find<AuthController>().isLoggedIn()) ? profileController.profileModel!.imageFullUrl ?? '' : '',
+                  image: (profileController.profileModel != null) ? profileController.profileModel!.imageFullUrl ?? '' : '',
                   width: 35, height: 35, fit: BoxFit.cover,
                 ),
               ),

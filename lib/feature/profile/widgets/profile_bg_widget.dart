@@ -34,13 +34,14 @@ class ProfileBgWidget extends StatelessWidget {
           ),
         ),
 
-        Positioned(
+        // Title hidden when backButton is false (AppBar is used instead)
+        backButton ? Positioned(
           top: MediaQuery.of(context).padding.top+10, left: 0, right: 0,
           child: Text(
             'profile'.tr, textAlign: TextAlign.center,
             style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeLarge, color: Theme.of(context).cardColor),
           ),
-        ),
+        ) : const SizedBox(),
 
         backButton ? Positioned(
           top: MediaQuery.of(context).padding.top, left: 10,

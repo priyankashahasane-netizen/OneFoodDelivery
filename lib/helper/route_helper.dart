@@ -1,7 +1,5 @@
 import 'dart:convert';
 import 'package:stackfood_multivendor_driver/feature/Incentive/screens/incentive_screen.dart';
-import 'package:stackfood_multivendor_driver/feature/auth/screens/delivery_man_registration_screen.dart';
-import 'package:stackfood_multivendor_driver/feature/auth/screens/sign_in_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/notification/domain/models/notification_body_model.dart';
 import 'package:stackfood_multivendor_driver/feature/chat/domain/models/conversation_model.dart';
 import 'package:stackfood_multivendor_driver/feature/cash_in_hand/screens/cash_in_hand_screen.dart';
@@ -14,9 +12,6 @@ import 'package:stackfood_multivendor_driver/feature/dashboard/screens/dashboard
 import 'package:stackfood_multivendor_driver/feature/disbursements/screens/add_withdraw_method_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/disbursements/screens/disbursement_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/disbursements/screens/withdraw_method_screen.dart';
-import 'package:stackfood_multivendor_driver/feature/forgot_password/screens/forgot_password_screen.dart';
-import 'package:stackfood_multivendor_driver/feature/forgot_password/screens/new_password_screen.dart';
-import 'package:stackfood_multivendor_driver/feature/forgot_password/screens/verification_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/html/screens/html_viewer_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/language/screens/language_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/notification/screens/notification_screen.dart';
@@ -30,11 +25,7 @@ import 'package:get/get.dart';
 class RouteHelper {
   static const String initial = '/';
   static const String splash = '/splash';
-  static const String signIn = '/sign-in';
-  static const String verification = '/verification';
   static const String main = '/main';
-  static const String forgotPassword = '/forgot-password';
-  static const String resetPassword = '/reset-password';
   static const String orderDetails = '/order-details';
   static const String updateProfile = '/update-profile';
   static const String notification = '/notification';
@@ -45,7 +36,6 @@ class RouteHelper {
   static const String update = '/update';
   static const String chatScreen = '/chat-screen';
   static const String conversationListScreen = '/conversation-list-screen';
-  static const String deliveryManRegistration = '/delivery-man-registration';
   static const String incentive = '/incentive';
   static const String cashInHand = '/cash-in-hand';
   static const String disbursement = '/disbursement';
@@ -65,17 +55,7 @@ class RouteHelper {
     }
     return '$splash?data=$data';
   }
-  static String getSignInRoute() => signIn;
-  static String getVerificationRoute(String number, {String? session}){
-    String? authSession;
-    if(session != null) {
-      authSession = base64Url.encode(utf8.encode(session));
-    }
-    return '$verification?number=$number&session=$authSession';
-  }
   static String getMainRoute(String page) => '$main?page=$page';
-  static String getForgotPassRoute() => forgotPassword;
-  static String getResetPasswordRoute(String? phone, String token, String page) => '$resetPassword?phone=$phone&token=$token&page=$page';
   static String getOrderDetailsRoute(int? id, {bool fromNotification = false}) => '$orderDetails?id=$id&from_notification=${fromNotification.toString()}';
   static String getUpdateProfileRoute() => updateProfile;
   static String getNotificationRoute({bool fromNotification = false}) => '$notification?from_notification=${fromNotification.toString()}';
@@ -98,7 +78,6 @@ class RouteHelper {
     return '$chatScreen?notification_body=$notificationBody0&user=$user0&conversation_id=$conversationId&from_notification=${fromNotification.toString()}';
   }
   static String getConversationListRoute() => conversationListScreen;
-  static String getDeliverymanRegistrationRoute() => deliveryManRegistration;
   static String getIncentiveRoute() => incentive;
   static String getCashInHandRoute() => cashInHand;
   static String getDisbursementRoute() => disbursement;
@@ -121,21 +100,9 @@ class RouteHelper {
       }
       return SplashScreen(body: data);
     }),
-    GetPage(name: signIn, page: () => SignInViewScreen()),
-    GetPage(name: verification, page: () {
-      String? session;
-      if(Get.parameters['session'] != null && Get.parameters['session'] != 'null') {
-        session = utf8.decode(base64Url.decode(Get.parameters['session'] ?? ''));
-      }
-      return VerificationScreen(number: Get.parameters['number'], firebaseSession: session);
-    }),
     GetPage(name: main, page: () => DashboardScreen(
       pageIndex: Get.parameters['page'] == 'home' ? 0 : Get.parameters['page'] == 'order-request' ? 1
           : Get.parameters['page'] == 'order' ? 2 : Get.parameters['page'] == 'profile' ? 3 : 0,
-    )),
-    GetPage(name: forgotPassword, page: () => const ForgotPasswordScreen()),
-    GetPage(name: resetPassword, page: () => NewPasswordScreen(
-      resetToken: Get.parameters['token'], number: Get.parameters['phone'], fromPasswordChange: Get.parameters['page'] == 'password-change',
     )),
     GetPage(name: orderDetails, page: () {
       OrderDetailsScreen? orderDetails = Get.arguments;
@@ -166,7 +133,8 @@ class RouteHelper {
       );
     }),
     GetPage(name: conversationListScreen, page: () => const ConversationScreen()),
-    GetPage(name: deliveryManRegistration, page: () => const DeliveryManRegistrationScreen()),
+    // Delivery man registration removed - simplified to JWT auth only
+    // GetPage(name: deliveryManRegistration, page: () => const DeliveryManRegistrationScreen()),
     GetPage(name: incentive, page: () => const IncentiveScreen()),
     GetPage(name: cashInHand, page: () => const CashInHandScreen()),
     GetPage(name: disbursement, page: () => const DisbursementScreen()),

@@ -1,0 +1,54 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+
+jobs:
+  deploy-staging:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure kubectl
+        run: |
+          # Add your kubectl configuration here
+          # Example for GKE:
+          # echo "${{ secrets.GKE_SA_KEY }}" | base64 -d > gke-key.json
+          # gcloud auth activate-service-account --key-file=gke-key.json
+          # gcloud container clusters get-credentials ${{ secrets.GKE_CLUSTER }} --zone ${{ secrets.GKE_ZONE }}
+          
+      - name: Deploy to staging
+        run: |
+          kubectl set image deployment/backend backend=stackdelivery/backend:${{ github.sha }} -n staging || true
+          kubectl set image deployment/tracking-web tracking-web=stackdelivery/tracking-web:${{ github.sha }} -n staging || true
+          kubectl set image deployment/admin-dashboard admin-dashboard=stackdelivery/admin-dashboard:${{ github.sha }} -n staging || true
+          kubectl rollout status deployment/backend -n staging
+          kubectl rollout status deployment/tracking-web -n staging
+          kubectl rollout status deployment/admin-dashboard -n staging
+
+  deploy-production:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure kubectl
+        run: |
+          # Add your kubectl configuration here
+          
+      - name: Deploy to production
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          kubectl set image deployment/backend backend=stackdelivery/backend:$TAG -n production || true
+          kubectl set image deployment/tracking-web tracking-web=stackdelivery/tracking-web:$TAG -n production || true
+          kubectl set image deployment/admin-dashboard admin-dashboard=stackdelivery/admin-dashboard:$TAG -n production || true
+          kubectl rollout status deployment/backend -n production
+          kubectl rollout status deployment/tracking-web -n production
+          kubectl rollout status deployment/admin-dashboard -n production
+
+

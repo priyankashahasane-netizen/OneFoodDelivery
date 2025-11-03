@@ -47,18 +47,14 @@ class HistoryOrderWidget extends StatelessWidget {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeExtraSmall, vertical: 3),
                 decoration: BoxDecoration(
-                  color: orderModel.orderStatus == 'pending' ? ColorResources.blue.withValues(alpha: 0.1)
-                    : (orderModel.orderStatus == 'accepted' || orderModel.orderStatus == 'confirmed' || orderModel.orderStatus == 'delivered') ? ColorResources.green.withValues(alpha: 0.1)
-                    : orderModel.orderStatus == 'canceled' ? ColorResources.red.withValues(alpha: 0.1) : Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                  color: _getStatusBackgroundColor(context, orderModel.orderStatus),
                   borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
                 ),
                 child: Text(
                   orderModel.orderStatus!.toTitleCase(),
                   style: robotoMedium.copyWith(
                     fontSize: Dimensions.fontSizeSmall,
-                    color: orderModel.orderStatus == 'pending' ? ColorResources.blue
-                      : (orderModel.orderStatus == 'accepted' || orderModel.orderStatus == 'confirmed' || orderModel.orderStatus == 'delivered') ? ColorResources.green
-                      : orderModel.orderStatus == 'canceled' ? ColorResources.red : Theme.of(context).primaryColor,
+                    color: _getStatusTextColor(context, orderModel.orderStatus),
                   ),
                 ),
               ),
@@ -99,5 +95,53 @@ class HistoryOrderWidget extends StatelessWidget {
         ]),
       ),
     );
+  }
+
+  /// Get background color for order status badge
+  Color _getStatusBackgroundColor(BuildContext context, String? status) {
+    if (status == null) return Theme.of(context).primaryColor.withValues(alpha: 0.1);
+    
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return ColorResources.blue.withValues(alpha: 0.1);
+      case 'accepted':
+      case 'confirmed':
+      case 'delivered':
+        return ColorResources.green.withValues(alpha: 0.1);
+      case 'canceled':
+        return ColorResources.red.withValues(alpha: 0.1);
+      case 'refund_requested':
+        return ColorResources.orange.withValues(alpha: 0.1);
+      case 'refunded':
+        return ColorResources.yellow.withValues(alpha: 0.1);
+      case 'refund_request_canceled':
+        return ColorResources.blue.withValues(alpha: 0.1);
+      default:
+        return Theme.of(context).primaryColor.withValues(alpha: 0.1);
+    }
+  }
+
+  /// Get text color for order status badge
+  Color _getStatusTextColor(BuildContext context, String? status) {
+    if (status == null) return Theme.of(context).primaryColor;
+    
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return ColorResources.blue;
+      case 'accepted':
+      case 'confirmed':
+      case 'delivered':
+        return ColorResources.green;
+      case 'canceled':
+        return ColorResources.red;
+      case 'refund_requested':
+        return ColorResources.orange;
+      case 'refunded':
+        return ColorResources.yellow;
+      case 'refund_request_canceled':
+        return ColorResources.blue;
+      default:
+        return Theme.of(context).primaryColor;
+    }
   }
 }

@@ -108,4 +108,19 @@ class OrderService implements OrderServiceInterface {
     return multiParts;
   }
 
+  @override
+  Future<List<OrderModel>?> getAvailableOrders(String? driverId) async {
+    return await orderRepositoryInterface.getAvailableOrders(driverId);
+  }
+
+  @override
+  Future<List<OrderModel>?> getActiveOrders(String driverId) async {
+    return await orderRepositoryInterface.getActiveOrders(driverId);
+  }
+
+  @override
+  Future<ResponseModel> updateOrderStatusNew(String orderId, String status) async {
+    return await orderRepositoryInterface.updateOrderStatusNew(orderId, status);
+  }
+
 }

@@ -2,7 +2,6 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stackfood_multivendor_driver/api/api_client.dart';
-import 'package:stackfood_multivendor_driver/feature/auth/domain/models/vehicle_model.dart';
 import 'package:stackfood_multivendor_driver/feature/auth/domain/repositories/auth_repository_interface.dart';
 import 'package:stackfood_multivendor_driver/util/app_constants.dart';
 
@@ -14,23 +13,6 @@ class AuthRepository implements AuthRepositoryInterface {
   @override
   Future<Response> login(String phone, String password) async {
     return await apiClient.postData(AppConstants.loginUri, {"phone": phone, "password": password}, handleError: false);
-  }
-
-  @override
-  Future<bool> registerDeliveryMan(Map<String, String> data, List<MultipartBody> multiParts, List<MultipartDocument> additionalDocument) async {
-    Response response = await apiClient.postMultipartData(AppConstants.dmRegisterUri, data, multiParts, additionalDocument);
-    return (response.statusCode == 200);
-  }
-
-  @override
-  Future<List<VehicleModel>?> getList() async {
-    List<VehicleModel>? vehicles;
-    Response response = await apiClient.getData(AppConstants.vehiclesUri);
-    if(response.statusCode == 200) {
-      vehicles = [];
-      response.body.forEach((vehicle) => vehicles!.add(VehicleModel.fromJson(vehicle)));
-    }
-    return vehicles;
   }
 
   @override
@@ -133,24 +115,5 @@ class AuthRepository implements AuthRepositoryInterface {
     return deviceToken;
   }
 
-  @override
-  Future add(value) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future delete(int id) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future get(int id) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future update(Map<String, dynamic> body) {
-    throw UnimplementedError();
-  }
 
 }

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:stackfood_multivendor_driver/feature/auth/controllers/auth_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/dashboard/screens/dashboard_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/splash/controllers/splash_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/notification/domain/models/notification_body_model.dart';
@@ -10,6 +9,8 @@ import 'package:stackfood_multivendor_driver/util/app_constants.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/util/images.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
+import 'package:stackfood_multivendor_driver/feature/auth/controllers/auth_controller.dart';
+import 'package:stackfood_multivendor_driver/common/models/response_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -31,7 +32,11 @@ class SplashScreenState extends State<SplashScreen> {
 
     bool firstTime = true;
     _onConnectivityChanged = Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> result) {
-      bool isConnected = result.contains(ConnectivityResult.wifi) || result.contains(ConnectivityResult.mobile);
+      // Fix: Include ethernet and check for any non-none connection (macOS support)
+      bool isConnected = result.contains(ConnectivityResult.wifi) || 
+                         result.contains(ConnectivityResult.mobile) ||
+                         result.contains(ConnectivityResult.ethernet) ||
+                         result.any((r) => r != ConnectivityResult.none);
 
       if(!firstTime) {
         ScaffoldMessenger.of(Get.context!).hideCurrentSnackBar();
@@ -106,19 +111,75 @@ class SplashScreenState extends State<SplashScreen> {
                 Get.toNamed(RouteHelper.getNotificationRoute(fromNotification: true));
               }
             }else{
-              if (Get.find<AuthController>().isLoggedIn()) {
-                Get.find<AuthController>().updateToken();
-                await Get.find<ProfileController>().getProfile();
-                Get.offNamed(RouteHelper.getInitialRoute());
-              } else {
-                if(AppConstants.languages.length > 1 && Get.find<SplashController>().showLanguageIntro()){
-                  Get.offNamed(RouteHelper.getLanguageRoute());
-                }else{
-                  Get.offNamed(RouteHelper.getSignInRoute());
+              // Auto-login with demo account if not already logged in
+              AuthController authController = Get.find<AuthController>();
+              
+              if(!authController.isLoggedIn()) {
+                // Demo account credentials
+                String demoPhone = '+919975008124'; // or '9975008124'
+                String demoPassword = 'Pri@0110';
+                
+                // Attempt auto-login
+                try {
+                  ResponseModel loginResult = await authController.login(demoPhone, demoPassword);
+                  
+                  if(loginResult.isSuccess && authController.getUserToken().isNotEmpty) {
+                    // Login successful - fetch profile
+                    try {
+                      await Get.find<ProfileController>().getProfile();
+                    } catch (e) {
+                      debugPrint('Profile fetch failed: $e');
+                      // Continue anyway
+                    }
+                    // Navigate to home screen
+                    Get.offAllNamed(RouteHelper.getInitialRoute());
+                  } else {
+                    // Login failed - navigate anyway (might work with cached token)
+                    debugPrint('Auto-login failed: ${loginResult.message}');
+                    Get.offAllNamed(RouteHelper.getInitialRoute());
+                  }
+                } catch (e) {
+                  debugPrint('Auto-login error: $e');
+                  // Navigate anyway - might have cached token
+                  Get.offAllNamed(RouteHelper.getInitialRoute());
                 }
+              } else {
+                // Already logged in - just fetch profile and navigate
+                try {
+                  await Get.find<ProfileController>().getProfile();
+                } catch (e) {
+                  debugPrint('Profile fetch failed: $e');
+                }
+                Get.offAllNamed(RouteHelper.getInitialRoute());
               }
             }
           }
+        });
+      } else {
+        // Config fetch failed - try to auto-login anyway
+        Timer(const Duration(seconds: 1), () async {
+          AuthController authController = Get.find<AuthController>();
+          
+          if(!authController.isLoggedIn()) {
+            try {
+              String demoPhone = '+919975008124';
+              String demoPassword = 'Pri@0110';
+              ResponseModel loginResult = await authController.login(demoPhone, demoPassword);
+              
+              if(loginResult.isSuccess && authController.getUserToken().isNotEmpty) {
+                try {
+                  await Get.find<ProfileController>().getProfile();
+                } catch (e) {
+                  debugPrint('Profile fetch failed: $e');
+                }
+              }
+            } catch (e) {
+              debugPrint('Auto-login error: $e');
+            }
+          }
+          
+          // Navigate to home regardless
+          Get.offAllNamed(RouteHelper.getInitialRoute());
         });
       }
     });

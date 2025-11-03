@@ -1,0 +1,45 @@
+name: Docker Build
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/backend
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            stackdelivery/backend:latest
+            stackdelivery/backend:${{ github.sha }}
+
+      - name: Build tracking-web
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/tracking-web
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            stackdelivery/tracking-web:latest
+            stackdelivery/tracking-web:${{ github.sha }}
+
+      - name: Build admin-dashboard
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/admin-dashboard
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            stackdelivery/admin-dashboard:latest
+            stackdelivery/admin-dashboard:${{ github.sha }}
+
+

@@ -10,7 +10,8 @@ import 'package:stackfood_multivendor_driver/feature/profile/controllers/profile
 import 'package:stackfood_multivendor_driver/util/images.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_app_bar_widget.dart';
 import 'package:flutter/services.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' as ll;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -27,8 +28,8 @@ class OrderLocationScreen extends StatefulWidget {
 
 class _OrderLocationScreenState extends State<OrderLocationScreen> {
 
-  GoogleMapController? _controller;
-  final Set<Marker> _markers = HashSet<Marker>();
+  final MapController _mapController = MapController();
+  final List<Marker> _markers = [];
 
   @override
   Widget build(BuildContext context) {
@@ -38,18 +39,19 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
 
       body: Stack(children: [
 
-        GoogleMap(
-          initialCameraPosition: CameraPosition(target: LatLng(
-            double.parse(widget.orderModel.deliveryAddress?.latitude??'0'), double.parse(widget.orderModel.deliveryAddress?.longitude??'0'),
-          ), zoom: 16),
-          minMaxZoomPreference: const MinMaxZoomPreference(0, 16),
-          zoomControlsEnabled: false,
-          markers: _markers,
-          style: Get.isDarkMode ? Get.find<ThemeController>().darkMap : Get.find<ThemeController>().lightMap,
-          onMapCreated: (GoogleMapController controller) {
-            _controller = controller;
-            _setMarker(widget.orderModel);
-          },
+        FlutterMap(
+          mapController: _mapController,
+          options: MapOptions(
+            initialCenter: ll.LatLng(
+              double.parse(widget.orderModel.deliveryAddress?.latitude ?? '0'),
+              double.parse(widget.orderModel.deliveryAddress?.longitude ?? '0'),
+            ),
+            initialZoom: 16,
+          ),
+          children: [
+            TileLayer(urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', subdomains: const ['a','b','c']),
+            MarkerLayer(markers: _markers),
+          ],
         ),
 
         Positioned(
@@ -79,20 +81,19 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
       double deliveryManLng = Get.find<ProfileController>().recordLocationBody?.longitude ?? 0;
 
       // Determine bounds based on locations
+      final minLat = min(deliveryLat, min(restaurantLat, deliveryManLat));
+      final minLng = min(deliveryLng, min(restaurantLng, deliveryManLng));
+      final maxLat = max(deliveryLat, max(restaurantLat, deliveryManLat));
+      final maxLng = max(deliveryLng, max(restaurantLng, deliveryManLng));
+      
       bounds = LatLngBounds(
-        southwest: LatLng(
-          min(deliveryLat, min(restaurantLat, deliveryManLat)),
-          min(deliveryLng, min(restaurantLng, deliveryManLng)),
-        ),
-        northeast: LatLng(
-          max(deliveryLat, max(restaurantLat, deliveryManLat)),
-          max(deliveryLng, max(restaurantLng, deliveryManLng)),
-        ),
+        ll.LatLng(minLat, minLng),
+        ll.LatLng(maxLat, maxLng),
       );
 
-      LatLng centerBounds = LatLng(
-        (bounds.northeast.latitude + bounds.southwest.latitude) / 2,
-        (bounds.northeast.longitude + bounds.southwest.longitude) / 2,
+      ll.LatLng centerBounds = ll.LatLng(
+        (bounds.northEast.latitude + bounds.southWest.latitude) / 2,
+        (bounds.northEast.longitude + bounds.southWest.longitude) / 2,
       );
 
       if (kDebugMode) {
@@ -100,7 +101,7 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
       }
 
       // Zoom to fit bounds
-      _controller!.moveCamera(CameraUpdate.newLatLngBounds(bounds, 50));
+      _mapController.fitCamera(CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(50)));
 
       // Clear previous markers
       _markers.clear();
@@ -108,39 +109,30 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
       // Add destination marker (delivery address)
       if (orderModel.deliveryAddress != null) {
         _markers.add(Marker(
-          markerId: const MarkerId('destination'),
-          position: LatLng(deliveryLat, deliveryLng),
-          infoWindow: InfoWindow(
-            title: 'Destination',
-            snippet: orderModel.deliveryAddress?.address,
-          ),
-          icon: BitmapDescriptor.bytes(destinationImageData, height: 40, width: 40),
+          point: ll.LatLng(deliveryLat, deliveryLng),
+          width: 40,
+          height: 40,
+          child: Image.memory(destinationImageData, width: 40, height: 40),
         ));
       }
 
       // Add restaurant marker
       if (orderModel.restaurantLat != null && orderModel.restaurantLng != null) {
         _markers.add(Marker(
-          markerId: const MarkerId('restaurant'),
-          position: LatLng(restaurantLat, restaurantLng),
-          infoWindow: InfoWindow(
-            title: orderModel.restaurantName,
-            snippet: orderModel.restaurantAddress,
-          ),
-          icon: BitmapDescriptor.bytes(restaurantImageData, height: 40, width: 40),
+          point: ll.LatLng(restaurantLat, restaurantLng),
+          width: 40,
+          height: 40,
+          child: Image.memory(restaurantImageData, width: 40, height: 40),
         ));
       }
 
       // Add delivery boy marker
       if (Get.find<ProfileController>().recordLocationBody != null) {
         _markers.add(Marker(
-          markerId: const MarkerId('delivery_boy'),
-          position: LatLng(deliveryManLat, deliveryManLng),
-          infoWindow: InfoWindow(
-            title: '${Get.find<ProfileController>().profileModel?.fName ?? ''} ${Get.find<ProfileController>().profileModel?.lName ?? ''}',
-            snippet: Get.find<ProfileController>().recordLocationBody?.location,
-          ),
-          icon: BitmapDescriptor.bytes(deliveryBoyImageData, height: 40, width: 40),
+          point: ll.LatLng(deliveryManLat, deliveryManLng),
+          width: 40,
+          height: 40,
+          child: Image.memory(deliveryBoyImageData, width: 40, height: 40),
         ));
       }
     } catch (e) {

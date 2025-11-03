@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_button_widget.dart';
-import 'package:stackfood_multivendor_driver/feature/auth/controllers/auth_controller.dart';
+// Auth removed - no longer using AuthController
 import 'package:stackfood_multivendor_driver/feature/order/controllers/order_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/controllers/profile_controller.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
@@ -19,10 +19,9 @@ class CustomConfirmationBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<OrderController>(builder: (orderController) {
+      return GetBuilder<OrderController>(builder: (orderController) {
       return GetBuilder<ProfileController>(builder: (profileController) {
-        return GetBuilder<AuthController>(builder: (authController) {
-          return Container(
+        return Container(
             width: context.width,
             padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
             decoration: BoxDecoration(
@@ -87,7 +86,7 @@ class CustomConfirmationBottomSheet extends StatelessWidget {
                   Expanded(
                     child: CustomButtonWidget(
                       onPressed: () => onConfirm(),
-                      isLoading: orderController.isLoading || authController.isLoading || profileController.isLoading || profileController.shiftLoading,
+                      isLoading: orderController.isLoading || profileController.isLoading || profileController.shiftLoading,
                       buttonText: confirmButtonText ?? 'accept'.tr,
                       backgroundColor: Theme.of(context).primaryColor,
                     ),
@@ -99,7 +98,6 @@ class CustomConfirmationBottomSheet extends StatelessWidget {
             ]),
 
           );
-        });
       });
     });
   }

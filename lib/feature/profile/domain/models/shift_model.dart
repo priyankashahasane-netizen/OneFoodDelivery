@@ -19,9 +19,12 @@ class ShiftModel {
 
   ShiftModel.fromJson(Map<String, dynamic> json) {
     id = json['id'];
-    name = json['name'];
-    startTime = json['start_time'];
-    endTime = json['end_time'];
+    // Handle both 'name' and 'shift_name' for backward compatibility
+    name = json['name'] ?? json['shift_name'];
+    // Handle both 'start_time' and 'shift_start_time' for backward compatibility
+    startTime = json['start_time'] ?? json['shift_start_time'];
+    // Handle both 'end_time' and 'shift_end_time' for backward compatibility
+    endTime = json['end_time'] ?? json['shift_end_time'];
     status = json['status'];
     createdAt = json['created_at'];
     updatedAt = json['updated_at'];

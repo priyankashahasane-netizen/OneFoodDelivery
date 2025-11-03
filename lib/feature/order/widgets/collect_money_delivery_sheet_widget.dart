@@ -76,7 +76,7 @@ class CollectMoneyDeliverySheetWidget extends StatelessWidget {
                   Get.find<OrderController>().updateOrderStatus(orderID, 'delivered').then((success) {
                     if(success) {
                       Get.find<ProfileController>().getProfile();
-                      Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus!);
+                      Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus ?? 'all');
                       Get.offAllNamed(RouteHelper.getInitialRoute());
                     }
                   });

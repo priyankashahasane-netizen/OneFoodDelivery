@@ -1,19 +1,4 @@
 import 'dart:convert';
-import 'package:stackfood_multivendor_driver/feature/auth/controllers/address_controller.dart';
-import 'package:stackfood_multivendor_driver/feature/auth/controllers/auth_controller.dart';
-import 'package:stackfood_multivendor_driver/feature/forgot_password/controllers/forgot_password_controller.dart';
-import 'package:stackfood_multivendor_driver/feature/auth/domain/repositories/address_repository.dart';
-import 'package:stackfood_multivendor_driver/feature/auth/domain/repositories/address_repository_interface.dart';
-import 'package:stackfood_multivendor_driver/feature/auth/domain/repositories/auth_repository.dart';
-import 'package:stackfood_multivendor_driver/feature/auth/domain/repositories/auth_repository_interface.dart';
-import 'package:stackfood_multivendor_driver/feature/forgot_password/domain/repositories/forgot_password_repository.dart';
-import 'package:stackfood_multivendor_driver/feature/forgot_password/domain/repositories/forgot_password_repository_interface.dart';
-import 'package:stackfood_multivendor_driver/feature/auth/domain/services/address_service.dart';
-import 'package:stackfood_multivendor_driver/feature/auth/domain/services/address_service_interface.dart';
-import 'package:stackfood_multivendor_driver/feature/auth/domain/services/auth_service.dart';
-import 'package:stackfood_multivendor_driver/feature/auth/domain/services/auth_service_interface.dart';
-import 'package:stackfood_multivendor_driver/feature/forgot_password/domain/services/forgot_password_service.dart';
-import 'package:stackfood_multivendor_driver/feature/forgot_password/domain/services/forgot_password_service_interface.dart';
 import 'package:stackfood_multivendor_driver/feature/cash_in_hand/controllers/cash_in_hand_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/cash_in_hand/domain/repositories/cash_in_hand_repository.dart';
 import 'package:stackfood_multivendor_driver/feature/cash_in_hand/domain/repositories/cash_in_hand_repository_interface.dart';
@@ -52,6 +37,12 @@ import 'package:stackfood_multivendor_driver/feature/profile/domain/repositories
 import 'package:stackfood_multivendor_driver/feature/profile/domain/repositories/profile_repository_interface.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/domain/services/profile_service.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/domain/services/profile_service_interface.dart';
+import 'package:stackfood_multivendor_driver/feature/dashboard/controllers/drawer_controller.dart' as drawer_ctrl;
+import 'package:stackfood_multivendor_driver/feature/auth/controllers/auth_controller.dart';
+import 'package:stackfood_multivendor_driver/feature/auth/domain/repositories/auth_repository.dart';
+import 'package:stackfood_multivendor_driver/feature/auth/domain/repositories/auth_repository_interface.dart';
+import 'package:stackfood_multivendor_driver/feature/auth/domain/services/auth_service.dart';
+import 'package:stackfood_multivendor_driver/feature/auth/domain/services/auth_service_interface.dart';
 import 'package:stackfood_multivendor_driver/feature/splash/domain/repositories/splash_repository.dart';
 import 'package:stackfood_multivendor_driver/feature/splash/domain/repositories/splash_repository_interface.dart';
 import 'package:stackfood_multivendor_driver/feature/splash/domain/services/splash_service.dart';
@@ -69,9 +60,6 @@ Future<Map<String, Map<String, String>>> init() async {
   Get.lazyPut(() => ApiClient(appBaseUrl: AppConstants.baseUrl, sharedPreferences: Get.find()));
 
   ///Repository Interface
-  AuthRepositoryInterface authRepositoryInterface = AuthRepository(apiClient: Get.find(), sharedPreferences: Get.find());
-  Get.lazyPut(() => authRepositoryInterface);
-
   ProfileRepositoryInterface profileRepositoryInterface = ProfileRepository(apiClient: Get.find(), sharedPreferences: Get.find());
   Get.lazyPut(() => profileRepositoryInterface);
 
@@ -93,19 +81,13 @@ Future<Map<String, Map<String, String>>> init() async {
   OrderRepositoryInterface orderRepositoryInterface = OrderRepository(apiClient: Get.find(), sharedPreferences: Get.find());
   Get.lazyPut(() => orderRepositoryInterface);
 
-  ForgotPasswordRepositoryInterface forgotPasswordRepositoryInterface = ForgotPasswordRepository(apiClient: Get.find(), sharedPreferences: Get.find());
-  Get.lazyPut(() => forgotPasswordRepositoryInterface);
-
   CashInHandRepositoryInterface cashInHandRepositoryInterface = CashInHandRepository(apiClient: Get.find(), sharedPreferences: Get.find());
   Get.lazyPut(() => cashInHandRepositoryInterface);
 
-  AddressRepositoryInterface addressRepositoryInterface = AddressRepository(apiClient: Get.find(), sharedPreferences: Get.find());
-  Get.lazyPut(() => addressRepositoryInterface);
+  AuthRepositoryInterface authRepositoryInterface = AuthRepository(apiClient: Get.find(), sharedPreferences: Get.find());
+  Get.lazyPut(() => authRepositoryInterface);
 
   ///Service Interface
-  AuthServiceInterface authServiceInterface = AuthService(authRepositoryInterface: Get.find());
-  Get.lazyPut(() => authServiceInterface);
-
   ProfileServiceInterface profileServiceInterface = ProfileService(profileRepositoryInterface: Get.find());
   Get.lazyPut(() => profileServiceInterface);
 
@@ -127,18 +109,14 @@ Future<Map<String, Map<String, String>>> init() async {
   OrderServiceInterface orderServiceInterface = OrderService(orderRepositoryInterface: Get.find());
   Get.lazyPut(() => orderServiceInterface);
 
-  ForgotPasswordServiceInterface forgotPasswordServiceInterface = ForgotPasswordService(forgotPasswordRepositoryInterface: Get.find());
-  Get.lazyPut(() => forgotPasswordServiceInterface);
-
   CashInHandServiceInterface cashInHandServiceInterface = CashInHandService(cashInHandRepositoryInterface: Get.find());
   Get.lazyPut(() => cashInHandServiceInterface);
 
-  AddressServiceInterface addressServiceInterface = AddressService(addressRepositoryInterface: Get.find());
-  Get.lazyPut(() => addressServiceInterface);
+  AuthServiceInterface authServiceInterface = AuthService(authRepositoryInterface: Get.find());
+  Get.lazyPut(() => authServiceInterface);
 
 
   ///Services
-  Get.lazyPut(() => AuthService(authRepositoryInterface: Get.find()));
   Get.lazyPut(() => ProfileService(profileRepositoryInterface: Get.find()));
   Get.lazyPut(() => ChatService(chatRepositoryInterface: Get.find()));
   Get.lazyPut(() => SplashService(splashRepositoryInterface: Get.find()));
@@ -146,13 +124,11 @@ Future<Map<String, Map<String, String>>> init() async {
   Get.lazyPut(() => DisbursementService(disbursementRepositoryInterface: Get.find()));
   Get.lazyPut(() => LanguageService(languageRepositoryInterface: Get.find()));
   Get.lazyPut(() => OrderService(orderRepositoryInterface: Get.find()));
-  Get.lazyPut(() => ForgotPasswordService(forgotPasswordRepositoryInterface: Get.find()));
   Get.lazyPut(() => CashInHandService(cashInHandRepositoryInterface: Get.find()));
-  Get.lazyPut(() => AddressService(addressRepositoryInterface: Get.find()));
+  Get.lazyPut(() => AuthService(authRepositoryInterface: Get.find()));
 
 
   ///Controller
-  Get.lazyPut(() => AuthController(authServiceInterface: Get.find()));
   Get.lazyPut(() => ProfileController(profileServiceInterface: Get.find()));
   Get.lazyPut(() => ChatController(chatServiceInterface: Get.find()));
   Get.lazyPut(() => SplashController(splashServiceInterface: Get.find()));
@@ -161,9 +137,10 @@ Future<Map<String, Map<String, String>>> init() async {
   Get.lazyPut(() => DisbursementController(disbursementServiceInterface: Get.find()));
   Get.lazyPut(() => LocalizationController(languageServiceInterface: Get.find()));
   Get.lazyPut(() => OrderController(orderServiceInterface: Get.find()));
-  Get.lazyPut(() => ForgotPasswordController(forgotPasswordServiceInterface: Get.find()));
   Get.lazyPut(() => CashInHandController(cashInHandServiceInterface: Get.find()));
-  Get.lazyPut(() => AddressController(addressServiceInterface: Get.find()));
+  Get.lazyPut(() => AuthController(authServiceInterface: Get.find()));
+  // Initialize AppDrawerController immediately since it's used early in the app lifecycle
+  Get.put(drawer_ctrl.AppDrawerController(), permanent: true);
 
 
   /// Retrieving localized data

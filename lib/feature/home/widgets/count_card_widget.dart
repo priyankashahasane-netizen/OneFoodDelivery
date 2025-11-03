@@ -22,12 +22,12 @@ class CountCardWidget extends StatelessWidget {
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
 
         value != null ? Text(
-          value!, style: robotoBold.copyWith(fontSize: 40, color: Theme.of(context).textTheme.bodyLarge?.color), textAlign: TextAlign.center,
+          value ?? '', style: robotoBold.copyWith(fontSize: 40, color: Theme.of(context).textTheme.bodyLarge?.color), textAlign: TextAlign.center,
           maxLines: 1, overflow: TextOverflow.ellipsis,
         ) : Shimmer(
           duration: const Duration(seconds: 2),
           enabled: value == null,
-          color: Colors.grey[500]!,
+          color: Colors.grey[500] ?? Colors.grey,
           child: Container(height: 60, width: 50, decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(5))),
         ),
         const SizedBox(height: Dimensions.paddingSizeExtraSmall),

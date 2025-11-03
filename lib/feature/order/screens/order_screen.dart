@@ -25,7 +25,15 @@ class _OrderScreenState extends State<OrderScreen> {
   @override
   void initState() {
     super.initState();
-    Get.find<OrderController>().getCompletedOrders(offset: 1, status: 'all', isUpdate: false);
+    // Use WidgetsBinding to defer setState calls until after build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final orderController = Get.find<OrderController>();
+      // Initialize selected status to 'all' (index 0) if not already set
+      if (orderController.selectedMyOrderStatusIndex == null) {
+        orderController.setSelectedMyOrderStatusIndex(0, 'all');
+      }
+      orderController.getCompletedOrders(offset: 1, status: 'all', isUpdate: false);
+    });
 
     scrollController.addListener(() {
       if (scrollController.position.pixels == scrollController.position.maxScrollExtent

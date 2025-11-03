@@ -1,6 +1,8 @@
 import 'package:stackfood_multivendor_driver/api/api_client.dart';
 import 'package:stackfood_multivendor_driver/feature/order/domain/models/ignore_model.dart';
+import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_model.dart';
 import 'package:stackfood_multivendor_driver/feature/order/domain/models/update_status_body.dart';
+import 'package:stackfood_multivendor_driver/common/models/response_model.dart';
 import 'package:stackfood_multivendor_driver/interface/repository_interface.dart';
 
 abstract class OrderRepositoryInterface implements RepositoryInterface {
@@ -14,4 +16,9 @@ abstract class OrderRepositoryInterface implements RepositoryInterface {
   List<IgnoreModel> getIgnoreList();
   Future<dynamic> getOrderWithId(int? orderId);
   Future<dynamic> getCancelReasons();
+  
+  // New methods for multi-order stacking
+  Future<List<OrderModel>?> getAvailableOrders(String? driverId);
+  Future<List<OrderModel>?> getActiveOrders(String driverId);
+  Future<ResponseModel> updateOrderStatusNew(String orderId, String status);
 }

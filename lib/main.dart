@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:stackfood_multivendor_driver/feature/auth/controllers/auth_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/language/controllers/localization_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/splash/controllers/splash_controller.dart';
 import 'package:stackfood_multivendor_driver/common/controllers/theme_controller.dart';
@@ -79,11 +78,7 @@ class MyApp extends StatelessWidget {
 
   void _route() {
     Get.find<SplashController>().getConfigData().then((bool isSuccess) async {
-      if (isSuccess) {
-        if (Get.find<AuthController>().isLoggedIn()) {
-          Get.find<AuthController>().updateToken();
-        }
-      }
+      // Removed auth check - app starts directly on home screen
     });
   }
 

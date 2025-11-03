@@ -41,6 +41,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:photo_view/photo_view.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:stackfood_multivendor_driver/util/app_constants.dart';
 
 class OrderDetailsScreen extends StatefulWidget {
   final int? orderId;
@@ -71,11 +73,14 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       Get.find<OrderController>().changeDeliveryImageStatus(isUpdate: false);
     }
     if(widget.orderIndex == null){
-      await Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus!);
-      for(int index=0; index<Get.find<OrderController>().currentOrderList!.length; index++) {
-        if(Get.find<OrderController>().currentOrderList![index].id == widget.orderId){
-          orderPosition = index;
-          break;
+      await Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus ?? 'all');
+      final currentOrderList = Get.find<OrderController>().currentOrderList;
+      if(currentOrderList != null) {
+        for(int index=0; index<currentOrderList.length; index++) {
+          if(currentOrderList[index].id == widget.orderId){
+            orderPosition = index;
+            break;
+          }
         }
       }
     }
@@ -143,6 +148,16 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
             surfaceTintColor: Theme.of(context).cardColor,
             shadowColor: Theme.of(context).hintColor.withValues(alpha: 0.5),
             elevation: 2,
+            actions: [
+              IconButton(
+                onPressed: () {
+                  final trackingUrl = '${AppConstants.trackingBaseUrl}/${widget.orderId}';
+                  Share.share(trackingUrl, subject: 'Track my delivery');
+                },
+                icon: const Icon(Icons.share),
+                tooltip: 'Share tracking link',
+              )
+            ],
           ),
 
           body: Padding(
@@ -728,7 +743,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                               orderController.updateOrderStatus(controllerOrderModel.id, 'confirmed', back: true).then((success) {
                                 if(success) {
                                   Get.find<ProfileController>().getProfile();
-                                  Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus!);
+                                  Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus ?? 'all');
                                 }
                               });
                             },
@@ -773,7 +788,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                                   orderController.updateOrderStatus(controllerOrderModel.id, 'confirmed', back: true).then((success) {
                                     if(success) {
                                       Get.find<ProfileController>().getProfile();
-                                      Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus!);
+                                      Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus ?? 'all');
                                     }
                                   });
                                 },
@@ -816,7 +831,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                               Get.find<OrderController>().updateOrderStatus(controllerOrderModel.id, 'delivered').then((success) {
                                 if(success) {
                                   Get.find<ProfileController>().getProfile();
-                                  Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus!);
+                                  Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus ?? 'all');
                                 }
                               });
                             }
@@ -825,7 +840,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                               Get.find<OrderController>().updateOrderStatus(controllerOrderModel.id, 'picked_up').then((success) {
                                 if(success) {
                                   Get.find<ProfileController>().getProfile();
-                                  Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus!);
+                                  Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus ?? 'all');
                                 }
                               });
                             }else {

@@ -4,7 +4,7 @@ import 'package:stackfood_multivendor_driver/common/widgets/custom_bottom_sheet_
 import 'package:stackfood_multivendor_driver/common/widgets/custom_confirmation_bottom_sheet.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_image_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/details_custom_card.dart';
-import 'package:stackfood_multivendor_driver/feature/auth/controllers/auth_controller.dart';
+import 'package:stackfood_multivendor_driver/common/widgets/custom_app_bar_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/language/controllers/localization_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/language/widgets/language_bottom_sheet_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/splash/controllers/splash_controller.dart';
@@ -77,6 +77,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: CustomAppBarWidget(title: 'profile'.tr, isBackButtonExist: false),
       body: GetBuilder<ProfileController>(builder: (profileController) {
         return profileController.profileModel == null ? const Center(child: CircularProgressIndicator()) : ProfileBgWidget(
           backButton: false,
@@ -87,7 +88,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             alignment: Alignment.center,
             child: ClipOval(child: CustomImageWidget(
-              image: '${profileController.profileModel != null ? profileController.profileModel!.imageFullUrl : ''}',
+              image: profileController.profileModel?.imageFullUrl ?? '',
               height: 100, width: 100, fit: BoxFit.cover,
             )),
           ),
@@ -97,24 +98,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(children: [
 
               Text(
-                '${profileController.profileModel!.fName} ${profileController.profileModel!.lName}',
+                '${profileController.profileModel?.fName ?? ''} ${profileController.profileModel?.lName ?? ''}'.trim().isEmpty 
+                    ? 'Driver' 
+                    : '${profileController.profileModel?.fName ?? ''} ${profileController.profileModel?.lName ?? ''}'.trim(),
                 style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeLarge),
               ),
 
-              profileController.profileModel!.shiftName != null ? RichText(text: TextSpan(children: [
+              (profileController.profileModel?.shiftName != null && profileController.profileModel?.shiftName?.isNotEmpty == true) ? RichText(text: TextSpan(children: [
                 TextSpan(text: '${'shift'.tr}: ', style: robotoMedium.copyWith(color: Theme.of(context).textTheme.bodyLarge!.color, fontSize: Dimensions.fontSizeSmall)),
-                TextSpan(text: ' ${profileController.profileModel!.shiftName}', style: robotoMedium.copyWith(color: Theme.of(context).primaryColor, fontSize: Dimensions.fontSizeSmall)),
-                TextSpan(text: ' (${DateConverter.onlyTimeShow(profileController.profileModel!.shiftStartTime!)} - ${DateConverter.onlyTimeShow(profileController.profileModel!.shiftEndTime!)})',
+                TextSpan(text: ' ${profileController.profileModel?.shiftName}', style: robotoMedium.copyWith(color: Theme.of(context).primaryColor, fontSize: Dimensions.fontSizeSmall)),
+                TextSpan(text: ' (${_formatShiftTime(profileController.profileModel?.shiftStartTime)} - ${_formatShiftTime(profileController.profileModel?.shiftEndTime)})',
                     style: robotoMedium.copyWith(color: Theme.of(context).primaryColor, fontSize: Dimensions.fontSizeSmall)),
               ])) : const SizedBox(),
               const SizedBox(height: 30),
 
               Row(children: [
 
-                ProfileCardWidget(title: 'since_joining'.tr, data: '${profileController.profileModel!.memberSinceDays} ${'days'.tr}'),
+                ProfileCardWidget(title: 'since_joining'.tr, data: '${profileController.profileModel?.memberSinceDays ?? 0} ${'days'.tr}'),
                 const SizedBox(width: Dimensions.paddingSizeSmall),
 
-                ProfileCardWidget(title: 'total_order'.tr, data: profileController.profileModel!.orderCount.toString()),
+                ProfileCardWidget(title: 'total_order'.tr, data: '${profileController.profileModel?.orderCount ?? 0}'),
 
               ]),
               const SizedBox(height: 30),
@@ -168,29 +171,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
               }),
               const SizedBox(height: Dimensions.paddingSizeSmall),
 
-              ProfileButtonWidget(icon: Icons.lock, title: 'change_password'.tr, onTap: () {
-                Get.toNamed(RouteHelper.getResetPasswordRoute('', '', 'password-change'));
-              }),
-              const SizedBox(height: Dimensions.paddingSizeSmall),
+              // Change password button removed - auth is no longer required
 
               ProfileButtonWidget(icon: Icons.edit, title: 'edit_profile'.tr, onTap: () {
                 Get.toNamed(RouteHelper.getUpdateProfileRoute());
               }),
               const SizedBox(height: Dimensions.paddingSizeSmall),
 
-              (profileController.profileModel != null && profileController.profileModel!.earnings == 1) ? Padding(
+              (profileController.profileModel != null && (profileController.profileModel?.earnings ?? 0) == 1) ? Padding(
                 padding: const EdgeInsets.only(bottom: Dimensions.paddingSizeSmall),
                 child: ProfileButtonWidget(icon: Icons.account_balance, title: 'my_account'.tr, onTap: () {
                   Get.toNamed(RouteHelper.getCashInHandRoute());
                 }),
               ) : const SizedBox(),
 
-              (profileController.profileModel!.type != 'restaurant_wise' && profileController.profileModel!.earnings != 0) ? ProfileButtonWidget(icon: Icons.local_offer_rounded, title: 'incentive_offers'.tr, onTap: () {
+              ((profileController.profileModel?.type ?? '') != 'restaurant_wise' && (profileController.profileModel?.earnings ?? 0) != 0) ? ProfileButtonWidget(icon: Icons.local_offer_rounded, title: 'incentive_offers'.tr, onTap: () {
                 Get.toNamed(RouteHelper.getIncentiveRoute());
               }) : const SizedBox(),
-              SizedBox(height: (profileController.profileModel!.type != 'restaurant_wise' && profileController.profileModel!.earnings != 0) ? Dimensions.paddingSizeSmall : 0),
+              SizedBox(height: ((profileController.profileModel?.type ?? '') != 'restaurant_wise' && (profileController.profileModel?.earnings ?? 0) != 0) ? Dimensions.paddingSizeSmall : 0),
 
-              if(Get.find<SplashController>().configModel!.disbursementType == 'automated' && profileController.profileModel!.type != 'restaurant_wise' && profileController.profileModel!.earnings != 0)
+              if(Get.find<SplashController>().configModel?.disbursementType == 'automated' && (profileController.profileModel?.type ?? '') != 'restaurant_wise' && (profileController.profileModel?.earnings ?? 0) != 0)
               Column(children: [
 
                  Padding(
@@ -234,20 +234,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: Dimensions.paddingSizeSmall),
 
-              ProfileButtonWidget(icon: Icons.logout, title: 'logout'.tr, onTap: () {
-                showCustomBottomSheet(
-                  child: CustomConfirmationBottomSheet(
-                    cancelButtonText: 'no'.tr, confirmButtonText: 'yes'.tr,
-                    title: 'logout'.tr,
-                    description: 'are_you_sure_to_logout'.tr,
-                    onConfirm: () {
-                      Get.find<AuthController>().clearSharedData();
-                      profileController.stopLocationRecord();
-                      Get.offAllNamed(RouteHelper.getSignInRoute());
-                    },
-                  ),
-                );
-              }),
+              // Logout button removed - auth is no longer required
               const SizedBox(height: Dimensions.paddingSizeLarge),
 
               Row(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -352,6 +339,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         style: robotoRegular,
       ),
     );
+  }
+
+  String _formatShiftTime(String? time) {
+    if (time == null || time.isEmpty) {
+      return '--';
+    }
+    try {
+      return DateConverter.onlyTimeShow(time);
+    } catch (e) {
+      return '--';
+    }
   }
 
   _manageLanguageFunctionality() {

@@ -108,10 +108,11 @@ class SignInViewScreen extends StatelessWidget {
                       ),
                     ),
 
-                    TextButton(
-                      onPressed: () => Get.toNamed(RouteHelper.getForgotPassRoute()),
-                      child: Text('${'forgot_password'.tr}?'),
-                    ),
+                    // Forgot password functionality removed - simplified auth
+                    // TextButton(
+                    //   onPressed: () => Get.toNamed(RouteHelper.getForgotPassRoute()),
+                    //   child: Text('${'forgot_password'.tr}?'),
+                    // ),
 
                   ]),
                   const SizedBox(height: 50),
@@ -121,23 +122,6 @@ class SignInViewScreen extends StatelessWidget {
                     isLoading: authController.isLoading,
                     onPressed: () => _login(authController, _phoneController, _passwordController, countryDialCode!, context),
                   ),
-                  SizedBox(height: Get.find<SplashController>().configModel!.toggleDmRegistration! ? Dimensions.paddingSizeSmall : 0),
-
-                  Get.find<SplashController>().configModel!.toggleDmRegistration! ? TextButton(
-                    style: TextButton.styleFrom(
-                      minimumSize: const Size(1, 40),
-                    ),
-                    onPressed: () async {
-                      Get.toNamed(RouteHelper.getDeliverymanRegistrationRoute());
-                    },
-                    child: RichText(text: TextSpan(children: [
-
-                      TextSpan(text: '${'join_as_a'.tr} ', style: robotoRegular.copyWith(color: Theme.of(context).disabledColor)),
-
-                      TextSpan(text: 'delivery_man'.tr, style: robotoMedium.copyWith(color: Theme.of(context).textTheme.bodyLarge!.color)),
-
-                    ])),
-                  ) : const SizedBox(),
 
                 ]);
               }),
@@ -172,8 +156,20 @@ class SignInViewScreen extends StatelessWidget {
           } else {
             authController.clearUserNumberAndPassword();
           }
-          await Get.find<ProfileController>().getProfile();
-          Get.offAllNamed(RouteHelper.getInitialRoute());
+
+          if (authController.getUserToken().isNotEmpty) {
+            // Try to fetch profile, but don't block navigation if it fails
+            try {
+              await Get.find<ProfileController>().getProfile();
+            } catch (e) {
+              debugPrint('Profile fetch failed: $e');
+              // Continue to navigation even if profile fetch fails
+            }
+            // Navigate to dashboard - always proceed after successful login
+            Get.offAllNamed(RouteHelper.getInitialRoute());
+          } else {
+            showCustomSnackBar('Login failed. Please check your credentials.', isError: true);
+          }
         }else {
           showCustomSnackBar(status.message);
         }

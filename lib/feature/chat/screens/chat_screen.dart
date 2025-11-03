@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_asset_image_widget.dart';
-import 'package:stackfood_multivendor_driver/feature/auth/controllers/auth_controller.dart';
+// Auth removed - no longer using AuthController
 import 'package:stackfood_multivendor_driver/feature/chat/controllers/chat_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/chat/widgets/conversation_details_shimmer_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/notification/domain/models/notification_body_model.dart';
@@ -39,7 +39,8 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
 
-    _isLoggedIn = Get.find<AuthController>().isLoggedIn();
+    // Auth removed - always consider logged in
+    _isLoggedIn = true;
     Get.find<ChatController>().getMessages(1, widget.notificationBody!, widget.user, widget.conversationId, firstLoad: true);
   }
 

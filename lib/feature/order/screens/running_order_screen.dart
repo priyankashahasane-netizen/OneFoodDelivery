@@ -46,7 +46,7 @@ class RunningOrderScreen extends StatelessWidget {
             Expanded(
               child: orderController.currentOrderList != null ? orderController.currentOrderList!.isNotEmpty ? RefreshIndicator(
                 onRefresh: () async {
-                  await orderController.getCurrentOrders(status: orderController.selectedRunningOrderStatus!);
+                  await orderController.getCurrentOrders(status: orderController.selectedRunningOrderStatus ?? 'all');
                 },
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),

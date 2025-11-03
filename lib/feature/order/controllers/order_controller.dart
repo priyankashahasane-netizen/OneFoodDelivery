@@ -8,8 +8,12 @@ import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_c
 import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_details_model.dart';
 import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_model.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_snackbar_widget.dart';
+import 'package:stackfood_multivendor_driver/feature/routes/controllers/route_controller.dart';
+import 'package:stackfood_multivendor_driver/feature/routes/domain/models/route_plan_model.dart';
+import 'package:stackfood_multivendor_driver/feature/profile/controllers/profile_controller.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -120,7 +124,7 @@ class OrderController extends GetxController implements GetxService {
       XFile? xFile = await ImagePicker().pickImage(source: isCamera ? ImageSource.camera : ImageSource.gallery, imageQuality: 50);
       if(xFile != null) {
         _pickedPrescriptions.add(xFile);
-        if(Get.isDialogOpen!){
+        if(Get.isDialogOpen ?? false){
           Get.back();
         }
       }
@@ -168,21 +172,42 @@ class OrderController extends GetxController implements GetxService {
     }
     if (!_offsetList.contains(offset)) {
       _offsetList.add(offset);
-      PaginatedOrderModel? paginatedOrderModel = await orderServiceInterface.getCompletedOrderList(offset, status: status);
-      if (paginatedOrderModel != null) {
+      try {
+        PaginatedOrderModel? paginatedOrderModel = await orderServiceInterface.getCompletedOrderList(offset, status: status);
+        if (paginatedOrderModel != null) {
+          if (offset == 1) {
+            _completedOrderList = [];
+          }
+          _completedOrderList!.addAll(paginatedOrderModel.orders!);
+          _completedOrderCountList = [
+            paginatedOrderModel.orderCount!.all ?? 0,
+            paginatedOrderModel.orderCount!.delivered ?? 0,
+            paginatedOrderModel.orderCount!.canceled ?? 0,
+            paginatedOrderModel.orderCount!.refundRequested ?? 0,
+            paginatedOrderModel.orderCount!.refunded ?? 0,
+            paginatedOrderModel.orderCount!.refundRequestCanceled ?? 0,
+          ];
+          _pageSize = paginatedOrderModel.totalSize;
+          _paginate = false;
+          update();
+        } else {
+          // Use empty list when API returns null
+          if (offset == 1) {
+            _completedOrderList = [];
+            _completedOrderCountList = [0, 0, 0, 0, 0, 0];
+            _pageSize = 0;
+          }
+          _paginate = false;
+          update();
+        }
+      } catch (e) {
+        debugPrint('Error fetching completed orders: $e');
+        // Use empty list on error
         if (offset == 1) {
           _completedOrderList = [];
+          _completedOrderCountList = [0, 0, 0, 0, 0, 0];
+          _pageSize = 0;
         }
-        _completedOrderList!.addAll(paginatedOrderModel.orders!);
-        _completedOrderCountList = [
-          paginatedOrderModel.orderCount!.all ?? 0,
-          paginatedOrderModel.orderCount!.delivered ?? 0,
-          paginatedOrderModel.orderCount!.canceled ?? 0,
-          paginatedOrderModel.orderCount!.refundRequested ?? 0,
-          paginatedOrderModel.orderCount!.refunded ?? 0,
-          paginatedOrderModel.orderCount!.refundRequestCanceled ?? 0,
-        ];
-        _pageSize = paginatedOrderModel.totalSize;
         _paginate = false;
         update();
       }
@@ -207,18 +232,31 @@ class OrderController extends GetxController implements GetxService {
     if(isDataClear){
       _currentOrderList = null;
     }
-    PaginatedOrderModel? paginatedOrderModel = await orderServiceInterface.getCurrentOrders(status: status);
-    if(paginatedOrderModel != null) {
+    try {
+      PaginatedOrderModel? paginatedOrderModel = await orderServiceInterface.getCurrentOrders(status: status);
+      if(paginatedOrderModel != null && paginatedOrderModel.orders != null) {
+        _currentOrderList = [];
+        _currentOrderList!.addAll(paginatedOrderModel.orders!);
+        _currentOrderCountList = [
+          paginatedOrderModel.orderCount?.all ?? 0,
+          paginatedOrderModel.orderCount?.accepted ?? 0,
+          paginatedOrderModel.orderCount?.confirmed ?? 0,
+          paginatedOrderModel.orderCount?.processing ?? 0,
+          paginatedOrderModel.orderCount?.handover ?? 0,
+          paginatedOrderModel.orderCount?.pickedUp ?? 0,
+          paginatedOrderModel.orderCount?.delivered ?? 0,
+          paginatedOrderModel.orderCount?.canceled ?? 0,
+        ];
+      } else {
+        // Use empty list when API returns null
+        _currentOrderList = [];
+        _currentOrderCountList = [0, 0, 0, 0, 0, 0, 0, 0];
+      }
+    } catch (e) {
+      debugPrint('Error fetching current orders: $e');
+      // Use empty list on error
       _currentOrderList = [];
-      _currentOrderList!.addAll(paginatedOrderModel.orders!);
-      _currentOrderCountList = [
-        paginatedOrderModel.orderCount!.all ?? 0,
-        paginatedOrderModel.orderCount!.accepted ?? 0,
-        paginatedOrderModel.orderCount!.confirmed ?? 0,
-        paginatedOrderModel.orderCount!.processing ?? 0,
-        paginatedOrderModel.orderCount!.handover ?? 0,
-        paginatedOrderModel.orderCount!.pickedUp ?? 0,
-      ];
+      _currentOrderCountList = [0, 0, 0, 0, 0, 0, 0, 0];
     }
     update();
   }
@@ -232,11 +270,20 @@ class OrderController extends GetxController implements GetxService {
   }
 
   Future<void> getLatestOrders() async {
-    List<OrderModel>? latestOrderList = await orderServiceInterface.getLatestOrders();
-    if(latestOrderList != null) {
+    try {
+      List<OrderModel>? latestOrderList = await orderServiceInterface.getLatestOrders();
+      if(latestOrderList != null) {
+        _latestOrderList = [];
+        List<int?> ignoredIdList = orderServiceInterface.prepareIgnoreIdList(_ignoredRequests);
+        _latestOrderList!.addAll(orderServiceInterface.processLatestOrders(latestOrderList, ignoredIdList));
+      } else {
+        // Use empty list when API returns null
+        _latestOrderList = [];
+      }
+    } catch (e) {
+      debugPrint('Error fetching latest orders: $e');
+      // Use empty list on error
       _latestOrderList = [];
-      List<int?> ignoredIdList = orderServiceInterface.prepareIgnoreIdList(_ignoredRequests);
-      _latestOrderList!.addAll(orderServiceInterface.processLatestOrders(latestOrderList, ignoredIdList));
     }
     update();
   }
@@ -255,7 +302,7 @@ class OrderController extends GetxController implements GetxService {
       if(back) {
         Get.back();
       }
-      getCurrentOrders(status: selectedRunningOrderStatus!);
+      getCurrentOrders(status: selectedRunningOrderStatus ?? 'all');
       showCustomSnackBar(responseModel.message, isError: false);
     }else {
       showCustomSnackBar(responseModel.message, isError: true);
@@ -278,17 +325,101 @@ class OrderController extends GetxController implements GetxService {
   Future<bool> acceptOrder(int? orderID, int index, OrderModel orderModel) async {
     _isLoading = true;
     update();
+    
+    // Get driver profile to check capacity
+    try {
+      final profileController = Get.find<ProfileController>();
+      final profileModel = profileController.profileModel;
+      
+      if (profileModel != null) {
+        // Get current active orders count
+        String? driverId = profileModel.id?.toString();
+        if (driverId != null) {
+          List<OrderModel>? activeOrders = await orderServiceInterface.getActiveOrders(driverId);
+          int currentActiveCount = activeOrders?.length ?? (_currentOrderList?.length ?? 0);
+          // Get capacity from profile - may need to add this field to ProfileModel
+          // For now, check if there's a capacity property or use default
+          int driverCapacity = 1; // Default capacity
+          // TODO: Add capacity field to ProfileModel when backend supports it
+          
+          // Check capacity
+          if (currentActiveCount >= driverCapacity) {
+            _isLoading = false;
+            update();
+            showCustomSnackBar('You have reached your maximum order capacity ($driverCapacity). Complete current orders before accepting new ones.', isError: true);
+            return false;
+          }
+        }
+      }
+    } catch (e) {
+      // If we can't get profile, continue anyway (capacity check is best effort)
+      print('Could not check capacity: $e');
+    }
+    
     ResponseModel responseModel = await orderServiceInterface.acceptOrder(orderID);
     Get.back();
+    
     if(responseModel.isSuccess) {
-      _latestOrderList!.removeAt(index);
+      if (_latestOrderList != null && _latestOrderList!.isNotEmpty && index < _latestOrderList!.length) {
+        _latestOrderList!.removeAt(index);
+      }
+      if (_currentOrderList == null) {
+        _currentOrderList = [];
+      }
       _currentOrderList!.add(orderModel);
-    }else {
+      
+      // Trigger route optimization after accepting order
+      _optimizeRouteForActiveOrders();
+      
+      showCustomSnackBar('Order accepted successfully', isError: false);
+    } else {
       showCustomSnackBar(responseModel.message, isError: true);
     }
+    
     _isLoading = false;
     update();
     return responseModel.isSuccess;
+  }
+
+  // Optimize route for all active orders
+  Future<void> _optimizeRouteForActiveOrders() async {
+    try {
+      final profileController = Get.find<ProfileController>();
+      final profileModel = profileController.profileModel;
+      
+      if (profileModel != null && _currentOrderList != null && _currentOrderList!.isNotEmpty) {
+        String? driverId = profileModel.id?.toString();
+        if (driverId != null) {
+          // Build stops from active orders (pickup + delivery for each)
+          List<OptimizeStop> stops = [];
+          for (var order in _currentOrderList!) {
+            if (order.restaurantLat != null && order.restaurantLng != null) {
+              stops.add(OptimizeStop(
+                lat: double.parse(order.restaurantLat!),
+                lng: double.parse(order.restaurantLng!),
+                orderId: order.id.toString(),
+              ));
+            }
+            if (order.deliveryAddress?.latitude != null && order.deliveryAddress?.longitude != null) {
+              stops.add(OptimizeStop(
+                lat: double.parse(order.deliveryAddress!.latitude!),
+                lng: double.parse(order.deliveryAddress!.longitude!),
+                orderId: order.id.toString(),
+              ));
+            }
+          }
+          
+          if (stops.isNotEmpty) {
+            // Import RouteController and optimize
+            final routeController = Get.find<RouteController>();
+            await routeController.optimizeRoute(driverId, stops);
+          }
+        }
+      }
+    } catch (e) {
+      // Route optimization is non-critical, log and continue
+      print('Could not optimize route: $e');
+    }
   }
 
   void getIgnoreList() {
@@ -297,8 +428,10 @@ class OrderController extends GetxController implements GetxService {
   }
 
   void ignoreOrder(int index) {
-    _ignoredRequests.add(IgnoreModel(id: _latestOrderList![index].id, time: DateTime.now()));
-    _latestOrderList!.removeAt(index);
+    if (_latestOrderList != null && _latestOrderList!.isNotEmpty && index < _latestOrderList!.length) {
+      _ignoredRequests.add(IgnoreModel(id: _latestOrderList![index].id, time: DateTime.now()));
+      _latestOrderList!.removeAt(index);
+    }
     orderServiceInterface.setIgnoreList(_ignoredRequests);
     update();
   }

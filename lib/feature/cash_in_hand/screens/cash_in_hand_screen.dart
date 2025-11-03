@@ -1,5 +1,5 @@
 import 'package:stackfood_multivendor_driver/common/widgets/custom_snackbar_widget.dart';
-import 'package:stackfood_multivendor_driver/feature/auth/controllers/auth_controller.dart';
+// Auth removed - no longer using AuthController
 import 'package:stackfood_multivendor_driver/feature/cash_in_hand/controllers/cash_in_hand_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/splash/controllers/splash_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/cash_in_hand/widgets/payment_method_bottom_sheet_widget.dart';
@@ -60,7 +60,7 @@ class _CashInHandScreenState extends State<CashInHandScreen> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(200),
                 child: CustomImageWidget(
-                  image: (profileController.profileModel != null && Get.find<AuthController>().isLoggedIn()) ? profileController.profileModel!.imageFullUrl ?? '' : '',
+                  image: (profileController.profileModel != null) ? profileController.profileModel!.imageFullUrl ?? '' : '',
                   width: 35, height: 35, fit: BoxFit.cover,
                 ),
               ),

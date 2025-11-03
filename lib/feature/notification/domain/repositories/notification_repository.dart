@@ -1,5 +1,5 @@
 import 'dart:convert';
-
+import 'package:flutter/foundation.dart';
 import 'package:stackfood_multivendor_driver/api/api_client.dart';
 import 'package:stackfood_multivendor_driver/feature/notification/domain/models/notification_model.dart';
 import 'package:stackfood_multivendor_driver/feature/notification/domain/repositories/notification_repository_interface.dart';
@@ -16,15 +16,33 @@ class NotificationRepository implements NotificationRepositoryInterface{
   Future<List<NotificationModel>?> getList() async {
     List<NotificationModel>? notificationList;
     Response response = await apiClient.getData('${AppConstants.notificationUri}${_getUserToken()}');
-    if(response.statusCode == 200){
+    if(response.statusCode == 200 && response.body != null){
       notificationList = [];
-      response.body.forEach((notify) {
-        NotificationModel notification = NotificationModel.fromJson(notify);
-        notification.title = notify['data']['title'];
-        notification.description = notify['data']['description'];
-        notification.imageFullUrl = notify['image_full_url'];
-        notificationList!.add(notification);
-      });
+      // API returns {notifications: [], ...}
+      List<dynamic>? notifications;
+      if (response.body is Map && response.body['notifications'] != null) {
+        notifications = response.body['notifications'];
+      } else if (response.body is List) {
+        notifications = response.body;
+      }
+      
+      if (notifications != null) {
+        notifications.forEach((notify) {
+          try {
+            NotificationModel notification = NotificationModel.fromJson(notify);
+            if (notify is Map) {
+              if (notify['data'] != null && notify['data'] is Map) {
+                notification.title = notify['data']['title'];
+                notification.description = notify['data']['description'];
+              }
+              notification.imageFullUrl = notify['image_full_url'];
+            }
+            notificationList!.add(notification);
+          } catch (e) {
+            debugPrint('Error parsing notification: $e');
+          }
+        });
+      }
     }
     return notificationList;
   }

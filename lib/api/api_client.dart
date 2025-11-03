@@ -33,8 +33,17 @@ class ApiClient extends GetxService {
     _mainHeaders = {
       'Content-Type': 'application/json; charset=UTF-8',
       AppConstants.localizationKey: languageCode ?? AppConstants.languages[0].languageCode!,
-      'Authorization': 'Bearer $token'
     };
+    
+    // Only add Authorization header if token exists and is not empty
+    if (token != null && token.isNotEmpty) {
+      _mainHeaders['Authorization'] = 'Bearer $token';
+    } else {
+      // Remove Authorization header if token is null or empty
+      _mainHeaders.remove('Authorization');
+    }
+    
+    this.token = token;
   }
 
   Future<Response> getData(String uri, {Map<String, dynamic>? query, Map<String, String>? headers, bool handleError = true}) async {
@@ -111,6 +120,21 @@ class ApiClient extends GetxService {
       debugPrint('====> API Call: $uri\nHeader: $_mainHeaders');
       debugPrint('====> API Body: $body');
       http.Response response = await http.put(
+        Uri.parse(appBaseUrl+uri),
+        body: jsonEncode(body),
+        headers: headers ?? _mainHeaders,
+      ).timeout(Duration(seconds: timeoutInSeconds));
+      return handleResponse(response, uri, handleError);
+    } catch (e) {
+      return const Response(statusCode: 1, statusText: noInternetMessage);
+    }
+  }
+
+  Future<Response> patchData(String uri, dynamic body, {Map<String, String>? headers, bool handleError = true}) async {
+    try {
+      debugPrint('====> API Call: PATCH $uri\nHeader: $_mainHeaders');
+      debugPrint('====> API Body: $body');
+      http.Response response = await http.patch(
         Uri.parse(appBaseUrl+uri),
         body: jsonEncode(body),
         headers: headers ?? _mainHeaders,

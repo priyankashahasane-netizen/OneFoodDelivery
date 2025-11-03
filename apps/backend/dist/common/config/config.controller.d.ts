@@ -1,0 +1,50 @@
+export declare class ConfigController {
+    getConfig(): {
+        business_name: string;
+        logo: string;
+        address: string;
+        phone: string;
+        email: string;
+        currency_symbol: string;
+        cash_on_delivery: boolean;
+        digital_payment: boolean;
+        terms_and_conditions: string;
+        privacy_policy: string;
+        about_us: string;
+        country: string;
+        default_location: {
+            lat: string;
+            lng: string;
+        };
+        app_url_android_deliveryman: string;
+        app_url_ios_deliveryman: string;
+        customer_verification: boolean;
+        order_delivery_verification: boolean;
+        currency_symbol_direction: string;
+        app_minimum_version_android_deliveryman: number;
+        free_delivery_over: any;
+        demo: boolean;
+        maintenance_mode: boolean;
+        popular_food: number;
+        popular_restaurant: number;
+        new_restaurant: number;
+        order_confirmation_model: string;
+        show_dm_earning: boolean;
+        canceled_by_deliveryman: boolean;
+        canceled_by_restaurant: boolean;
+        timeformat: string;
+        toggle_veg_non_veg: boolean;
+        toggle_dm_registration: boolean;
+        toggle_restaurant_registration: boolean;
+        schedule_order_slot_duration: number;
+        digit_after_decimal_point: number;
+        additional_charge_name: string;
+        dm_picture_upload_status: number;
+        active_payment_method_list: any[];
+        deliveryman_additional_join_us_page_data: any;
+        disbursement_type: string;
+        min_amount_to_pay_dm: number;
+        maintenance_mode_data: any;
+        firebase_otp_verification: boolean;
+    };
+}

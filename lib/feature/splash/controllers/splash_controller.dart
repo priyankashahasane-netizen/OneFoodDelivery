@@ -1,4 +1,4 @@
-import 'package:stackfood_multivendor_driver/feature/auth/controllers/auth_controller.dart';
+// Auth removed - no longer using AuthController
 import 'package:stackfood_multivendor_driver/feature/splash/domain/services/splash_service_interface.dart';
 import 'package:stackfood_multivendor_driver/common/models/config_model.dart';
 import 'package:get/get.dart';
@@ -32,11 +32,8 @@ class SplashController extends GetxController implements GetxService {
       if(isInMaintenance) {
         Get.offNamed(RouteHelper.getUpdateRoute(false));
       }else if((Get.currentRoute.contains(RouteHelper.update) && !isMaintenanceMode) || (!isInMaintenance)) {
-        if(Get.find<AuthController>().isLoggedIn()) {
-          Get.offAllNamed(RouteHelper.getInitialRoute());
-        }else {
-          Get.offNamed(RouteHelper.getSignInRoute());
-        }
+        // Auth removed - always go to home screen
+        Get.offAllNamed(RouteHelper.getInitialRoute());
       }
 
       isSuccess = true;

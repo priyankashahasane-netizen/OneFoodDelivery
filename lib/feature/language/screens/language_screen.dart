@@ -9,6 +9,7 @@ import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/util/images.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_button_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_snackbar_widget.dart';
+import 'package:stackfood_multivendor_driver/common/widgets/custom_app_bar_widget.dart';
 import 'package:get/get.dart';
 
 class ChooseLanguageScreen extends StatelessWidget {
@@ -18,9 +19,10 @@ class ChooseLanguageScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).cardColor,
+      appBar: CustomAppBarWidget(title: 'choose_your_language'.tr, isBackButtonExist: false),
       body: GetBuilder<LocalizationController>(builder: (localizationController) {
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const SizedBox(height: 40),
+          const SizedBox(height: Dimensions.paddingSizeSmall),
 
           Align(
             alignment: Alignment.center,
@@ -76,7 +78,8 @@ class ChooseLanguageScreen extends StatelessWidget {
                     AppConstants.languages[localizationController.selectedLanguageIndex].countryCode,
                   ));
                   Get.find<SplashController>().setLanguageIntro(false);
-                  Get.offNamed(RouteHelper.getSignInRoute());
+                  // Auth removed - navigate to home screen
+                  Get.offAllNamed(RouteHelper.getInitialRoute());
                 }else {
                   showCustomSnackBar('select_a_language'.tr);
                 }

@@ -443,5 +443,13 @@
   "order_is" : "Order is",
   "location_n_a" : "Location N/A",
   "already_paid" : "Already Paid",
-  "partial_payment" : "Partial Payment"
+  "partial_payment" : "Partial Payment",
+  "log_out" : "Log out",
+  "contact_us" : "Contact Us",
+  "bank_details" : "Bank Details",
+  "inbox" : "Inbox",
+  "wallet" : "Wallet",
+  "logout_feature_not_available" : "Logout feature is not available",
+  "contact_information_not_available" : "Contact information is not available",
+  "close" : "Close"
 }

@@ -1,7 +1,8 @@
 import 'dart:io';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_image_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_snackbar_widget.dart';
-import 'package:stackfood_multivendor_driver/feature/auth/controllers/auth_controller.dart';
+import 'package:stackfood_multivendor_driver/common/widgets/custom_app_bar_widget.dart';
+// Auth removed - no longer using AuthController
 import 'package:stackfood_multivendor_driver/feature/profile/controllers/profile_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/domain/models/profile_model.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/widgets/profile_bg_widget.dart';
@@ -44,14 +45,14 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).cardColor,
-
+      appBar: CustomAppBarWidget(title: 'edit_profile'.tr),
       body: GetBuilder<ProfileController>(builder: (profileController) {
 
         if(profileController.profileModel != null && _firstNameController.text.isEmpty) {
-          _firstNameController.text = profileController.profileModel!.fName ?? '';
-          _lastNameController.text = profileController.profileModel!.lName ?? '';
-          _phoneController.text = profileController.profileModel!.phone ?? '';
-          _emailController.text = profileController.profileModel!.email ?? '';
+          _firstNameController.text = profileController.profileModel?.fName ?? '';
+          _lastNameController.text = profileController.profileModel?.lName ?? '';
+          _phoneController.text = profileController.profileModel?.phone ?? '';
+          _emailController.text = profileController.profileModel?.email ?? '';
         }
 
         return profileController.profileModel != null ? ProfileBgWidget(
@@ -61,7 +62,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
             ClipOval(child: profileController.pickedFile != null ? GetPlatform.isWeb ? Image.network(
                 profileController.pickedFile!.path, width: 100, height: 100, fit: BoxFit.cover) : Image.file(
               File(profileController.pickedFile!.path), width: 100, height: 100, fit: BoxFit.cover) : CustomImageWidget(
-              image: '${profileController.profileModel!.imageFullUrl}',
+              image: profileController.profileModel?.imageFullUrl ?? '',
               height: 100, width: 100, fit: BoxFit.cover,
             )),
 
@@ -150,9 +151,9 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
     String lastName = _lastNameController.text.trim();
     String email = _emailController.text.trim();
     String phoneNumber = _phoneController.text.trim();
-    if (profileController.profileModel!.fName == firstName &&
-        profileController.profileModel!.lName == lastName && profileController.profileModel!.phone == phoneNumber &&
-        profileController.profileModel!.email == _emailController.text && profileController.pickedFile == null) {
+    if (profileController.profileModel?.fName == firstName &&
+        profileController.profileModel?.lName == lastName && profileController.profileModel?.phone == phoneNumber &&
+        profileController.profileModel?.email == _emailController.text && profileController.pickedFile == null) {
       showCustomSnackBar('change_something_to_update'.tr);
     }else if (firstName.isEmpty) {
       showCustomSnackBar('enter_your_first_name'.tr);
@@ -168,7 +169,8 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
       showCustomSnackBar('enter_a_valid_phone_number'.tr);
     } else {
       ProfileModel updatedUser = ProfileModel(fName: firstName, lName: lastName, email: email, phone: phoneNumber);
-      await profileController.updateUserInfo(updatedUser, Get.find<AuthController>().getUserToken());
+      // Auth removed - pass empty token or modify updateUserInfo to not require token
+      await profileController.updateUserInfo(updatedUser, '');
     }
   }
 

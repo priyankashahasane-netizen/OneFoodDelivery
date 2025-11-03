@@ -6,7 +6,7 @@ import 'package:stackfood_multivendor_driver/feature/profile/domain/repositories
 import 'package:stackfood_multivendor_driver/feature/profile/domain/services/profile_service_interface.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:stackfood_multivendor_driver/common/widgets/custom_alert_dialog_widget.dart';
+import 'package:stackfood_multivendor_driver/common/services/location_permission_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart' as geo_coding;
 
@@ -67,32 +67,11 @@ class ProfileService implements ProfileServiceInterface {
     return address;
   }
 
+  final LocationPermissionService _permissionService = LocationPermissionService();
+  
   @override
   void checkPermission(Function callback) async {
-    LocationPermission permission = await Geolocator.requestPermission();
-    permission = await Geolocator.checkPermission();
-
-    while(Get.isDialogOpen == true) {
-      Get.back();
-    }
-
-    if(permission == LocationPermission.denied/* || (GetPlatform.isIOS ? false : permission == LocationPermission.whileInUse)*/) {
-      Get.dialog(CustomAlertDialogWidget(description: 'you_denied'.tr, onOkPressed: () async {
-        Get.back();
-        final perm = await Geolocator.requestPermission();
-        if(perm == LocationPermission.deniedForever) await Geolocator.openAppSettings();
-        if(GetPlatform.isAndroid) checkPermission(callback);
-      }));
-    }else if(permission == LocationPermission.deniedForever || (GetPlatform.isIOS ? false : permission == LocationPermission.whileInUse)) {
-      Get.dialog(CustomAlertDialogWidget(description:  permission == LocationPermission.whileInUse ? 'you_denied'.tr : 'you_denied_forever'.tr, onOkPressed: () async {
-        Get.back();
-        await Geolocator.openAppSettings();
-        Future.delayed(Duration(seconds: 3), () {
-          if(GetPlatform.isAndroid) checkPermission(callback);
-        });
-      }));
-    }else {
-      callback();
-    }
+    // Use centralized permission service to serialize requests
+    await _permissionService.checkPermissionWithCallback(callback);
   }
 }

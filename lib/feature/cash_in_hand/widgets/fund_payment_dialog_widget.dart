@@ -34,7 +34,7 @@ class FundPaymentDialogWidget extends StatelessWidget {
 
             TextButton(
               onPressed: () {
-                if(Get.isDialogOpen!){
+                if(Get.isDialogOpen ?? false){
                   Get.back();
                 }
                 Get.back();
@@ -43,7 +43,7 @@ class FundPaymentDialogWidget extends StatelessWidget {
                 backgroundColor: Theme.of(context).disabledColor.withValues(alpha: 0.3), minimumSize: const Size(Dimensions.webMaxWidth, 40), padding: EdgeInsets.zero,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusSmall)),
               ),
-              child: Text('cancel_payment'.tr, textAlign: TextAlign.center, style: robotoBold.copyWith(color: Theme.of(context).textTheme.bodyLarge!.color)),
+              child: Text('cancel_payment'.tr, textAlign: TextAlign.center, style: robotoBold.copyWith(color: Theme.of(context).textTheme.bodyLarge?.color ?? Theme.of(context).colorScheme.onSurface)),
             ),
 
           ]),
