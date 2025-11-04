@@ -25,6 +25,10 @@ export declare class OrderEntity {
     trackingPoints: TrackingPointEntity[];
     routePlans: RoutePlanEntity[];
     zoneId: string | null;
+    subscriptionId: string | null;
+    cancellationSource: string | null;
+    cancellationReason: string | null;
+    deliveredAt: Date | null;
     createdAt: Date;
     updatedAt: Date;
 }

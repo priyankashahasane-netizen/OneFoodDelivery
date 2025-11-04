@@ -30,7 +30,7 @@ __decorate([
     __metadata("design:type", String)
 ], TrackingPointEntity.prototype, "id", void 0);
 __decorate([
-    ManyToOne(() => OrderEntityClass, (order) => order.trackingPoints, { nullable: false }),
+    ManyToOne(() => OrderEntityClass, (order) => order.trackingPoints, { nullable: true }),
     JoinColumn({ name: 'order_id' }),
     __metadata("design:type", Function)
 ], TrackingPointEntity.prototype, "order", void 0);
@@ -39,7 +39,7 @@ __decorate([
     __metadata("design:type", String)
 ], TrackingPointEntity.prototype, "orderId", void 0);
 __decorate([
-    ManyToOne(() => DriverEntityClass, (driver) => driver.trackingPoints, { nullable: false }),
+    ManyToOne(() => DriverEntityClass, (driver) => driver.trackingPoints, { nullable: true }),
     JoinColumn({ name: 'driver_id' }),
     __metadata("design:type", Function)
 ], TrackingPointEntity.prototype, "driver", void 0);

@@ -29,6 +29,7 @@
   "online": "Online",
   "offline": "Offline",
   "active_order": "Active Order",
+  "no_active_orders": "No active orders",
   "order_id": "Order ID",
   "orders": "Orders",
   "view_all": "View All",
@@ -450,6 +451,7 @@
   "inbox" : "Inbox",
   "wallet" : "Wallet",
   "logout_feature_not_available" : "Logout feature is not available",
+  "contact_information" : "Contact Information",
   "contact_information_not_available" : "Contact information is not available",
   "close" : "Close"
 }

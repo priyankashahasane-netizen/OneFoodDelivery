@@ -14,6 +14,7 @@ import 'package:stackfood_multivendor_driver/feature/profile/widgets/profile_bg_
 import 'package:stackfood_multivendor_driver/feature/profile/widgets/profile_button_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/widgets/profile_card_widget.dart';
 import 'package:stackfood_multivendor_driver/helper/date_converter_helper.dart';
+import 'package:stackfood_multivendor_driver/helper/price_converter_helper.dart';
 import 'package:stackfood_multivendor_driver/helper/route_helper.dart';
 import 'package:stackfood_multivendor_driver/util/app_constants.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
@@ -110,17 +111,158 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 TextSpan(text: ' (${_formatShiftTime(profileController.profileModel?.shiftStartTime)} - ${_formatShiftTime(profileController.profileModel?.shiftEndTime)})',
                     style: robotoMedium.copyWith(color: Theme.of(context).primaryColor, fontSize: Dimensions.fontSizeSmall)),
               ])) : const SizedBox(),
-              const SizedBox(height: 30),
+              const SizedBox(height: Dimensions.paddingSizeDefault),
 
+              // Contact Information Section
+              if (profileController.profileModel?.phone != null || profileController.profileModel?.email != null)
+                DetailsCustomCard(
+                  padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('contact_information'.tr, style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeLarge)),
+                      const SizedBox(height: Dimensions.paddingSizeDefault),
+                      if (profileController.profileModel?.phone != null && profileController.profileModel!.phone!.isNotEmpty)
+                        Row(children: [
+                          Icon(Icons.phone, size: 20, color: Theme.of(context).primaryColor),
+                          const SizedBox(width: Dimensions.paddingSizeSmall),
+                          Expanded(child: Text(profileController.profileModel!.phone ?? '', style: robotoRegular)),
+                        ]),
+                      if (profileController.profileModel?.phone != null && profileController.profileModel!.phone!.isNotEmpty && 
+                          profileController.profileModel?.email != null && profileController.profileModel!.email!.isNotEmpty)
+                        const SizedBox(height: Dimensions.paddingSizeSmall),
+                      if (profileController.profileModel?.email != null && profileController.profileModel!.email!.isNotEmpty)
+                        Row(children: [
+                          Icon(Icons.email, size: 20, color: Theme.of(context).primaryColor),
+                          const SizedBox(width: Dimensions.paddingSizeSmall),
+                          Expanded(child: Text(profileController.profileModel!.email ?? '', style: robotoRegular)),
+                        ]),
+                    ],
+                  ),
+                ),
+              if (profileController.profileModel?.phone != null || profileController.profileModel?.email != null)
+                const SizedBox(height: Dimensions.paddingSizeDefault),
+
+              // Rating Information
+              if (profileController.profileModel?.avgRating != null)
+                DetailsCustomCard(
+                  padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(children: [
+                        Icon(Icons.star, color: Colors.amber, size: 24),
+                        const SizedBox(width: Dimensions.paddingSizeSmall),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('${profileController.profileModel?.avgRating ?? 0.0}', 
+                              style: robotoBold.copyWith(fontSize: Dimensions.fontSizeExtraLarge, color: Theme.of(context).primaryColor)),
+                            Text('${profileController.profileModel?.ratingCount ?? 0} ${'ratings'.tr}', 
+                              style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor)),
+                          ],
+                        ),
+                      ]),
+                    ],
+                  ),
+                ),
+              if (profileController.profileModel?.avgRating != null)
+                const SizedBox(height: Dimensions.paddingSizeDefault),
+
+              // Statistics Cards Row 1
               Row(children: [
-
                 ProfileCardWidget(title: 'since_joining'.tr, data: '${profileController.profileModel?.memberSinceDays ?? 0} ${'days'.tr}'),
                 const SizedBox(width: Dimensions.paddingSizeSmall),
-
                 ProfileCardWidget(title: 'total_order'.tr, data: '${profileController.profileModel?.orderCount ?? 0}'),
-
               ]),
-              const SizedBox(height: 30),
+              const SizedBox(height: Dimensions.paddingSizeSmall),
+
+              // Additional Order Statistics
+              if ((profileController.profileModel?.todaysOrderCount ?? 0) > 0 || (profileController.profileModel?.thisWeekOrderCount ?? 0) > 0)
+                Row(children: [
+                  ProfileCardWidget(title: 'todays_orders'.tr, data: '${profileController.profileModel?.todaysOrderCount ?? 0}'),
+                  const SizedBox(width: Dimensions.paddingSizeSmall),
+                  ProfileCardWidget(title: 'this_week_orders'.tr, data: '${profileController.profileModel?.thisWeekOrderCount ?? 0}'),
+                ]),
+              if ((profileController.profileModel?.todaysOrderCount ?? 0) > 0 || (profileController.profileModel?.thisWeekOrderCount ?? 0) > 0)
+                const SizedBox(height: Dimensions.paddingSizeDefault),
+
+              // Earnings Section (if enabled)
+              if (profileController.profileModel != null && (profileController.profileModel?.earnings ?? 0) == 1)
+                DetailsCustomCard(
+                  padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        Icon(Icons.account_balance_wallet, color: Theme.of(context).primaryColor, size: 24),
+                        const SizedBox(width: Dimensions.paddingSizeSmall),
+                        Text('earnings'.tr, style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeLarge)),
+                      ]),
+                      const SizedBox(height: Dimensions.paddingSizeDefault),
+                      Row(children: [
+                        Expanded(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text('today'.tr, style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor)),
+                            const SizedBox(height: Dimensions.paddingSizeExtraSmall),
+                            Text(
+                              PriceConverter.convertPrice(profileController.profileModel?.todaysEarning ?? 0.0),
+                              style: robotoBold.copyWith(fontSize: Dimensions.fontSizeLarge, color: Theme.of(context).primaryColor),
+                            ),
+                          ]),
+                        ),
+                        Container(height: 30, width: 1, color: Theme.of(context).disabledColor),
+                        Expanded(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                            Text('this_week'.tr, style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor)),
+                            const SizedBox(height: Dimensions.paddingSizeExtraSmall),
+                            Text(
+                              PriceConverter.convertPrice(profileController.profileModel?.thisWeekEarning ?? 0.0),
+                              style: robotoBold.copyWith(fontSize: Dimensions.fontSizeLarge, color: Theme.of(context).primaryColor),
+                            ),
+                          ]),
+                        ),
+                        Container(height: 30, width: 1, color: Theme.of(context).disabledColor),
+                        Expanded(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                            Text('this_month'.tr, style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor)),
+                            const SizedBox(height: Dimensions.paddingSizeExtraSmall),
+                            Text(
+                              PriceConverter.convertPrice(profileController.profileModel?.thisMonthEarning ?? 0.0),
+                              style: robotoBold.copyWith(fontSize: Dimensions.fontSizeLarge, color: Theme.of(context).primaryColor),
+                            ),
+                          ]),
+                        ),
+                      ]),
+                      if (profileController.profileModel?.balance != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: Dimensions.paddingSizeDefault),
+                          child: Row(children: [
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+                                ),
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Text('balance'.tr, style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor)),
+                                  const SizedBox(height: Dimensions.paddingSizeExtraSmall),
+                                  Text(
+                                    PriceConverter.convertPrice(profileController.profileModel?.balance ?? 0.0),
+                                    style: robotoBold.copyWith(fontSize: Dimensions.fontSizeDefault, color: Theme.of(context).primaryColor),
+                                  ),
+                                ]),
+                              ),
+                            ),
+                          ]),
+                        ),
+                    ],
+                  ),
+                ),
+              if (profileController.profileModel != null && (profileController.profileModel?.earnings ?? 0) == 1)
+                const SizedBox(height: Dimensions.paddingSizeDefault),
+              const SizedBox(height: Dimensions.paddingSizeSmall),
 
               ProfileButtonWidget(icon: Icons.dark_mode, title: 'dark_mode'.tr, isButtonActive: Get.isDarkMode, onTap: () {
                 Get.find<ThemeController>().toggleTheme();

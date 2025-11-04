@@ -7,6 +7,9 @@ export declare class DriverEntity {
     vehicleType: string;
     capacity: number;
     online: boolean;
+    status: string;
+    ratingAvg: number | null;
+    kycStatus: string | null;
     latitude: number | null;
     longitude: number | null;
     lastSeenAt: Date | null;

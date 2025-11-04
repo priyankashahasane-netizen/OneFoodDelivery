@@ -231,8 +231,10 @@ class OrderController extends GetxController implements GetxService {
   Future<void> getCurrentOrders({required String status, bool isDataClear = true}) async {
     if(isDataClear){
       _currentOrderList = null;
+      update(); // Show loading state
     }
     try {
+      debugPrint('🔄 OrderController.getCurrentOrders: Fetching orders with status="$status", isDataClear=$isDataClear');
       PaginatedOrderModel? paginatedOrderModel = await orderServiceInterface.getCurrentOrders(status: status);
       if(paginatedOrderModel != null && paginatedOrderModel.orders != null) {
         _currentOrderList = [];
@@ -247,16 +249,26 @@ class OrderController extends GetxController implements GetxService {
           paginatedOrderModel.orderCount?.delivered ?? 0,
           paginatedOrderModel.orderCount?.canceled ?? 0,
         ];
+        debugPrint('✅ OrderController.getCurrentOrders: Successfully loaded ${_currentOrderList!.length} orders');
       } else {
-        // Use empty list when API returns null
+        // API returned null - could be error or no orders
+        debugPrint('⚠️ OrderController.getCurrentOrders: API returned null (could be error or no orders)');
+        // Check if this is likely an error vs genuinely no orders
+        // If we had data before and now we don't, it might be an error
+        // For now, set to empty list to show "no orders" state
+        // But we should distinguish between error and no orders in the future
         _currentOrderList = [];
         _currentOrderCountList = [0, 0, 0, 0, 0, 0, 0, 0];
+        debugPrint('⚠️ OrderController.getCurrentOrders: Set empty list - check repository logs for actual error');
       }
-    } catch (e) {
-      debugPrint('Error fetching current orders: $e');
-      // Use empty list on error
-      _currentOrderList = [];
-      _currentOrderCountList = [0, 0, 0, 0, 0, 0, 0, 0];
+    } catch (e, stackTrace) {
+      debugPrint('❌ OrderController.getCurrentOrders: Exception occurred');
+      debugPrint('Error: $e');
+      debugPrint('Stack trace: $stackTrace');
+      // On error, keep as null to distinguish from "no orders" state
+      // This allows UI to show loading state or error state
+      _currentOrderList = null;
+      _currentOrderCountList = null;
     }
     update();
   }
@@ -314,10 +326,14 @@ class OrderController extends GetxController implements GetxService {
 
   Future<void> getOrderDetails(int? orderID) async {
     _orderDetailsModel = null;
+    update(); // Show loading state
     List<OrderDetailsModel>? orderDetailsModel = await orderServiceInterface.getOrderDetails(orderID);
-    if(orderDetailsModel != null) {
+    if(orderDetailsModel != null && orderDetailsModel.isNotEmpty) {
       _orderDetailsModel = [];
       _orderDetailsModel!.addAll(orderDetailsModel);
+    } else if (orderDetailsModel != null && orderDetailsModel.isEmpty) {
+      // Empty list means 403/404 error - keep as null to show error state
+      _orderDetailsModel = null;
     }
     update();
   }

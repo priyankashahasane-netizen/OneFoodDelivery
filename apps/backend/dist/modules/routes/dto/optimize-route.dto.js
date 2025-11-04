@@ -8,7 +8,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsArray, IsNumber, IsString, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsArray, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
 class OptimizeStopDto {
     lat;
     lng;
@@ -26,6 +26,7 @@ __decorate([
 ], OptimizeStopDto.prototype, "lng", void 0);
 __decorate([
     IsString(),
+    IsOptional(),
     __metadata("design:type", String)
 ], OptimizeStopDto.prototype, "orderId", void 0);
 export class OptimizeRouteDto {

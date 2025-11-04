@@ -35,21 +35,56 @@ export default async function TrackPage({ params }: { params: { orderId: string 
 }
 
 "use client";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 function ClientSidebarShell({ orderId, geo, order }: { orderId: string; geo: any; order: any }) {
-  const [driverId, setDriverId] = useState<string | undefined>(undefined);
+  // Get driverId from order object if available, otherwise from tracking position
+  const [driverIdFromTracking, setDriverIdFromTracking] = useState<string | undefined>(undefined);
+  const driverId = order?.driverId || order?.driver?.id || driverIdFromTracking;
+  
+  useEffect(() => {
+    // If order has driverId, use it immediately
+    if (order?.driverId || order?.driver?.id) {
+      setDriverIdFromTracking(order.driverId || order.driver?.id);
+    }
+  }, [order]);
+
   return (
     <main style={{ height: '100vh', width: '100vw', display: 'grid', gridTemplateColumns: '1fr 360px' }}>
-      <TrackingMap orderId={orderId} onPosition={(p) => { if (p.driverId) setDriverId(p.driverId); }} />
+      <TrackingMap orderId={orderId} onPosition={(p) => { if (p.driverId) setDriverIdFromTracking(p.driverId); }} />
       <aside style={{ padding: 16, borderLeft: '1px solid #eee', fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans' }}>
-        <h2 style={{ margin: 0, fontSize: 18 }}>Order #{orderId}</h2>
+        <h2 style={{ margin: 0, fontSize: 18 }}>
+          Order {order?.externalRef ? `#${order.externalRef}` : `#${orderId.substring(0, 8)}`}
+        </h2>
         <p style={{ color: '#666', marginTop: 8 }}>
           {geo ? `${geo.city ?? ''} ${geo.country_code ?? ''} • ${geo.tz ?? ''}` : 'Personalizing…'}
         </p>
+        {order?.driver?.name && (
+          <p style={{ color: '#666', marginTop: 4, fontSize: 14 }}>
+            Driver: <strong>{order.driver.name}</strong>
+          </p>
+        )}
         <StatusTimeline status={order?.status ?? 'unknown'} />
         <div style={{ height: 12 }} />
         <EtaPanel driverId={driverId} tz={geo?.tz} countryCode={geo?.country_code} />
+        {order?.pickup?.address && (
+          <>
+            <div style={{ height: 12 }} />
+            <div>
+              <h3 style={{ margin: '0 0 8px 0', fontSize: 16 }}>Pickup</h3>
+              <p style={{ margin: 0, fontSize: 14, color: '#6b7280' }}>{order.pickup.address}</p>
+            </div>
+          </>
+        )}
+        {order?.dropoff?.address && (
+          <>
+            <div style={{ height: 12 }} />
+            <div>
+              <h3 style={{ margin: '0 0 8px 0', fontSize: 16 }}>Delivery</h3>
+              <p style={{ margin: 0, fontSize: 14, color: '#6b7280' }}>{order.dropoff.address}</p>
+            </div>
+          </>
+        )}
         <div style={{ height: 12 }} />
         <SupportCTA />
       </aside>

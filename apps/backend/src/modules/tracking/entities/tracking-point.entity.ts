@@ -20,16 +20,16 @@ export class TrackingPointEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @ManyToOne(() => OrderEntityClass, (order) => order.trackingPoints, { nullable: false })
+  @ManyToOne(() => OrderEntityClass, (order) => order.trackingPoints, { nullable: true })
   @JoinColumn({ name: 'order_id' })
-  order!: OrderEntity;
+  order!: OrderEntity | null;
 
   @Column({ name: 'order_id' })
   orderId!: string;
 
-  @ManyToOne(() => DriverEntityClass, (driver) => driver.trackingPoints, { nullable: false })
+  @ManyToOne(() => DriverEntityClass, (driver) => driver.trackingPoints, { nullable: true })
   @JoinColumn({ name: 'driver_id' })
-  driver!: DriverEntity;
+  driver!: DriverEntity | null;
 
   @Column({ name: 'driver_id' })
   driverId!: string;

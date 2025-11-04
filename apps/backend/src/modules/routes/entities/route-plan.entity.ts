@@ -20,12 +20,12 @@ export class RoutePlanEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @ManyToOne(() => DriverEntityClass, (driver) => driver.routePlans, { nullable: false })
+  @ManyToOne(() => DriverEntityClass, (driver) => driver.routePlans, { nullable: true })
   @JoinColumn({ name: 'driver_id' })
-  driver!: DriverEntity;
+  driver!: DriverEntity | null;
 
-  @Column({ name: 'driver_id' })
-  driverId!: string;
+  @Column({ name: 'driver_id', nullable: true })
+  driverId!: string | null;
 
   @ManyToOne(() => OrderEntityClass, (order) => order.routePlans)
   @JoinColumn({ name: 'order_id' })
@@ -34,14 +34,35 @@ export class RoutePlanEntity {
   @Column({ name: 'order_id', nullable: true })
   orderId!: string | null;
 
+  @Column({ length: 24, default: 'planned' })
+  status!: string; // planned, active, completed, cancelled
+
   @Column({ type: 'jsonb', name: 'stops', nullable: false })
-  stops!: Array<{ lat: number; lng: number; orderId?: string; eta?: string }>;
+  stops!: Array<{ lat: number; lng: number; orderId?: string; eta?: string; id?: string; address?: string; serviceTimeSec?: number; sequencePosition?: number }>;
+
+  @Column({ type: 'jsonb', nullable: true })
+  sequence!: number[] | null;
+
+  @Column({ type: 'text', nullable: true })
+  polyline!: string | null;
 
   @Column({ type: 'float', name: 'total_distance_km', default: 0 })
   totalDistanceKm!: number;
 
+  @Column({ name: 'estimated_duration_sec', type: 'int', nullable: true })
+  estimatedDurationSec!: number | null;
+
   @Column({ type: 'jsonb', name: 'eta_per_stop', nullable: true })
   etaPerStop!: string[] | null;
+
+  @Column({ name: 'assigned_at', type: 'timestamptz', nullable: true })
+  assignedAt!: Date | null;
+
+  @Column({ name: 'completed_at', type: 'timestamptz', nullable: true })
+  completedAt!: Date | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  meta!: Record<string, unknown> | null;
 
   @Column({ type: 'jsonb', name: 'raw_response', nullable: true })
   rawResponse!: Record<string, unknown> | null;

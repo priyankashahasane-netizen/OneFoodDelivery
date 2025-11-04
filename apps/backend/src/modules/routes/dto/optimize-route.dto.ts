@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsArray, IsNumber, IsString, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsArray, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
 
 class OptimizeStopDto {
   @Type(() => Number)
@@ -11,7 +11,8 @@ class OptimizeStopDto {
   lng!: number;
 
   @IsString()
-  orderId!: string;
+  @IsOptional()
+  orderId?: string;
 }
 
 export class OptimizeRouteDto {

@@ -44,6 +44,155 @@ export class OrdersService {
     return order;
   }
 
+  async findByIdForDriver(orderId: string, driverId: string) {
+    // First try to find by UUID directly
+    let order = await this.ordersRepository.findOne({ 
+      where: { id: orderId, driverId }, 
+      relations: ['driver'] 
+    });
+
+    // If not found by UUID, try to find by numeric ID (hash of UUID)
+    if (!order) {
+      const numericId = parseInt(orderId, 10);
+      if (!isNaN(numericId)) {
+        // Get all orders for this driver and find the one with matching numeric ID
+        const allOrders = await this.ordersRepository.find({
+          where: { driverId },
+          relations: ['driver']
+        });
+        
+        for (const o of allOrders) {
+          const orderNumericId = Math.abs(o.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % 1000000;
+          if (orderNumericId === numericId) {
+            order = o;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!order) {
+      throw new NotFoundException(`Order ${orderId} not found or not assigned to driver`);
+    }
+    return this.transformOrderForFlutter(order, driverId);
+  }
+
+  private transformOrderForFlutter(order: OrderEntity, driverId: string) {
+    // Extract address from pickup/dropoff
+    const restaurantAddress = typeof order.pickup === 'object' && order.pickup !== null ? (order.pickup as any).address || '' : '';
+    const deliveryAddressText = typeof order.dropoff === 'object' && order.dropoff !== null ? (order.dropoff as any).address || '' : '';
+    
+    // Calculate order amount from items
+    const items = (order.items as any[]) || [];
+    const orderAmount = items.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0);
+    
+    // Create a numeric ID from UUID hash (for compatibility)
+    const numericId = Math.abs(order.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % 1000000;
+    
+    return {
+      id: numericId,
+      user_id: null,
+      order_amount: orderAmount,
+      coupon_discount_amount: 0,
+      payment_status: 'unpaid',
+      order_status: order.status,
+      total_tax_amount: 0,
+      payment_method: order.paymentType || 'cash',
+      transaction_reference: null,
+      delivery_address_id: null,
+      delivery_man_id: driverId,
+      order_type: 'delivery',
+      restaurant_id: null,
+      created_at: order.createdAt?.toISOString() || new Date().toISOString(),
+      updated_at: order.updatedAt?.toISOString() || new Date().toISOString(),
+      delivery_charge: 0,
+      original_delivery_charge: 0,
+      dm_tips: 0,
+      schedule_at: null,
+      restaurant_name: restaurantAddress.split(',')[0] || 'Restaurant',
+      restaurant_discount_amount: 0,
+      restaurant_address: restaurantAddress,
+      restaurant_lat: typeof order.pickup === 'object' && order.pickup !== null ? String((order.pickup as any).lat || '') : '',
+      restaurant_lng: typeof order.pickup === 'object' && order.pickup !== null ? String((order.pickup as any).lng || '') : '',
+      restaurant_logo_full_url: null,
+      restaurant_phone: null,
+      restaurant_delivery_time: null,
+      vendor_id: null,
+      details_count: items.length,
+      order_note: null,
+      delivery_address: {
+        id: null,
+        address_type: 'home',
+        contact_person_number: null,
+        address: deliveryAddressText,
+        latitude: typeof order.dropoff === 'object' && order.dropoff !== null ? String((order.dropoff as any).lat || '') : '',
+        longitude: typeof order.dropoff === 'object' && order.dropoff !== null ? String((order.dropoff as any).lng || '') : '',
+        zone_id: null,
+        zone_ids: null,
+        created_at: null,
+        updated_at: null,
+        user_id: null,
+        contact_person_name: null,
+        road: null,
+        house: null,
+        floor: null,
+        postal_code: null,
+        address_label: null,
+      },
+      customer: null,
+      processing_time: null,
+      chat_permission: null,
+      restaurant_model: null,
+      cutlery: false,
+      unavailable_item_note: null,
+      delivery_instruction: null,
+      order_proof_full_url: null,
+      payments: null,
+      restaurant_discount: 0,
+      tax_status: false,
+      additional_charge: 0,
+      extra_packaging_amount: 0,
+      ref_bonus_amount: 0,
+      bring_change_amount: 0,
+      external_ref: order.externalRef || null,
+      items: items.map((item: any) => ({
+        name: item.name || 'Item',
+        price: item.price || 0,
+        quantity: item.quantity || 1,
+        add_ons: item.addOns || [],
+      })),
+      // Order details format for Flutter app
+      order_details: items.map((item: any, index: number) => ({
+        id: index + 1,
+        food_id: item.foodId || null,
+        order_id: numericId,
+        price: item.price || 0,
+        food_details: {
+          id: item.foodId || null,
+          name: item.name || 'Item',
+          description: item.description || null,
+          image_full_url: item.imageUrl || null,
+          price: item.price || 0,
+        },
+        variation: item.variations || [],
+        add_ons: (item.addOns || []).map((addon: any) => ({
+          name: addon.name || 'Add-on',
+          price: addon.price || 0,
+          quantity: addon.quantity || 1,
+        })),
+        discount_on_food: item.discount || 0,
+        discount_type: item.discountType || null,
+        quantity: item.quantity || 1,
+        tax_amount: item.taxAmount || 0,
+        variant: item.variant || null,
+        created_at: order.createdAt?.toISOString() || new Date().toISOString(),
+        updated_at: order.updatedAt?.toISOString() || new Date().toISOString(),
+        item_campaign_id: item.campaignId || null,
+        total_add_on_price: (item.addOns || []).reduce((sum: number, addon: any) => sum + ((addon.price || 0) * (addon.quantity || 1)), 0),
+      })),
+    };
+  }
+
   async upsert(orderId: string, payload: UpsertOrderDto) {
     const existing = await this.ordersRepository.findOne({ where: { id: orderId } });
     const partial: DeepPartial<OrderEntity> = { id: orderId, ...payload };
@@ -82,13 +231,109 @@ export class OrdersService {
     return this.ordersRepository.save(order);
   }
 
-  async getActiveOrdersByDriver(driverId: string) {
+  /**
+   * Get raw active orders (OrderEntity) for internal use (e.g., route optimization)
+   */
+  async getActiveOrdersByDriverRaw(driverId: string): Promise<OrderEntity[]> {
     return this.ordersRepository
       .createQueryBuilder('order')
       .where('order.driverId = :driverId', { driverId })
       .andWhere('order.status NOT IN (:...statuses)', { statuses: ['delivered', 'canceled', 'failed', 'refunded', 'refund_requested', 'refund_request_canceled'] })
       .orderBy('order.assignedAt', 'DESC')
       .getMany();
+  }
+
+  async getActiveOrdersByDriver(driverId: string) {
+    const orders = await this.getActiveOrdersByDriverRaw(driverId);
+
+    // Transform orders to match Flutter app's expected format
+    const transformedOrders = orders.map((o) => {
+      // Extract address from pickup/dropoff
+      const restaurantAddress = typeof o.pickup === 'object' && o.pickup !== null ? (o.pickup as any).address || '' : '';
+      const deliveryAddressText = typeof o.dropoff === 'object' && o.dropoff !== null ? (o.dropoff as any).address || '' : '';
+      
+      // Calculate order amount from items
+      const items = (o.items as any[]) || [];
+      const orderAmount = items.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0);
+      
+      // Create a numeric ID from UUID hash (for compatibility)
+      const numericId = Math.abs(o.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % 1000000;
+      
+      return {
+        id: numericId,
+        user_id: null,
+        order_amount: orderAmount,
+        coupon_discount_amount: 0,
+        payment_status: 'unpaid',
+        order_status: o.status,
+        total_tax_amount: 0,
+        payment_method: o.paymentType || 'cash',
+        transaction_reference: null,
+        delivery_address_id: null,
+        delivery_man_id: driverId,
+        order_type: 'delivery',
+        restaurant_id: null,
+        created_at: o.createdAt?.toISOString() || new Date().toISOString(),
+        updated_at: o.updatedAt?.toISOString() || new Date().toISOString(),
+        delivery_charge: 0,
+        original_delivery_charge: 0,
+        dm_tips: 0,
+        schedule_at: null,
+        restaurant_name: restaurantAddress.split(',')[0] || 'Restaurant',
+        restaurant_discount_amount: 0,
+        restaurant_address: restaurantAddress,
+        restaurant_lat: typeof o.pickup === 'object' && o.pickup !== null ? String((o.pickup as any).lat || '') : '',
+        restaurant_lng: typeof o.pickup === 'object' && o.pickup !== null ? String((o.pickup as any).lng || '') : '',
+        restaurant_logo_full_url: null,
+        restaurant_phone: null,
+        restaurant_delivery_time: null,
+        vendor_id: null,
+        details_count: items.length,
+        order_note: null,
+        delivery_address: {
+          id: null,
+          address_type: 'home',
+          contact_person_number: null,
+          address: deliveryAddressText,
+          latitude: typeof o.dropoff === 'object' && o.dropoff !== null ? String((o.dropoff as any).lat || '') : '',
+          longitude: typeof o.dropoff === 'object' && o.dropoff !== null ? String((o.dropoff as any).lng || '') : '',
+          zone_id: null,
+          zone_ids: null,
+          created_at: null,
+          updated_at: null,
+          user_id: null,
+          contact_person_name: null,
+          road: null,
+          house: null,
+          floor: null,
+          postal_code: null,
+          address_label: null,
+        },
+        customer: null,
+        processing_time: null,
+        chat_permission: null,
+        restaurant_model: null,
+        cutlery: false,
+        unavailable_item_note: null,
+        delivery_instruction: null,
+        order_proof_full_url: null,
+        payments: null,
+        restaurant_discount: 0,
+        tax_status: false,
+        additional_charge: 0,
+        extra_packaging_amount: 0,
+        ref_bonus_amount: 0,
+        bring_change_amount: 0,
+        external_ref: o.externalRef || null,
+        items: items.map((item: any) => ({
+          name: item.name || 'Item',
+          price: item.price || 0,
+          quantity: item.quantity || 1,
+        })),
+      };
+    });
+    
+    return transformedOrders;
   }
 
   async getAvailableOrders(driverId?: string) {

@@ -7,10 +7,14 @@ import { PaginationQueryDto } from '../../common/dto/pagination.dto.js';
 import { AssignOrderDto } from '../assignments/dto/assign-order.dto.js';
 import { OrdersService } from './orders.service.js';
 import { UpsertOrderDto } from './dto/upsert-order.dto.js';
+import { DriversService } from '../drivers/drivers.service.js';
 
 @Controller('orders')
 export class OrdersController {
-  constructor(private readonly ordersService: OrdersService) {}
+  constructor(
+    private readonly ordersService: OrdersService,
+    private readonly driversService: DriversService
+  ) {}
 
   @Get()
   @Roles('admin', 'dispatcher', 'support')
@@ -22,13 +26,54 @@ export class OrdersController {
   @UseGuards(JwtAuthGuard)
   async getActiveByDriver(@Param('driverId') driverId: string, @Request() req: any) {
     try {
-      // Use JWT token's driver ID instead of path parameter to avoid UUID/numeric ID mismatch
-      const actualDriverId = req?.user?.sub || req?.user?.driverId || driverId;
+      // Prefer path parameter driverId (from Flutter app) over JWT token's driver ID
+      // This ensures we use the correct driver ID that the app fetched from profile
+      let actualDriverId = driverId;
+      
+      // If path parameter is 'demo-driver-id' or invalid, try to get real driver ID from token
+      if (!actualDriverId || actualDriverId === 'demo-driver-id') {
+        actualDriverId = req?.user?.sub || req?.user?.driverId;
+      }
+      
+      // If still no valid driver ID, try to resolve by phone (for demo account)
+      if (!actualDriverId || actualDriverId === 'demo-driver-id') {
+        const phone = req?.user?.phone;
+        if (phone) {
+          try {
+            // Try to find driver by phone (check multiple phone format variations)
+            const phoneVariations = [
+              phone,
+              phone.replace('+91', '').replace(/-/g, ''),
+              phone.replace('+', ''),
+              `+91${phone.replace('+91', '').replace(/-/g, '')}`,
+              `91${phone.replace('+91', '').replace(/-/g, '')}`
+            ];
+            
+            for (const phoneVar of phoneVariations) {
+              const driver = await this.driversService.findByPhone(phoneVar);
+              if (driver) {
+                actualDriverId = driver.id;
+                break;
+              }
+            }
+          } catch (e) {
+            // If driver lookup fails, continue with what we have
+            console.warn('getActiveByDriver: Failed to lookup driver by phone:', e);
+          }
+        }
+      }
+      
       if (!actualDriverId) {
+        console.warn('getActiveByDriver: No valid driver ID found');
         return []; // Return empty array if no driver ID
       }
-      return await this.ordersService.getActiveOrdersByDriver(actualDriverId);
+      
+      console.log(`getActiveByDriver: Fetching active orders for driverId: ${actualDriverId}`);
+      const orders = await this.ordersService.getActiveOrdersByDriver(actualDriverId);
+      console.log(`getActiveByDriver: Found ${orders.length} active orders`);
+      return orders;
     } catch (error) {
+      console.error('getActiveByDriver error:', error);
       // Return empty array on error instead of throwing
       return [];
     }

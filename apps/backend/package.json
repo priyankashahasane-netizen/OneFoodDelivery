@@ -23,10 +23,14 @@
     "migration:revert": "npm run typeorm migration:revert",
     "typeorm": "node --loader ts-node/esm ./node_modules/typeorm/cli.js -d src/config/typeorm.config.ts",
     "seed": "ts-node --esm src/database/seeds/run-seed.ts",
+    "seed-all": "ts-node --esm src/database/seeds/seed-all-tables.ts",
+    "create-notifications-table": "node dist/database/seeds/create-notifications-table.js",
+    "seed-demo-complete": "node --loader ts-node/esm src/database/seeds/seed-demo-complete.ts",
     "add-mock-orders": "node --loader ts-node/esm src/database/seeds/add-mock-orders.ts",
     "reassign-orders-to-demo": "node --loader ts-node/esm src/database/seeds/reassign-orders-to-demo.ts",
     "create-demo-account": "node --loader ts-node/esm src/database/seeds/create-demo-account.ts",
-    "consolidate-demo-account": "node --loader ts-node/esm src/database/seeds/consolidate-demo-account.ts"
+    "consolidate-demo-account": "node --loader ts-node/esm src/database/seeds/consolidate-demo-account.ts",
+    "add-active-order-demo": "node --loader ts-node/esm src/database/seeds/add-active-order-demo.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.5",

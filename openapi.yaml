@@ -1,0 +1,1477 @@
+openapi: 3.0.3
+info:
+  title: Food Delivery Driver App API
+  version: 1.6.1
+  description: >
+    API for driver app, admin dashboard, customer tracking, notifications,
+    subscription deliveries, wallet & payout management, and route optimization.
+
+servers:
+  - url: https://api.example.com
+    description: Production
+  - url: https://staging.api.example.com
+    description: Staging
+
+tags:
+  - name: Auth
+  - name: Drivers
+  - name: Orders
+  - name: Route Plans
+  - name: Routes
+  - name: Tracking
+  - name: Proof of Delivery
+  - name: Subscriptions
+  - name: Notifications
+  - name: Geo
+  - name: Wallet
+  - name: Bank Accounts
+  - name: Admin
+  - name: Webhooks
+
+x-socket-endpoints:
+  tracking: wss://api.example.com/ws/track/{orderId}
+
+security:
+  - BearerAuth: []
+
+paths:
+  # Auth
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Authenticate driver via OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone:
+                  type: string
+                otp:
+                  type: string
+      responses:
+        '200':
+          description: JWT access token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+
+  # Drivers
+  /api/drivers:
+    get:
+      tags: [Drivers]
+      summary: List drivers
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of drivers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Driver'
+
+  /api/drivers/{id}:
+    get:
+      tags: [Drivers]
+      summary: Get driver details
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Driver detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Driver'
+
+  # Driver bank account management
+  /api/drivers/{id}/bank-account:
+    get:
+      tags: [Bank Accounts]
+      summary: Get driver's linked bank account
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Driver bank account details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriverBankAccount'
+
+    post:
+      tags: [Bank Accounts]
+      summary: Create or update driver's bank account
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DriverBankAccountInput'
+      responses:
+        '200':
+          description: Bank account created or updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriverBankAccount'
+
+    delete:
+      tags: [Bank Accounts]
+      summary: Remove driver's bank account
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Bank account removed successfully
+
+  /api/admin/driver-bank-accounts:
+    get:
+      tags: [Admin]
+      summary: List all driver bank accounts (admin)
+      responses:
+        '200':
+          description: List of driver bank accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DriverBankAccount'
+
+  # Orders
+  /api/orders:
+    get:
+      tags: [Orders]
+      summary: List orders
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: driverId
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+
+    post:
+      tags: [Orders]
+      summary: Create a new order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderInput'
+      responses:
+        '201':
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+
+  /api/orders/{id}:
+    get:
+      tags: [Orders]
+      summary: Get order details
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+
+  /api/orders/{id}/status:
+    patch:
+      tags: [Orders]
+      summary: Update order status
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - created
+                    - assigned
+                    - picked_up
+                    - out_for_delivery
+                    - delivered
+                    - cancelled
+                cancellationSource:
+                  type: string
+                  enum:
+                    - customer
+                    - restaurant
+                    - admin
+                    - system
+                  nullable: true
+                cancellationReason:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+
+  /api/orders/{id}/pod:
+    post:
+      tags: [Proof of Delivery]
+      summary: Submit proof of delivery
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProofOfDeliveryInput'
+      responses:
+        '200':
+          description: POD recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProofOfDelivery'
+
+    get:
+      tags: [Proof of Delivery]
+      summary: Get proof of delivery for an order
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: POD details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProofOfDelivery'
+
+  # Routes (persisted plans)
+  /api/routes:
+    get:
+      tags: [Routes]
+      summary: List route plans
+      parameters:
+        - in: query
+          name: driverId
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [planned, active, completed, cancelled]
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Array of route plans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoutePlan'
+
+    post:
+      tags: [Routes]
+      summary: Create a route plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoutePlanCreateInput'
+      responses:
+        '201':
+          description: Route plan created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoutePlan'
+
+  /api/routes/{id}:
+    get:
+      tags: [Routes]
+      summary: Get a route plan by id
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Route plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoutePlan'
+
+    patch:
+      tags: [Routes]
+      summary: Update route plan metadata
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoutePlanPatchInput'
+      responses:
+        '200':
+          description: Updated route plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoutePlan'
+
+    delete:
+      tags: [Routes]
+      summary: Cancel a route plan
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Route plan cancelled
+
+  /api/routes/{id}/assign:
+    post:
+      tags: [Routes]
+      summary: Assign route to a driver
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - driverId
+              properties:
+                driverId:
+                  type: string
+                assignedAt:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: Assigned route plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoutePlan'
+
+  /api/routes/{id}/reoptimize:
+    post:
+      tags: [Routes]
+      summary: Re-run optimization for an existing route
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reoptimizeOptions:
+                  type: object
+      responses:
+        '200':
+          description: Re-optimized route
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoutePlan'
+
+  /api/routes/{id}/compare:
+    get:
+      tags: [Routes]
+      summary: Compare optimized route vs actual
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Comparison metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteComparison'
+
+  /api/routes/webhook/optimo:
+    post:
+      tags: [Webhooks]
+      summary: Receive OptimoRoute webhook callbacks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event:
+                  type: string
+                payload:
+                  type: object
+      responses:
+        '200':
+          description: Webhook accepted
+
+  # One-off optimize (does not persist)
+  /api/routes/optimize:
+    post:
+      tags: [Route Plans]
+      summary: One-off optimize route (proxy to OptimoRoute)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                driverId:
+                  type: string
+                stops:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        nullable: true
+                      lat:
+                        type: number
+                      lng:
+                        type: number
+                      name:
+                        type: string
+                        nullable: true
+      responses:
+        '200':
+          description: Optimized route
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoutePlan'
+
+  # Subscriptions
+  /api/subscriptions:
+    get:
+      tags: [Subscriptions]
+      summary: List subscriptions
+      parameters:
+        - in: query
+          name: active
+          schema:
+            type: boolean
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of subscriptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Subscription'
+
+    post:
+      tags: [Subscriptions]
+      summary: Create a new subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubscriptionInput'
+      responses:
+        '201':
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+
+  /api/subscriptions/{id}:
+    get:
+      tags: [Subscriptions]
+      summary: Get subscription details
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Subscription detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+
+    patch:
+      tags: [Subscriptions]
+      summary: Update subscription
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubscriptionInput'
+      responses:
+        '200':
+          description: Updated subscription
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+
+  /api/subscriptions/{id}/execute:
+    post:
+      tags: [Subscriptions]
+      summary: Manually trigger next delivery
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Execution triggered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionExecution'
+
+  /api/subscription-executions:
+    get:
+      tags: [Subscriptions]
+      summary: List subscription executions
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of executions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SubscriptionExecution'
+
+  # Notifications
+  /api/notifications:
+    get:
+      tags: [Notifications]
+      summary: List notifications
+      responses:
+        '200':
+          description: Notification list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+
+  /api/notifications/test:
+    post:
+      tags: [Notifications]
+      summary: Send a test notification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event:
+                  type: string
+                recipients:
+                  type: array
+                  items:
+                    type: string
+                payload:
+                  type: object
+      responses:
+        '200':
+          description: Notification test sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+
+  # Geo
+  /api/geo/ip:
+    get:
+      tags: [Geo]
+      summary: Lookup IP geolocation (ipstack)
+      parameters:
+        - in: header
+          name: X-Forwarded-For
+          schema:
+            type: string
+      responses:
+        '200':
+          description: IP lookup result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeoIPResponse'
+
+  /api/geo/reverse:
+    get:
+      tags: [Geo]
+      summary: Reverse geocode via Nominatim
+      parameters:
+        - in: query
+          name: lat
+          required: true
+          schema:
+            type: number
+        - in: query
+          name: lng
+          required: true
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Address result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeoReverseResponse'
+
+  # Wallet & withdrawals
+  /api/wallet:
+    get:
+      tags: [Wallet]
+      summary: Get driver wallet balance
+      responses:
+        '200':
+          description: Wallet summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriverWallet'
+
+  /api/wallet/transactions:
+    get:
+      tags: [Wallet]
+      summary: List driver wallet transactions
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Transaction history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WalletTransaction'
+
+  /api/wallet/withdraw:
+    post:
+      tags: [Wallet]
+      summary: Request a withdrawal from driver wallet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - amount
+              properties:
+                amount:
+                  type: number
+                bankAccountId:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Withdrawal requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WithdrawalRequest'
+
+  /api/admin/withdrawals:
+    get:
+      tags: [Admin]
+      summary: List all withdrawal requests
+      responses:
+        '200':
+          description: List of withdrawal requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WithdrawalRequest'
+
+  /api/admin/withdrawals/{id}/status:
+    patch:
+      tags: [Admin]
+      summary: Update withdrawal request status
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WithdrawalStatusUpdate'
+      responses:
+        '200':
+          description: Withdrawal updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WithdrawalRequest'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # Driver
+    Driver:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        phone:
+          type: string
+        vehicleType:
+          type: string
+        status:
+          type: string
+          enum:
+            - online
+            - offline
+            - busy
+        capacity:
+          type: number
+        lastLocation:
+          type: object
+          properties:
+            lat:
+              type: number
+            lng:
+              type: number
+        ratingAvg:
+          type: number
+          nullable: true
+        kycStatus:
+          type: string
+          nullable: true
+        walletBalance:
+          type: number
+          nullable: true
+
+    # Orders
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+        externalRef:
+          type: string
+          nullable: true
+        pickup:
+          type: object
+          properties:
+            lat:
+              type: number
+            lng:
+              type: number
+            address:
+              type: string
+        dropoff:
+          type: object
+          properties:
+            lat:
+              type: number
+            lng:
+              type: number
+            address:
+              type: string
+        status:
+          type: string
+          enum:
+            - created
+            - assigned
+            - picked_up
+            - out_for_delivery
+            - delivered
+            - cancelled
+        cancellationSource:
+          type: string
+          enum:
+            - customer
+            - restaurant
+            - admin
+            - system
+          nullable: true
+        cancellationReason:
+          type: string
+          nullable: true
+        items:
+          type: array
+          items:
+            type: string
+        paymentType:
+          type: string
+          enum:
+            - cod
+            - prepaid
+            - wallet
+        slaSeconds:
+          type: integer
+          nullable: true
+        trackingUrl:
+          type: string
+          nullable: true
+        zoneId:
+          type: string
+          nullable: true
+        subscriptionId:
+          type: string
+          nullable: true
+        assignedAt:
+          type: string
+          format: date-time
+          nullable: true
+        deliveredAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    OrderInput:
+      allOf:
+        - $ref: '#/components/schemas/Order'
+      required:
+        - pickup
+        - dropoff
+        - paymentType
+
+    # Proof of Delivery
+    ProofOfDelivery:
+      type: object
+      properties:
+        id:
+          type: string
+        orderId:
+          type: string
+        driverId:
+          type: string
+          nullable: true
+        photoUrl:
+          type: string
+        signatureUrl:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        otpCode:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    ProofOfDeliveryInput:
+      type: object
+      required:
+        - photoUrl
+      properties:
+        photoUrl:
+          type: string
+        signatureUrl:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        otpCode:
+          type: string
+          nullable: true
+
+    # Route & optimization
+    RouteStop:
+      type: object
+      properties:
+        id:
+          type: string
+          nullable: true
+        orderId:
+          type: string
+          nullable: true
+        lat:
+          type: number
+        lng:
+          type: number
+        address:
+          type: string
+          nullable: true
+        serviceTimeSec:
+          type: integer
+          nullable: true
+        sequencePosition:
+          type: integer
+          nullable: true
+        eta:
+          type: string
+          format: date-time
+          nullable: true
+
+    RoutePlan:
+      type: object
+      properties:
+        id:
+          type: string
+        driverId:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum:
+            - planned
+            - active
+            - completed
+            - cancelled
+        stops:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteStop'
+        sequence:
+          type: array
+          items:
+            type: integer
+        polyline:
+          type: string
+          nullable: true
+        totalDistanceKm:
+          type: number
+          nullable: true
+        estimatedDurationSec:
+          type: integer
+          nullable: true
+        etaPerStop:
+          type: array
+          items:
+            type: string
+            format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        assignedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        meta:
+          type: object
+          additionalProperties: true
+          nullable: true
+
+    RoutePlanCreateInput:
+      type: object
+      required:
+        - stops
+      properties:
+        driverId:
+          type: string
+          nullable: true
+        stops:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteStop'
+        createAsActive:
+          type: boolean
+          default: false
+        meta:
+          type: object
+          additionalProperties: true
+          nullable: true
+
+    RoutePlanPatchInput:
+      type: object
+      properties:
+        driverId:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum:
+            - planned
+            - active
+            - completed
+            - cancelled
+        meta:
+          type: object
+          additionalProperties: true
+          nullable: true
+
+    RouteComparison:
+      type: object
+      properties:
+        routeId:
+          type: string
+        optimizedDistanceKm:
+          type: number
+        actualDistanceKm:
+          type: number
+        distanceDeltaKm:
+          type: number
+        optimizedDurationSec:
+          type: integer
+        actualDurationSec:
+          type: integer
+        ETAdeviations:
+          type: array
+          items:
+            type: object
+            properties:
+              stopIndex:
+                type: integer
+              optimizedEta:
+                type: string
+                format: date-time
+              actualEta:
+                type: string
+                format: date-time
+              deltaSec:
+                type: integer
+
+    # Subscriptions
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: string
+        orderTemplateId:
+          type: string
+        driverId:
+          type: string
+          nullable: true
+        routePlanId:
+          type: string
+          nullable: true
+        frequency:
+          type: string
+          enum:
+            - daily
+            - weekly
+            - custom
+        daysOfWeek:
+          type: array
+          items:
+            type: string
+            enum:
+              - mon
+              - tue
+              - wed
+              - thu
+              - fri
+              - sat
+              - sun
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+          nullable: true
+        nextDeliveryAt:
+          type: string
+          format: date-time
+          nullable: true
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SubscriptionInput:
+      allOf:
+        - $ref: '#/components/schemas/Subscription'
+      required:
+        - orderTemplateId
+        - frequency
+        - startDate
+
+    SubscriptionExecution:
+      type: object
+      properties:
+        id:
+          type: string
+        subscriptionId:
+          type: string
+        orderId:
+          type: string
+        scheduledFor:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+            - scheduled
+            - completed
+            - skipped
+            - failed
+        createdAt:
+          type: string
+          format: date-time
+
+    # Notifications
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+        event:
+          type: string
+        orderId:
+          type: string
+          nullable: true
+        recipients:
+          type: array
+          items:
+            type: string
+        payload:
+          type: object
+          additionalProperties: true
+        sentAt:
+          type: string
+          format: date-time
+
+    # Geo responses
+    GeoIPResponse:
+      type: object
+      properties:
+        city:
+          type: string
+          nullable: true
+        country_code:
+          type: string
+          nullable: true
+        tz:
+          type: string
+          nullable: true
+        lang:
+          type: string
+          nullable: true
+        approx:
+          type: boolean
+          nullable: true
+
+    GeoReverseResponse:
+      type: object
+      properties:
+        address:
+          type: string
+
+    # Walleting
+    DriverWallet:
+      type: object
+      properties:
+        id:
+          type: string
+        driverId:
+          type: string
+        balance:
+          type: number
+        currency:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+
+    WalletTransaction:
+      type: object
+      properties:
+        id:
+          type: string
+        walletId:
+          type: string
+        orderId:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum:
+            - credit
+            - debit
+        category:
+          type: string
+          enum:
+            - delivery_fee
+            - bonus
+            - penalty
+            - withdrawal
+        amount:
+          type: number
+        description:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    WithdrawalRequest:
+      type: object
+      properties:
+        id:
+          type: string
+        driverId:
+          type: string
+        bankAccountId:
+          type: string
+          nullable: true
+        amount:
+          type: number
+        status:
+          type: string
+          enum:
+            - requested
+            - processing
+            - completed
+            - failed
+        requestedAt:
+          type: string
+          format: date-time
+        processedAt:
+          type: string
+          format: date-time
+          nullable: true
+        txnRef:
+          type: string
+          nullable: true
+        remarks:
+          type: string
+          nullable: true
+
+    WithdrawalStatusUpdate:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - processing
+            - completed
+            - failed
+        txnRef:
+          type: string
+          nullable: true
+        remarks:
+          type: string
+          nullable: true
+
+    # Bank accounts
+    DriverBankAccount:
+      type: object
+      properties:
+        id:
+          type: string
+        driverId:
+          type: string
+        accountHolderName:
+          type: string
+        accountNumber:
+          type: string
+        ifscCode:
+          type: string
+        bankName:
+          type: string
+        branchName:
+          type: string
+          nullable: true
+        upiId:
+          type: string
+          nullable: true
+        isVerified:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    DriverBankAccountInput:
+      allOf:
+        - $ref: '#/components/schemas/DriverBankAccount'
+      required:
+        - accountHolderName
+        - accountNumber
+        - ifscCode
+        - bankName

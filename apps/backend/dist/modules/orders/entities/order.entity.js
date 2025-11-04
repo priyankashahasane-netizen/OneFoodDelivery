@@ -27,6 +27,10 @@ let OrderEntity = class OrderEntity {
     trackingPoints;
     routePlans;
     zoneId;
+    subscriptionId;
+    cancellationSource;
+    cancellationReason;
+    deliveredAt;
     createdAt;
     updatedAt;
 };
@@ -92,6 +96,22 @@ __decorate([
     Column({ name: 'zone_id', nullable: true }),
     __metadata("design:type", String)
 ], OrderEntity.prototype, "zoneId", void 0);
+__decorate([
+    Column({ name: 'subscription_id', nullable: true }),
+    __metadata("design:type", String)
+], OrderEntity.prototype, "subscriptionId", void 0);
+__decorate([
+    Column({ name: 'cancellation_source', length: 32, nullable: true }),
+    __metadata("design:type", String)
+], OrderEntity.prototype, "cancellationSource", void 0);
+__decorate([
+    Column({ name: 'cancellation_reason', type: 'text', nullable: true }),
+    __metadata("design:type", String)
+], OrderEntity.prototype, "cancellationReason", void 0);
+__decorate([
+    Column({ name: 'delivered_at', type: 'timestamptz', nullable: true }),
+    __metadata("design:type", Date)
+], OrderEntity.prototype, "deliveredAt", void 0);
 __decorate([
     CreateDateColumn({ name: 'created_at' }),
     __metadata("design:type", Date)

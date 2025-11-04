@@ -10,7 +10,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-import { Controller, Get, Query, Request, UseGuards, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Query, Request, UseGuards, UnauthorizedException, Param } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt.guard.js';
 import { OrdersService } from '../orders/orders.service.js';
 import { DriversService } from '../drivers/drivers.service.js';
@@ -168,6 +168,53 @@ let DeliveryManController = class DeliveryManController {
             type: type || 'customer'
         };
     }
+    async getOrderDetails(orderId, req) {
+        try {
+            let driverId = req?.user?.sub || req?.user?.driverId;
+            const phone = req?.user?.phone;
+            const isDemoAccount = req?.user?.driverId === 'demo-driver-id';
+            if (driverId && !isDemoAccount) {
+                try {
+                    await this.driversService.findById(driverId);
+                }
+                catch (error) {
+                    if (phone) {
+                        const driverByPhone = await this.driversService.findByPhone(phone);
+                        if (driverByPhone) {
+                            driverId = driverByPhone.id;
+                        }
+                    }
+                    if (!driverId || driverId === req?.user?.sub) {
+                        const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+                        for (const demoPhone of demoPhones) {
+                            const demoDriver = await this.driversService.findByPhone(demoPhone);
+                            if (demoDriver) {
+                                driverId = demoDriver.id;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            if (isDemoAccount || !driverId) {
+                const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+                for (const demoPhone of demoPhones) {
+                    const demoDriver = await this.driversService.findByPhone(demoPhone);
+                    if (demoDriver) {
+                        driverId = demoDriver.id;
+                        break;
+                    }
+                }
+            }
+            if (!driverId) {
+                throw new UnauthorizedException('Driver ID not found in token');
+            }
+            return await this.ordersService.findByIdForDriver(orderId, driverId);
+        }
+        catch (error) {
+            throw error;
+        }
+    }
 };
 __decorate([
     Get('all-orders'),
@@ -226,6 +273,15 @@ __decorate([
     __metadata("design:paramtypes", [String, String, String, Object]),
     __metadata("design:returntype", Promise)
 ], DeliveryManController.prototype, "getMessageList", null);
+__decorate([
+    Get('order/:orderId'),
+    UseGuards(JwtAuthGuard),
+    __param(0, Param('orderId')),
+    __param(1, Request()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], DeliveryManController.prototype, "getOrderDetails", null);
 DeliveryManController = __decorate([
     Controller('v1/delivery-man'),
     __metadata("design:paramtypes", [OrdersService,

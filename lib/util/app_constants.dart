@@ -20,7 +20,7 @@ class AppConstants {
   // Orders
   static const String availableOrdersUri = '/api/orders/available';
   static const String activeOrdersUri = '/api/orders/driver'; // /:driverId/active
-  static const String orderDetailsUri = '/api/orders'; // /:id
+  static const String orderDetailsUri = '/api/v1/delivery-man/order'; // /:orderId (driver-specific)
   static const String updateOrderStatusUri = '/api/orders'; // /:id/status
   
   // Assignments (Accept Orders)

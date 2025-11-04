@@ -2,9 +2,9 @@ import type { DriverEntity } from '../../drivers/entities/driver.entity.js';
 import type { OrderEntity } from '../../orders/entities/order.entity.js';
 export declare class TrackingPointEntity {
     id: string;
-    order: OrderEntity;
+    order: OrderEntity | null;
     orderId: string;
-    driver: DriverEntity;
+    driver: DriverEntity | null;
     driverId: string;
     latitude: number;
     longitude: number;

@@ -68,6 +68,18 @@ export class OrderEntity {
   @Column({ name: 'zone_id', nullable: true })
   zoneId!: string | null;
 
+  @Column({ name: 'subscription_id', nullable: true })
+  subscriptionId!: string | null;
+
+  @Column({ name: 'cancellation_source', length: 32, nullable: true })
+  cancellationSource!: string | null;
+
+  @Column({ name: 'cancellation_reason', type: 'text', nullable: true })
+  cancellationReason!: string | null;
+
+  @Column({ name: 'delivered_at', type: 'timestamptz', nullable: true })
+  deliveredAt!: Date | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 

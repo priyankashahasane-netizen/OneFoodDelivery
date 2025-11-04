@@ -16,9 +16,16 @@ let RoutePlanEntity = class RoutePlanEntity {
     driverId;
     order;
     orderId;
+    status;
     stops;
+    sequence;
+    polyline;
     totalDistanceKm;
+    estimatedDurationSec;
     etaPerStop;
+    assignedAt;
+    completedAt;
+    meta;
     rawResponse;
     provider;
     createdAt;
@@ -29,12 +36,12 @@ __decorate([
     __metadata("design:type", String)
 ], RoutePlanEntity.prototype, "id", void 0);
 __decorate([
-    ManyToOne(() => DriverEntityClass, (driver) => driver.routePlans, { nullable: false }),
+    ManyToOne(() => DriverEntityClass, (driver) => driver.routePlans, { nullable: true }),
     JoinColumn({ name: 'driver_id' }),
     __metadata("design:type", Function)
 ], RoutePlanEntity.prototype, "driver", void 0);
 __decorate([
-    Column({ name: 'driver_id' }),
+    Column({ name: 'driver_id', nullable: true }),
     __metadata("design:type", String)
 ], RoutePlanEntity.prototype, "driverId", void 0);
 __decorate([
@@ -47,17 +54,45 @@ __decorate([
     __metadata("design:type", String)
 ], RoutePlanEntity.prototype, "orderId", void 0);
 __decorate([
+    Column({ length: 24, default: 'planned' }),
+    __metadata("design:type", String)
+], RoutePlanEntity.prototype, "status", void 0);
+__decorate([
     Column({ type: 'jsonb', name: 'stops', nullable: false }),
     __metadata("design:type", Array)
 ], RoutePlanEntity.prototype, "stops", void 0);
+__decorate([
+    Column({ type: 'jsonb', nullable: true }),
+    __metadata("design:type", Array)
+], RoutePlanEntity.prototype, "sequence", void 0);
+__decorate([
+    Column({ type: 'text', nullable: true }),
+    __metadata("design:type", String)
+], RoutePlanEntity.prototype, "polyline", void 0);
 __decorate([
     Column({ type: 'float', name: 'total_distance_km', default: 0 }),
     __metadata("design:type", Number)
 ], RoutePlanEntity.prototype, "totalDistanceKm", void 0);
 __decorate([
+    Column({ name: 'estimated_duration_sec', type: 'int', nullable: true }),
+    __metadata("design:type", Number)
+], RoutePlanEntity.prototype, "estimatedDurationSec", void 0);
+__decorate([
     Column({ type: 'jsonb', name: 'eta_per_stop', nullable: true }),
     __metadata("design:type", Array)
 ], RoutePlanEntity.prototype, "etaPerStop", void 0);
+__decorate([
+    Column({ name: 'assigned_at', type: 'timestamptz', nullable: true }),
+    __metadata("design:type", Date)
+], RoutePlanEntity.prototype, "assignedAt", void 0);
+__decorate([
+    Column({ name: 'completed_at', type: 'timestamptz', nullable: true }),
+    __metadata("design:type", Date)
+], RoutePlanEntity.prototype, "completedAt", void 0);
+__decorate([
+    Column({ type: 'jsonb', nullable: true }),
+    __metadata("design:type", Object)
+], RoutePlanEntity.prototype, "meta", void 0);
 __decorate([
     Column({ type: 'jsonb', name: 'raw_response', nullable: true }),
     __metadata("design:type", Object)

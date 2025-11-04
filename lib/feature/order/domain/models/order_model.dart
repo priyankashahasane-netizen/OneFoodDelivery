@@ -379,8 +379,8 @@ class DeliveryAddress {
     addressType = json['address_type'];
     contactPersonNumber = json['contact_person_number'];
     address = json['address'];
-    latitude = json['latitude'].toString();
-    longitude = json['longitude'].toString();
+    latitude = json['latitude']?.toString() ?? '';
+    longitude = json['longitude']?.toString() ?? '';
     userId = json['user_id'];
     contactPersonName = json['contact_person_name'];
     createdAt = json['created_at'];

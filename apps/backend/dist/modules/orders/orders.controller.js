@@ -18,23 +18,58 @@ import { PaginationQueryDto } from '../../common/dto/pagination.dto.js';
 import { AssignOrderDto } from '../assignments/dto/assign-order.dto.js';
 import { OrdersService } from './orders.service.js';
 import { UpsertOrderDto } from './dto/upsert-order.dto.js';
+import { DriversService } from '../drivers/drivers.service.js';
 let OrdersController = class OrdersController {
     ordersService;
-    constructor(ordersService) {
+    driversService;
+    constructor(ordersService, driversService) {
         this.ordersService = ordersService;
+        this.driversService = driversService;
     }
     async list(pagination) {
         return this.ordersService.listOrders(pagination);
     }
     async getActiveByDriver(driverId, req) {
         try {
-            const actualDriverId = req?.user?.sub || req?.user?.driverId || driverId;
+            let actualDriverId = driverId;
+            if (!actualDriverId || actualDriverId === 'demo-driver-id') {
+                actualDriverId = req?.user?.sub || req?.user?.driverId;
+            }
+            if (!actualDriverId || actualDriverId === 'demo-driver-id') {
+                const phone = req?.user?.phone;
+                if (phone) {
+                    try {
+                        const phoneVariations = [
+                            phone,
+                            phone.replace('+91', '').replace(/-/g, ''),
+                            phone.replace('+', ''),
+                            `+91${phone.replace('+91', '').replace(/-/g, '')}`,
+                            `91${phone.replace('+91', '').replace(/-/g, '')}`
+                        ];
+                        for (const phoneVar of phoneVariations) {
+                            const driver = await this.driversService.findByPhone(phoneVar);
+                            if (driver) {
+                                actualDriverId = driver.id;
+                                break;
+                            }
+                        }
+                    }
+                    catch (e) {
+                        console.warn('getActiveByDriver: Failed to lookup driver by phone:', e);
+                    }
+                }
+            }
             if (!actualDriverId) {
+                console.warn('getActiveByDriver: No valid driver ID found');
                 return [];
             }
-            return await this.ordersService.getActiveOrdersByDriver(actualDriverId);
+            console.log(`getActiveByDriver: Fetching active orders for driverId: ${actualDriverId}`);
+            const orders = await this.ordersService.getActiveOrdersByDriver(actualDriverId);
+            console.log(`getActiveByDriver: Found ${orders.length} active orders`);
+            return orders;
         }
         catch (error) {
+            console.error('getActiveByDriver error:', error);
             return [];
         }
     }
@@ -132,6 +167,7 @@ __decorate([
 ], OrdersController.prototype, "updateStatus", null);
 OrdersController = __decorate([
     Controller('orders'),
-    __metadata("design:paramtypes", [OrdersService])
+    __metadata("design:paramtypes", [OrdersService,
+        DriversService])
 ], OrdersController);
 export { OrdersController };

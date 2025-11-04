@@ -35,6 +35,15 @@ export class DriverEntity {
   @Column({ type: 'boolean', default: false })
   online!: boolean;
 
+  @Column({ length: 24, default: 'offline' })
+  status!: string; // online, offline, busy
+
+  @Column({ name: 'rating_avg', type: 'float', nullable: true })
+  ratingAvg!: number | null;
+
+  @Column({ name: 'kyc_status', length: 32, nullable: true })
+  kycStatus!: string | null;
+
   @Column({ type: 'float', nullable: true })
   latitude!: number | null;
 

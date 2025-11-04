@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Request, UseGuards, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Query, Request, UseGuards, UnauthorizedException, Param } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt.guard.js';
 import { OrdersService } from '../orders/orders.service.js';
 import { DriversService } from '../drivers/drivers.service.js';
@@ -213,6 +213,70 @@ export class DeliveryManController {
       offset: offset || '1',
       type: type || 'customer'
     };
+  }
+
+  @Get('order/:orderId')
+  @UseGuards(JwtAuthGuard)
+  async getOrderDetails(
+    @Param('orderId') orderId: string,
+    @Request() req?: any
+  ) {
+    try {
+      // Get driver ID from JWT token
+      let driverId = req?.user?.sub || req?.user?.driverId;
+      const phone = req?.user?.phone;
+
+      // Check if driver ID is demo account placeholder
+      const isDemoAccount = req?.user?.driverId === 'demo-driver-id';
+      
+      // If driver ID is provided (not demo), verify it exists
+      if (driverId && !isDemoAccount) {
+        try {
+          await this.driversService.findById(driverId);
+        } catch (error) {
+          // Driver not found with this ID - try to resolve by phone if available
+          if (phone) {
+            const driverByPhone = await this.driversService.findByPhone(phone);
+            if (driverByPhone) {
+              driverId = driverByPhone.id;
+            }
+          }
+          
+          // If still not found, try demo phone variations
+          if (!driverId || driverId === req?.user?.sub) {
+            const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+            for (const demoPhone of demoPhones) {
+              const demoDriver = await this.driversService.findByPhone(demoPhone);
+              if (demoDriver) {
+                driverId = demoDriver.id;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      // Resolve demo account driver ID by phone
+      if (isDemoAccount || !driverId) {
+        const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+        for (const demoPhone of demoPhones) {
+          const demoDriver = await this.driversService.findByPhone(demoPhone);
+          if (demoDriver) {
+            driverId = demoDriver.id;
+            break;
+          }
+        }
+      }
+
+      if (!driverId) {
+        throw new UnauthorizedException('Driver ID not found in token');
+      }
+
+      // Get order details - service will check if order belongs to driver
+      return await this.ordersService.findByIdForDriver(orderId, driverId);
+    } catch (error) {
+      throw error;
+    }
   }
 }
 

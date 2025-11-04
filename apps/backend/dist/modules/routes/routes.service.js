@@ -36,29 +36,84 @@ let RoutesService = class RoutesService {
         return this.optimizeForDriver(driverId);
     }
     async optimizeForDriver(driverId, stopsOverride) {
-        const driver = await this.driversService.findById(driverId);
-        let stops = stopsOverride ?? [];
-        if (!stops.length) {
-            const active = await this.ordersService.getActiveOrdersByDriver(driverId);
-            stops = active.flatMap((o) => [{ lat: o.pickup.lat, lng: o.pickup.lng, orderId: o.id }, { lat: o.dropoff.lat, lng: o.dropoff.lng, orderId: o.id }]);
+        let driver = null;
+        try {
+            driver = await this.driversService.findById(driverId);
         }
-        if (!stops.length) {
+        catch (error) {
+        }
+        let stops = stopsOverride ?? [];
+        if (!stops.length && driver) {
+            try {
+                const active = await this.ordersService.getActiveOrdersByDriverRaw(driverId);
+                stops = active.flatMap((o) => {
+                    if (o.pickup && typeof o.pickup === 'object' && 'lat' in o.pickup && 'lng' in o.pickup) {
+                        return [
+                            { lat: o.pickup.lat, lng: o.pickup.lng, orderId: String(o.id) },
+                            { lat: o.dropoff.lat, lng: o.dropoff.lng, orderId: String(o.id) }
+                        ];
+                    }
+                    return [];
+                });
+            }
+            catch (error) {
+            }
+        }
+        if (!stops.length && driver) {
             const defaultStops = driver.latitude && driver.longitude ? [{ lat: driver.latitude, lng: driver.longitude }] : [];
             stops = defaultStops;
         }
-        const response = await this.optimoRouteClient.optimizeRoute({ driverId, stops });
+        if (!stops.length) {
+            return this.routePlansRepository.save(this.routePlansRepository.create({
+                driverId: driverId || null,
+                stops: [],
+                totalDistanceKm: 0,
+                estimatedDurationSec: null,
+                etaPerStop: null,
+                sequence: null,
+                polyline: null,
+                rawResponse: { mock: true, message: 'No stops provided' },
+                provider: 'optimoroute',
+                status: 'planned'
+            }));
+        }
+        let response;
+        try {
+            response = await this.optimoRouteClient.optimizeRoute({ driverId, stops });
+        }
+        catch (error) {
+            response = {
+                stops: stops,
+                distanceKm: 0,
+                etaPerStop: null,
+                mock: true
+            };
+        }
         const plan = this.routePlansRepository.create({
-            driverId,
+            driverId: driverId || null,
             stops: response?.stops ?? stops,
             totalDistanceKm: response?.distanceKm ?? 0,
-            etaPerStop: response?.etaPerStop ?? null,
+            estimatedDurationSec: response?.estimatedDuration ?? null,
+            etaPerStop: response?.etaPerStop ? (Array.isArray(response.etaPerStop) ? response.etaPerStop.map(String) : null) : null,
+            sequence: response?.sequence ?? null,
+            polyline: response?.polyline ?? null,
             rawResponse: response ?? null,
-            provider: 'optimoroute'
+            provider: 'optimoroute',
+            status: 'planned'
         });
         return this.routePlansRepository.save(plan);
     }
     async getLatestPlanForDriver(driverId) {
-        return this.routePlansRepository.findOne({ where: { driverId }, order: { createdAt: 'DESC' } });
+        try {
+            const plan = await this.routePlansRepository.findOne({
+                where: { driverId },
+                order: { createdAt: 'DESC' }
+            });
+            return plan || null;
+        }
+        catch (error) {
+            return null;
+        }
     }
 };
 RoutesService = __decorate([

@@ -23,6 +23,7 @@ import 'package:stackfood_multivendor_driver/common/widgets/order_shimmer_widget
 import 'package:stackfood_multivendor_driver/common/widgets/order_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/title_widget.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_switch/flutter_switch.dart';
 import 'package:get/get.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
@@ -73,13 +74,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadData() async {
+    debugPrint('🔄 HomeScreen._loadData: Starting data load');
     Get.find<OrderController>().getIgnoreList();
     Get.find<OrderController>().removeFromIgnoreList();
     Get.find<ProfileController>().getShiftList();
     await Get.find<ProfileController>().getProfile();
-    await Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus ?? 'all', isDataClear: false);
+    // Use isDataClear: true to ensure fresh data on initial load
+    await Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus ?? 'all', isDataClear: true);
     await Get.find<OrderController>().getCompletedOrders(offset: 1, status: 'all', isUpdate: false);
     await Get.find<NotificationController>().getNotificationList();
+    debugPrint('✅ HomeScreen._loadData: Data load complete');
   }
 
   Future<void> checkPermission() async {
@@ -295,23 +299,49 @@ class _HomeScreenState extends State<HomeScreen> {
                   return Column(children: [
 
                     GetBuilder<OrderController>(builder: (orderController) {
-                      bool hasActiveOrder = orderController.currentOrderList == null || orderController.currentOrderList!.isNotEmpty;
+                      bool hasActiveOrder = orderController.currentOrderList != null && orderController.currentOrderList!.isNotEmpty;
                       bool hasMoreOrder = orderController.currentOrderList != null && orderController.currentOrderList!.length > 1;
+                      bool isLoading = orderController.currentOrderList == null;
+                      bool isEmpty = orderController.currentOrderList != null && orderController.currentOrderList!.isEmpty;
+                      
                       return Column(children: [
 
-                        hasActiveOrder ? TitleWidget(
-                          title: 'active_order'.tr, onTap: hasMoreOrder ? () {
+                        // Always show the title section
+                        TitleWidget(
+                          title: 'active_order'.tr, 
+                          onTap: hasMoreOrder ? () {
                             Get.toNamed(RouteHelper.getRunningOrderRoute(), arguments: const RunningOrderScreen());
                           } : null,
-                        ) : const SizedBox(),
-                        SizedBox(height: hasActiveOrder ? Dimensions.paddingSizeSmall : 0),
+                        ),
+                        const SizedBox(height: Dimensions.paddingSizeSmall),
 
-                        orderController.currentOrderList != null && orderController.currentOrderList!.isNotEmpty ? OrderWidget(
-                          orderModel: orderController.currentOrderList![0], isRunningOrder: true, orderIndex: 0,
-                        ) : orderController.currentOrderList == null ? OrderShimmerWidget(
-                          isEnabled: true,
-                        ) : const SizedBox(),
-                        SizedBox(height: hasActiveOrder ? Dimensions.paddingSizeDefault : 0),
+                        // Show content based on state
+                        if (isLoading)
+                          OrderShimmerWidget(isEnabled: true)
+                        else if (hasActiveOrder)
+                          OrderWidget(
+                            orderModel: orderController.currentOrderList![0], 
+                            isRunningOrder: true, 
+                            orderIndex: 0,
+                          )
+                        else if (isEmpty)
+                          Container(
+                            padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).cardColor,
+                              borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'no_active_orders'.tr,
+                                style: robotoRegular.copyWith(
+                                  color: Theme.of(context).hintColor,
+                                  fontSize: Dimensions.fontSizeDefault,
+                                ),
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: Dimensions.paddingSizeDefault),
 
                       ]);
                     }),
@@ -344,11 +374,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               const SizedBox(height: Dimensions.paddingSizeSmall),
 
-                              profileModel != null ? Text(
+                              Text(
                                 PriceConverter.convertPrice(profileModel.balance ?? 0.0),
                                 style: robotoBold.copyWith(fontSize: 24, color: ColorResources.white),
                                 maxLines: 1, overflow: TextOverflow.ellipsis,
-                              ) : Container(height: 30, width: 60, color: ColorResources.white),
+                              ),
 
                             ]),
                           ]),
@@ -358,19 +388,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
                             EarningWidget(
                               title: 'today'.tr,
-                              amount: profileModel?.todaysEarning,
+                              amount: profileModel.todaysEarning,
                             ),
                             Container(height: 30, width: 1, color: Theme.of(context).cardColor),
 
                             EarningWidget(
                               title: 'this_week'.tr,
-                              amount: profileModel?.thisWeekEarning,
+                              amount: profileModel.thisWeekEarning,
                             ),
                             Container(height: 30, width: 1, color: Theme.of(context).cardColor),
 
                             EarningWidget(
                               title: 'this_month'.tr,
-                              amount: profileModel?.thisMonthEarning,
+                              amount: profileModel.thisMonthEarning,
                             ),
 
                           ]),

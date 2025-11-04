@@ -60,14 +60,19 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
 
   Timer? _timer;
   int? orderPosition;
+  bool _hasAttemptedLoad = false;
 
   void _startApiCalling(){
     _timer = Timer.periodic(const Duration(seconds: 10), (timer) {
-      Get.find<OrderController>().getOrderWithId(Get.find<OrderController>().orderModel!.id);
+      final orderModel = Get.find<OrderController>().orderModel;
+      if (orderModel != null) {
+        Get.find<OrderController>().getOrderWithId(orderModel.id);
+      }
     });
   }
 
   Future<void> _loadData() async {
+    _hasAttemptedLoad = true;
     Get.find<OrderController>().pickPrescriptionImage(isRemove: true, isCamera: false);
     if(Get.find<OrderController>().showDeliveryImageField){
       Get.find<OrderController>().changeDeliveryImageStatus(isUpdate: false);
@@ -216,7 +221,56 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                     || controllerOrderModel.orderStatus == 'handover' || controllerOrderModel.orderStatus == 'picked_up';
               }
 
-              return (orderController.orderDetailsModel != null && controllerOrderModel != null && order != null) ? Column(children: [
+              // Check if we have data to display
+              bool hasData = orderController.orderDetailsModel != null && 
+                            orderController.orderDetailsModel!.isNotEmpty &&
+                            controllerOrderModel != null && 
+                            order != null;
+              
+              // Check if we're in error state (tried to load but got 403/404)
+              bool isErrorState = _hasAttemptedLoad && // We've attempted to load
+                                 controllerOrderModel == null && 
+                                 orderController.orderDetailsModel == null &&
+                                 widget.orderId != null; // Order ID was provided but nothing loaded
+              
+              if (isErrorState) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                        const SizedBox(height: Dimensions.paddingSizeDefault),
+                        Text(
+                          'Unable to load order details'.tr,
+                          style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeLarge),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: Dimensions.paddingSizeSmall),
+                        Text(
+                          'This order may not be assigned to you or may have been removed.'.tr,
+                          style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeDefault, color: Theme.of(context).hintColor),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: Dimensions.paddingSizeLarge),
+                        ElevatedButton(
+                          onPressed: () {
+                            _loadData();
+                          },
+                          child: Text('retry'.tr),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+              
+              return hasData ? Column(children: [
 
                 Expanded(child: SingleChildScrollView(
                   child: Column(children: [

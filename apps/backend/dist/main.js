@@ -4,15 +4,19 @@ import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
+import { AllExceptionsFilter } from './common/filters/http-exception.filter.js';
 async function bootstrap() {
     const app = await NestFactory.create(AppModule, { cors: true });
     const configService = app.get(ConfigService);
     app.setGlobalPrefix('api');
     app.use(helmet());
+    app.useGlobalFilters(new AllExceptionsFilter());
     app.useGlobalPipes(new ValidationPipe({
         whitelist: true,
         transform: true,
-        transformOptions: { enableImplicitConversion: true }
+        transformOptions: { enableImplicitConversion: true },
+        forbidNonWhitelisted: false,
+        skipMissingProperties: false
     }));
     const swagger = new DocumentBuilder()
         .setTitle('Stack Delivery API')

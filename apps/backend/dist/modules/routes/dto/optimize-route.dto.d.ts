@@ -1,7 +1,7 @@
 declare class OptimizeStopDto {
     lat: number;
     lng: number;
-    orderId: string;
+    orderId?: string;
 }
 export declare class OptimizeRouteDto {
     driverId: string;

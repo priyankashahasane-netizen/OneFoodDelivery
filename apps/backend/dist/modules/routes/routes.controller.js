@@ -10,22 +10,46 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var RoutesController_1;
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
+import { Public } from '../auth/public.decorator.js';
 import { OptimizeRouteDto } from './dto/optimize-route.dto.js';
 import { RoutesService } from './routes.service.js';
-let RoutesController = class RoutesController {
+let RoutesController = RoutesController_1 = class RoutesController {
     routesService;
+    logger = new Logger(RoutesController_1.name);
     constructor(routesService) {
         this.routesService = routesService;
     }
     async optimize(payload) {
-        return this.routesService.optimizeForDriver(payload.driverId, payload.stops.map((s) => ({ lat: s.lat, lng: s.lng, orderId: s.orderId })));
+        try {
+            const stops = payload.stops.map((s) => ({ lat: s.lat, lng: s.lng, orderId: s.orderId }));
+            return await this.routesService.optimizeForDriver(payload.driverId, stops);
+        }
+        catch (error) {
+            this.logger.error(`Failed to optimize route for driver ${payload.driverId}:`, error?.message || error);
+            return {
+                error: 'Failed to optimize route',
+                message: error?.message || 'Internal server error',
+                driverId: payload.driverId,
+                stops: payload.stops
+            };
+        }
     }
     async latest(driverId) {
-        return this.routesService.getLatestPlanForDriver(driverId);
+        try {
+            const plan = await this.routesService.getLatestPlanForDriver(driverId);
+            return plan || null;
+        }
+        catch (error) {
+            this.logger.error(`Failed to get latest route for driver ${driverId}:`, error?.message || error);
+            return null;
+        }
     }
 };
 __decorate([
+    Public(),
     Post('optimize'),
     __param(0, Body()),
     __metadata("design:type", Function),
@@ -33,13 +57,14 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], RoutesController.prototype, "optimize", null);
 __decorate([
+    Public(),
     Get('driver/:driverId/latest'),
     __param(0, Param('driverId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], RoutesController.prototype, "latest", null);
-RoutesController = __decorate([
+RoutesController = RoutesController_1 = __decorate([
     Controller('routes'),
     __metadata("design:paramtypes", [RoutesService])
 ], RoutesController);

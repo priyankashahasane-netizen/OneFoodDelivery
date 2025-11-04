@@ -10,8 +10,30 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
 
-class RunningOrderScreen extends StatelessWidget {
+class RunningOrderScreen extends StatefulWidget {
   const RunningOrderScreen({super.key});
+
+  @override
+  State<RunningOrderScreen> createState() => _RunningOrderScreenState();
+}
+
+class _RunningOrderScreenState extends State<RunningOrderScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Ensure orders are loaded when screen opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final orderController = Get.find<OrderController>();
+      // Initialize selected status to 'all' (index 0) if not already set
+      if (orderController.selectedRunningOrderStatusIndex == null) {
+        orderController.setSelectedRunningOrderStatusIndex(0, 'all');
+      }
+      // Load orders if not already loaded or if list is empty
+      if (orderController.currentOrderList == null || orderController.currentOrderList!.isEmpty) {
+        orderController.getCurrentOrders(status: orderController.selectedRunningOrderStatus ?? 'all', isDataClear: true);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

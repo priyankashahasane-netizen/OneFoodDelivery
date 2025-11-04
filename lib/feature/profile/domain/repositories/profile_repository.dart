@@ -21,9 +21,20 @@ class ProfileRepository implements ProfileRepositoryInterface {
   Future<ProfileModel?> getProfileInfo() async {
     ProfileModel? profileModel;
     // Use new JWT-based endpoint
-    Response response = await apiClient.getData(AppConstants.driverProfileUri);
-    if (response.statusCode == 200) {
-      profileModel = ProfileModel.fromJson(response.body);
+    // Use handleError: false to preserve actual status codes and error information
+    Response response = await apiClient.getData(AppConstants.driverProfileUri, handleError: false);
+    if (response.statusCode == 200 && response.body != null) {
+      try {
+        profileModel = ProfileModel.fromJson(response.body);
+        debugPrint('✅ getProfileInfo: Successfully parsed profile data');
+      } catch (e) {
+        debugPrint('❌ getProfileInfo: Error parsing profile data: $e');
+        debugPrint('Response body: ${response.body}');
+      }
+    } else {
+      debugPrint('❌ getProfileInfo: API returned status ${response.statusCode}');
+      debugPrint('Response body: ${response.body}');
+      debugPrint('Response statusText: ${response.statusText}');
     }
     return profileModel;
   }

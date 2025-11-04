@@ -17,6 +17,9 @@ let DriverEntity = class DriverEntity {
     vehicleType;
     capacity;
     online;
+    status;
+    ratingAvg;
+    kycStatus;
     latitude;
     longitude;
     lastSeenAt;
@@ -52,6 +55,18 @@ __decorate([
     Column({ type: 'boolean', default: false }),
     __metadata("design:type", Boolean)
 ], DriverEntity.prototype, "online", void 0);
+__decorate([
+    Column({ length: 24, default: 'offline' }),
+    __metadata("design:type", String)
+], DriverEntity.prototype, "status", void 0);
+__decorate([
+    Column({ name: 'rating_avg', type: 'float', nullable: true }),
+    __metadata("design:type", Number)
+], DriverEntity.prototype, "ratingAvg", void 0);
+__decorate([
+    Column({ name: 'kyc_status', length: 32, nullable: true }),
+    __metadata("design:type", String)
+], DriverEntity.prototype, "kycStatus", void 0);
 __decorate([
     Column({ type: 'float', nullable: true }),
     __metadata("design:type", Number)
