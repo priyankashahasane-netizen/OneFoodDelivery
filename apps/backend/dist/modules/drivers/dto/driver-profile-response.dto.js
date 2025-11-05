@@ -1,5 +1,6 @@
 export class DriverProfileResponseDto {
     id;
+    uuid;
     name;
     f_name;
     l_name;
@@ -61,6 +62,7 @@ export class DriverProfileResponseDto {
         const zoneIdStr = driver.zoneId ? String(driver.zoneId) : '1';
         const response = {
             id: numericId,
+            uuid: driver.id || undefined,
             name: driver.name ?? 'Demo Driver',
             f_name: fName,
             l_name: lName,

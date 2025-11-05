@@ -4,7 +4,6 @@ import 'package:stackfood_multivendor_driver/feature/profile/domain/models/recor
 import 'package:stackfood_multivendor_driver/feature/profile/domain/models/shift_model.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/domain/repositories/profile_repository_interface.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/domain/services/profile_service_interface.dart';
-import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:stackfood_multivendor_driver/common/services/location_permission_service.dart';
 import 'package:geolocator/geolocator.dart';
@@ -30,7 +29,7 @@ class ProfileService implements ProfileServiceInterface {
   }
 
   @override
-  Future<ResponseModel?> updateActiveStatus({int? shiftId}) async {
+  Future<ResponseModel?> updateActiveStatus({String? shiftId}) async { // Changed to String to support UUID format
     return await profileRepositoryInterface.updateActiveStatus(shiftId: shiftId);
   }
 

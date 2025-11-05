@@ -20,13 +20,26 @@ let ShiftsController = class ShiftsController {
     }
     async getAllShifts(req) {
         const driverId = req?.user?.sub || req?.user?.driverId;
-        if (driverId) {
-            return await this.shiftsService.findByDriverId(driverId);
+        if (driverId && driverId !== 'demo-driver-id') {
+            try {
+                return await this.shiftsService.findByDriverId(driverId);
+            }
+            catch (error) {
+                return await this.shiftsService.findAll();
+            }
         }
         return await this.shiftsService.findAll();
     }
     async getDriverShifts(driverId) {
-        return await this.shiftsService.findByDriverId(driverId);
+        if (driverId === 'demo-driver-id') {
+            return await this.shiftsService.findAll();
+        }
+        try {
+            return await this.shiftsService.findByDriverId(driverId);
+        }
+        catch (error) {
+            return await this.shiftsService.findAll();
+        }
     }
     async getShift(id) {
         return await this.shiftsService.findById(id);

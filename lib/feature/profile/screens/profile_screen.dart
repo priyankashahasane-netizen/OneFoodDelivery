@@ -14,7 +14,6 @@ import 'package:stackfood_multivendor_driver/feature/profile/widgets/profile_bg_
 import 'package:stackfood_multivendor_driver/feature/profile/widgets/profile_button_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/widgets/profile_card_widget.dart';
 import 'package:stackfood_multivendor_driver/helper/date_converter_helper.dart';
-import 'package:stackfood_multivendor_driver/helper/price_converter_helper.dart';
 import 'package:stackfood_multivendor_driver/helper/route_helper.dart';
 import 'package:stackfood_multivendor_driver/util/app_constants.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
@@ -113,8 +112,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ])) : const SizedBox(),
               const SizedBox(height: Dimensions.paddingSizeDefault),
 
-              // Contact Information Section
-              if (profileController.profileModel?.phone != null || profileController.profileModel?.email != null)
+              // Contact Information Section - Displayed from API data
+              if ((profileController.profileModel?.phone != null && profileController.profileModel!.phone!.isNotEmpty) ||
+                  (profileController.profileModel?.email != null && profileController.profileModel!.email!.isNotEmpty))
                 DetailsCustomCard(
                   padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
                   child: Column(
@@ -122,15 +122,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       Text('contact_information'.tr, style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeLarge)),
                       const SizedBox(height: Dimensions.paddingSizeDefault),
+                      // Phone number from API
                       if (profileController.profileModel?.phone != null && profileController.profileModel!.phone!.isNotEmpty)
                         Row(children: [
                           Icon(Icons.phone, size: 20, color: Theme.of(context).primaryColor),
                           const SizedBox(width: Dimensions.paddingSizeSmall),
                           Expanded(child: Text(profileController.profileModel!.phone ?? '', style: robotoRegular)),
                         ]),
-                      if (profileController.profileModel?.phone != null && profileController.profileModel!.phone!.isNotEmpty && 
-                          profileController.profileModel?.email != null && profileController.profileModel!.email!.isNotEmpty)
+                      // Spacing between phone and email if both are present
+                      if ((profileController.profileModel?.phone != null && profileController.profileModel!.phone!.isNotEmpty) && 
+                          (profileController.profileModel?.email != null && profileController.profileModel!.email!.isNotEmpty))
                         const SizedBox(height: Dimensions.paddingSizeSmall),
+                      // Email from API
                       if (profileController.profileModel?.email != null && profileController.profileModel!.email!.isNotEmpty)
                         Row(children: [
                           Icon(Icons.email, size: 20, color: Theme.of(context).primaryColor),
@@ -140,29 +143,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ),
                 ),
-              if (profileController.profileModel?.phone != null || profileController.profileModel?.email != null)
+              if ((profileController.profileModel?.phone != null && profileController.profileModel!.phone!.isNotEmpty) ||
+                  (profileController.profileModel?.email != null && profileController.profileModel!.email!.isNotEmpty))
                 const SizedBox(height: Dimensions.paddingSizeDefault),
 
-              // Rating Information
+              // Rating Information - Displayed from API data
               if (profileController.profileModel?.avgRating != null)
                 DetailsCustomCard(
                   padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Row(children: [
-                        Icon(Icons.star, color: Colors.amber, size: 24),
-                        const SizedBox(width: Dimensions.paddingSizeSmall),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('${profileController.profileModel?.avgRating ?? 0.0}', 
-                              style: robotoBold.copyWith(fontSize: Dimensions.fontSizeExtraLarge, color: Theme.of(context).primaryColor)),
-                            Text('${profileController.profileModel?.ratingCount ?? 0} ${'ratings'.tr}', 
-                              style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor)),
-                          ],
-                        ),
-                      ]),
+                      // Rating number from API
+                      Text('${profileController.profileModel?.avgRating ?? 0.0}', 
+                        style: robotoBold.copyWith(fontSize: Dimensions.fontSizeExtraLarge, color: Theme.of(context).primaryColor)),
+                      const SizedBox(width: Dimensions.paddingSizeSmall),
+                      // Star rating visualization from API
+                      _buildStarRating(profileController.profileModel?.avgRating ?? 0.0),
+                      const SizedBox(width: Dimensions.paddingSizeSmall),
+                      // Rating count from API
+                      Expanded(
+                        child: Text('${profileController.profileModel?.ratingCount ?? 0} ${'ratings'.tr}', 
+                          style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor)),
+                      ),
                     ],
                   ),
                 ),
@@ -206,7 +210,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Text('today'.tr, style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor)),
                             const SizedBox(height: Dimensions.paddingSizeExtraSmall),
                             Text(
-                              PriceConverter.convertPrice(profileController.profileModel?.todaysEarning ?? 0.0),
+                              _formatPriceWithoutSymbol(profileController.profileModel?.todaysEarning ?? 0.0),
                               style: robotoBold.copyWith(fontSize: Dimensions.fontSizeLarge, color: Theme.of(context).primaryColor),
                             ),
                           ]),
@@ -217,7 +221,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Text('this_week'.tr, style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor)),
                             const SizedBox(height: Dimensions.paddingSizeExtraSmall),
                             Text(
-                              PriceConverter.convertPrice(profileController.profileModel?.thisWeekEarning ?? 0.0),
+                              _formatPriceWithoutSymbol(profileController.profileModel?.thisWeekEarning ?? 0.0),
                               style: robotoBold.copyWith(fontSize: Dimensions.fontSizeLarge, color: Theme.of(context).primaryColor),
                             ),
                           ]),
@@ -228,7 +232,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Text('this_month'.tr, style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor)),
                             const SizedBox(height: Dimensions.paddingSizeExtraSmall),
                             Text(
-                              PriceConverter.convertPrice(profileController.profileModel?.thisMonthEarning ?? 0.0),
+                              _formatPriceWithoutSymbol(profileController.profileModel?.thisMonthEarning ?? 0.0),
                               style: robotoBold.copyWith(fontSize: Dimensions.fontSizeLarge, color: Theme.of(context).primaryColor),
                             ),
                           ]),
@@ -249,7 +253,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   Text('balance'.tr, style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor)),
                                   const SizedBox(height: Dimensions.paddingSizeExtraSmall),
                                   Text(
-                                    PriceConverter.convertPrice(profileController.profileModel?.balance ?? 0.0),
+                                    _formatPriceWithoutSymbol(profileController.profileModel?.balance ?? 0.0),
                                     style: robotoBold.copyWith(fontSize: Dimensions.fontSizeDefault, color: Theme.of(context).primaryColor),
                                   ),
                                 ]),
@@ -326,11 +330,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Get.toNamed(RouteHelper.getCashInHandRoute());
                 }),
               ) : const SizedBox(),
-
-              ((profileController.profileModel?.type ?? '') != 'restaurant_wise' && (profileController.profileModel?.earnings ?? 0) != 0) ? ProfileButtonWidget(icon: Icons.local_offer_rounded, title: 'incentive_offers'.tr, onTap: () {
-                Get.toNamed(RouteHelper.getIncentiveRoute());
-              }) : const SizedBox(),
-              SizedBox(height: ((profileController.profileModel?.type ?? '') != 'restaurant_wise' && (profileController.profileModel?.earnings ?? 0) != 0) ? Dimensions.paddingSizeSmall : 0),
 
               if(Get.find<SplashController>().configModel?.disbursementType == 'automated' && (profileController.profileModel?.type ?? '') != 'restaurant_wise' && (profileController.profileModel?.earnings ?? 0) != 0)
               Column(children: [
@@ -492,6 +491,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       return '--';
     }
+  }
+
+  String _formatPriceWithoutSymbol(double price) {
+    // Format price with commas but without currency symbol
+    final int decimalPlaces = Get.find<SplashController>().configModel?.digitAfterDecimalPoint ?? 2;
+    final String formatted = price.toStringAsFixed(decimalPlaces)
+        .replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},');
+    return formatted;
+  }
+
+  Widget _buildStarRating(double rating) {
+    int fullStars = rating.floor();
+    bool hasHalfStar = (rating - fullStars) >= 0.5;
+    int emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+    
+    return Row(
+      children: [
+        // Full stars
+        ...List.generate(fullStars, (index) => Icon(
+          Icons.star,
+          color: Colors.amber,
+          size: 20,
+        )),
+        // Half star if needed
+        if (hasHalfStar)
+          Icon(
+            Icons.star_half,
+            color: Colors.amber,
+            size: 20,
+          ),
+        // Empty stars
+        ...List.generate(emptyStars, (index) => Icon(
+          Icons.star_border,
+          color: Colors.grey.shade400,
+          size: 20,
+        )),
+      ],
+    );
   }
 
   _manageLanguageFunctionality() {

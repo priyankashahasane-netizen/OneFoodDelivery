@@ -11,16 +11,32 @@ export class ShiftsController {
   @UseGuards(JwtAuthGuard)
   async getAllShifts(@Request() req: any) {
     const driverId = req?.user?.sub || req?.user?.driverId;
-    if (driverId) {
-      return await this.shiftsService.findByDriverId(driverId);
+    // Handle demo-driver-id: return all shifts instead of querying with invalid UUID
+    if (driverId && driverId !== 'demo-driver-id') {
+      try {
+        return await this.shiftsService.findByDriverId(driverId);
+      } catch (error) {
+        // If driverId is not a valid UUID, fall back to all shifts
+        return await this.shiftsService.findAll();
+      }
     }
+    // Return all shifts for demo account or when no driverId
     return await this.shiftsService.findAll();
   }
 
   @Get('driver/:driverId')
   @UseGuards(JwtAuthGuard)
   async getDriverShifts(@Param('driverId') driverId: string) {
-    return await this.shiftsService.findByDriverId(driverId);
+    // Handle demo-driver-id: return all shifts instead of querying with invalid UUID
+    if (driverId === 'demo-driver-id') {
+      return await this.shiftsService.findAll();
+    }
+    try {
+      return await this.shiftsService.findByDriverId(driverId);
+    } catch (error) {
+      // If driverId is not a valid UUID, return all shifts as fallback
+      return await this.shiftsService.findAll();
+    }
   }
 
   @Get(':id')

@@ -6,6 +6,7 @@
 export class DriverProfileResponseDto {
   // Basic driver info (from DriverEntity)
   id: string | number;
+  uuid?: string; // Actual UUID from database for API operations
   name?: string;
   f_name?: string;
   l_name?: string;
@@ -98,6 +99,7 @@ export class DriverProfileResponseDto {
     const response: DriverProfileResponseDto = {
       // Basic info - ensure no nulls
       id: numericId,
+      uuid: driver.id || undefined, // Include actual UUID for API operations
       name: driver.name ?? 'Demo Driver',
       f_name: fName,
       l_name: lName,

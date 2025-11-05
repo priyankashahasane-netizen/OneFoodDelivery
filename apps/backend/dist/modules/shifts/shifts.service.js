@@ -26,10 +26,22 @@ let ShiftsService = class ShiftsService {
         });
     }
     async findByDriverId(driverId) {
-        return await this.shiftRepository.find({
-            where: { driverId, status: 1 },
-            order: { startTime: 'ASC' }
-        });
+        if (driverId === 'demo-driver-id' || !this.isValidUUID(driverId)) {
+            return await this.findAll();
+        }
+        try {
+            return await this.shiftRepository.find({
+                where: { driverId, status: 1 },
+                order: { startTime: 'ASC' }
+            });
+        }
+        catch (error) {
+            return await this.findAll();
+        }
+    }
+    isValidUUID(uuid) {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        return uuidRegex.test(uuid);
     }
     async findByZoneId(zoneId) {
         return await this.shiftRepository.find({

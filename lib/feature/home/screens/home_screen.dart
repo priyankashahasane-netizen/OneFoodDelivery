@@ -375,7 +375,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               const SizedBox(height: Dimensions.paddingSizeSmall),
 
                               Text(
-                                PriceConverter.convertPrice(profileModel.balance ?? 0.0),
+                                PriceConverter.convertPrice(profileModel.balance ?? 0.0, showCurrency: false),
                                 style: robotoBold.copyWith(fontSize: 24, color: ColorResources.white),
                                 maxLines: 1, overflow: TextOverflow.ellipsis,
                               ),
@@ -465,7 +465,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                         Expanded(
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                            Text(PriceConverter.convertPrice(profileModel.cashInHands ?? 0.0), style: robotoBold.copyWith(fontSize: Dimensions.fontSizeLarge)),
+                            Text(PriceConverter.convertPrice(profileModel.cashInHands ?? 0.0, showCurrency: false), style: robotoBold.copyWith(fontSize: Dimensions.fontSizeLarge)),
 
                             RichText(
                               text: TextSpan(

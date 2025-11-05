@@ -11,7 +11,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 var TrackingController_1;
-import { Body, Controller, Get, Headers, Logger, Param, Post, Res } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Headers, Logger, Param, Post, Res } from '@nestjs/common';
 import { TrackingService } from './tracking.service.js';
 import { TrackPointDto } from './dto/track-point.dto.js';
 import { InjectRedisSub } from '../../common/redis/redis.provider.js';
@@ -23,6 +23,13 @@ let TrackingController = TrackingController_1 = class TrackingController {
     constructor(trackingService, redisSub) {
         this.trackingService = trackingService;
         this.redisSub = redisSub;
+    }
+    async trackWithoutOrderId() {
+        throw new BadRequestException({
+            error: 'Missing orderId',
+            message: 'The tracking endpoint requires an orderId. Use POST /api/track/:orderId instead.',
+            example: 'POST /api/track/12345'
+        });
     }
     async sse(orderId, res) {
         res.setHeader('Content-Type', 'text/event-stream');
@@ -92,6 +99,13 @@ let TrackingController = TrackingController_1 = class TrackingController {
         }
     }
 };
+__decorate([
+    Public(),
+    Post(),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], TrackingController.prototype, "trackWithoutOrderId", null);
 __decorate([
     Public(),
     Get(':orderId/sse'),

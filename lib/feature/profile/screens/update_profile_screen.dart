@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_image_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_snackbar_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_app_bar_widget.dart';
@@ -31,14 +32,62 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
 
+  bool _controllersInitialized = false;
+
   @override
   void initState() {
     super.initState();
 
-    if(Get.find<ProfileController>().profileModel == null) {
-      Get.find<ProfileController>().getProfile();
+    final profileController = Get.find<ProfileController>();
+    // Always fetch fresh profile data when entering edit screen
+    profileController.getProfile().then((_) {
+      // Initialize controllers after profile is loaded
+      if (mounted) {
+        _initializeControllers(profileController);
+      }
+    });
+    profileController.initData();
+  }
+
+  void _initializeControllers(ProfileController profileController) {
+    if (profileController.profileModel != null) {
+      // Always update controllers with latest profile data
+      // This ensures we get fresh data even if profile was already loaded
+      final profile = profileController.profileModel!;
+      final currentFirstName = _firstNameController.text;
+      final currentLastName = _lastNameController.text;
+      
+      // Only update if values have changed or controllers are empty
+      if (!_controllersInitialized || 
+          currentFirstName.isEmpty || 
+          currentLastName.isEmpty ||
+          currentFirstName != (profile.fName ?? '') ||
+          currentLastName != (profile.lName ?? '')) {
+        _firstNameController.text = profile.fName ?? '';
+        _lastNameController.text = profile.lName ?? '';
+        _phoneController.text = profile.phone ?? '';
+        _emailController.text = profile.email ?? '';
+        _controllersInitialized = true;
+        debugPrint('✅ Controllers initialized with profile data:');
+        debugPrint('  First Name: ${profile.fName}');
+        debugPrint('  Last Name: ${profile.lName}');
+        debugPrint('  Email: ${profile.email}');
+        debugPrint('  Phone: ${profile.phone}');
+      }
     }
-    Get.find<ProfileController>().initData();
+  }
+
+  @override
+  void dispose() {
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _firstNameFocus.dispose();
+    _lastNameFocus.dispose();
+    _emailFocus.dispose();
+    _phoneFocus.dispose();
+    super.dispose();
   }
 
   @override
@@ -47,12 +96,14 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
       backgroundColor: Theme.of(context).cardColor,
       appBar: CustomAppBarWidget(title: 'edit_profile'.tr),
       body: GetBuilder<ProfileController>(builder: (profileController) {
-
-        if(profileController.profileModel != null && _firstNameController.text.isEmpty) {
-          _firstNameController.text = profileController.profileModel?.fName ?? '';
-          _lastNameController.text = profileController.profileModel?.lName ?? '';
-          _phoneController.text = profileController.profileModel?.phone ?? '';
-          _emailController.text = profileController.profileModel?.email ?? '';
+        // Initialize controllers when profile is loaded (will be called on every rebuild)
+        // This ensures controllers are updated when profile loads asynchronously
+        if (profileController.profileModel != null && !_controllersInitialized) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _initializeControllers(profileController);
+            }
+          });
         }
 
         return profileController.profileModel != null ? ProfileBgWidget(
@@ -151,27 +202,64 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
     String lastName = _lastNameController.text.trim();
     String email = _emailController.text.trim();
     String phoneNumber = _phoneController.text.trim();
+    
+    debugPrint('📝 Update Profile - Form Data:');
+    debugPrint('  First Name: $firstName');
+    debugPrint('  Last Name: $lastName');
+    debugPrint('  Email: $email');
+    debugPrint('  Phone: $phoneNumber');
+    debugPrint('  Current Profile:');
+    debugPrint('    First Name: ${profileController.profileModel?.fName}');
+    debugPrint('    Last Name: ${profileController.profileModel?.lName}');
+    debugPrint('    Email: ${profileController.profileModel?.email}');
+    debugPrint('    Phone: ${profileController.profileModel?.phone}');
+    
+    // Check if nothing changed
     if (profileController.profileModel?.fName == firstName &&
-        profileController.profileModel?.lName == lastName && profileController.profileModel?.phone == phoneNumber &&
-        profileController.profileModel?.email == _emailController.text && profileController.pickedFile == null) {
+        profileController.profileModel?.lName == lastName && 
+        profileController.profileModel?.phone == phoneNumber &&
+        profileController.profileModel?.email == email && 
+        profileController.pickedFile == null) {
       showCustomSnackBar('change_something_to_update'.tr);
-    }else if (firstName.isEmpty) {
-      showCustomSnackBar('enter_your_first_name'.tr);
-    }else if (lastName.isEmpty) {
-      showCustomSnackBar('enter_your_last_name'.tr);
-    }else if (email.isEmpty) {
-      showCustomSnackBar('enter_email_address'.tr);
-    }else if (!GetUtils.isEmail(email)) {
-      showCustomSnackBar('enter_a_valid_email_address'.tr);
-    }else if (phoneNumber.isEmpty) {
-      showCustomSnackBar('enter_phone_number'.tr);
-    }else if (phoneNumber.length < 6) {
-      showCustomSnackBar('enter_a_valid_phone_number'.tr);
-    } else {
-      ProfileModel updatedUser = ProfileModel(fName: firstName, lName: lastName, email: email, phone: phoneNumber);
-      // Auth removed - pass empty token or modify updateUserInfo to not require token
-      await profileController.updateUserInfo(updatedUser, '');
+      return;
     }
+    
+    // Validate inputs
+    if (firstName.isEmpty) {
+      showCustomSnackBar('enter_your_first_name'.tr);
+      return;
+    }
+    if (lastName.isEmpty) {
+      showCustomSnackBar('enter_your_last_name'.tr);
+      return;
+    }
+    if (email.isEmpty) {
+      showCustomSnackBar('enter_email_address'.tr);
+      return;
+    }
+    if (!GetUtils.isEmail(email)) {
+      showCustomSnackBar('enter_a_valid_email_address'.tr);
+      return;
+    }
+    if (phoneNumber.isEmpty) {
+      showCustomSnackBar('enter_phone_number'.tr);
+      return;
+    }
+    if (phoneNumber.length < 6) {
+      showCustomSnackBar('enter_a_valid_phone_number'.tr);
+      return;
+    }
+    
+    // Create updated user model and call update API
+    debugPrint('✅ Validation passed, calling update API...');
+    ProfileModel updatedUser = ProfileModel(
+      fName: firstName, 
+      lName: lastName, 
+      email: email, 
+      phone: phoneNumber
+    );
+    // Auth removed - pass empty token or modify updateUserInfo to not require token
+    await profileController.updateUserInfo(updatedUser, '');
   }
 
 }

@@ -5,6 +5,7 @@ export declare class ShiftsService {
     constructor(shiftRepository: Repository<ShiftEntity>);
     findAll(): Promise<ShiftEntity[]>;
     findByDriverId(driverId: string): Promise<ShiftEntity[]>;
+    private isValidUUID;
     findByZoneId(zoneId: string): Promise<ShiftEntity[]>;
     findById(id: string): Promise<ShiftEntity>;
     create(shiftData: Partial<ShiftEntity>): Promise<ShiftEntity>;

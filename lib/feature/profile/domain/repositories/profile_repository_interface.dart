@@ -7,7 +7,7 @@ abstract class ProfileRepositoryInterface implements RepositoryInterface {
   Future<dynamic> getProfileInfo();
   Future<dynamic> recordLocation(RecordLocationBody recordLocationBody);
   Future<dynamic> updateProfile(ProfileModel userInfoModel, XFile? data, String token);
-  Future<dynamic> updateActiveStatus({int? shiftId});
+  Future<dynamic> updateActiveStatus({String? shiftId}); // Changed to String to support UUID format
   bool isNotificationActive();
   void setNotificationActive(bool isActive);
   Future<dynamic> deleteDriver();

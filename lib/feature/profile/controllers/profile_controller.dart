@@ -30,7 +30,7 @@ class ProfileController extends GetxController implements GetxService {
   bool get backgroundNotification => _backgroundNotification;
 
   Timer? _timer;
-  int _lastAdaptiveIntervalSec = 10;
+  int _lastAdaptiveIntervalSec = 300; // 5 minutes in seconds
 
   RecordLocationBody? _recordLocation;
   RecordLocationBody? get recordLocationBody => _recordLocation;
@@ -47,8 +47,8 @@ class ProfileController extends GetxController implements GetxService {
   List<ShiftModel>? _shifts;
   List<ShiftModel>? get shifts => _shifts;
 
-  int? _shiftId;
-  int? get shiftId => _shiftId;
+  String? _shiftId; // Changed to String to support UUID format from API
+  String? get shiftId => _shiftId;
 
   Future<void> getProfile() async {
     try {
@@ -56,6 +56,30 @@ class ProfileController extends GetxController implements GetxService {
       if (profileModel != null) {
         // Use API data directly - no demo fallback
         _profileModel = profileModel;
+        
+        // Fetch actual shift data from shifts API to get correct times
+        // This ensures we display the real shift times instead of hardcoded defaults
+        try {
+          List<ShiftModel>? shifts = await profileServiceInterface.getShiftList();
+          if (shifts != null && shifts.isNotEmpty) {
+            // Use the first shift from the list (which should be the driver's assigned shift or first available)
+            // The shifts API returns shifts sorted by startTime, so the first one is likely the active one
+            ShiftModel? assignedShift = shifts.first;
+            
+            // Update profile model with actual shift data
+            if (assignedShift.name != null && 
+                assignedShift.startTime != null && assignedShift.endTime != null) {
+              _profileModel!.shiftName = assignedShift.name;
+              _profileModel!.shiftStartTime = assignedShift.startTime;
+              _profileModel!.shiftEndTime = assignedShift.endTime;
+              debugPrint('✅ Updated profile with actual shift: ${assignedShift.name} (${assignedShift.startTime} - ${assignedShift.endTime})');
+            }
+          }
+        } catch (shiftError) {
+          debugPrint('⚠️ Could not fetch shift data: $shiftError');
+          // Continue with profile data even if shift fetch fails
+        }
+        
         if (_profileModel != null && _profileModel!.active == 1) {
           // Only check permission status - don't request automatically
           // Permission will be requested when user toggles online
@@ -88,22 +112,33 @@ class ProfileController extends GetxController implements GetxService {
   Future<bool> updateUserInfo(ProfileModel updateUserModel, String token) async {
     _isLoading = true;
     update();
-    ResponseModel responseModel = await profileServiceInterface.updateProfile(updateUserModel, _pickedFile, token);
-    _isLoading = false;
-    bool isSuccess;
-    if (responseModel.isSuccess) {
-      await getProfile();
-      Get.back();
-      showCustomSnackBar(responseModel.message, isError: false);
-      isSuccess = true;
-    } else {
-      isSuccess = false;
+    try {
+      ResponseModel? responseModel = await profileServiceInterface.updateProfile(updateUserModel, _pickedFile, token);
+      _isLoading = false;
+      bool isSuccess;
+      
+      if (responseModel != null && responseModel.isSuccess) {
+        await getProfile();
+        Get.back();
+        showCustomSnackBar(responseModel.message, isError: false);
+        isSuccess = true;
+      } else {
+        String errorMessage = responseModel?.message ?? 'Failed to update profile. Please try again.';
+        showCustomSnackBar(errorMessage, isError: true);
+        isSuccess = false;
+      }
+      update();
+      return isSuccess;
+    } catch (e) {
+      _isLoading = false;
+      debugPrint('❌ Error updating user info: $e');
+      showCustomSnackBar('Failed to update profile: ${e.toString()}', isError: true);
+      update();
+      return false;
     }
-    update();
-    return isSuccess;
   }
 
-  Future<bool> updateActiveStatus({int? shiftId, bool isUpdate = false}) async {
+  Future<bool> updateActiveStatus({String? shiftId, bool isUpdate = false}) async { // Changed to String to support UUID format
     _shiftLoading = true;
     if(isUpdate){
       update();
@@ -217,7 +252,7 @@ class ProfileController extends GetxController implements GetxService {
     update();
   }
 
-  void setShiftId(int? id){
+  void setShiftId(String? id){ // Changed to String to support UUID format from API
     _shiftId = id;
     update();
   }
@@ -229,7 +264,7 @@ class ProfileController extends GetxController implements GetxService {
 
   void startLocationRecord() {
     _timer?.cancel();
-    _scheduleNextRecord(const Duration(seconds: 10));
+    _scheduleNextRecord(const Duration(minutes: 5));
   }
 
   void stopLocationRecord() {
@@ -254,18 +289,18 @@ class ProfileController extends GetxController implements GetxService {
         }
       }
 
-      // Adaptive cadence: >10 m/s (~36 km/h) → 5s, else 10s
-      final speed = locationResult.speed; // m/s
-      final next = speed.isFinite && speed > 10 ? 5 : 10;
+      // Location recording interval: 5 minutes (300 seconds)
+      // Using fixed interval instead of adaptive cadence
+      const next = 300; // 5 minutes in seconds
       if (next != _lastAdaptiveIntervalSec) {
         _lastAdaptiveIntervalSec = next;
-        _scheduleNextRecord(Duration(seconds: next));
+        _scheduleNextRecord(const Duration(minutes: 5));
       }
     } catch (e) {
       debugPrint('Error recording location: $e');
       // Don't throw - just log the error and continue
       // Schedule next record even on error to keep trying
-      _scheduleNextRecord(const Duration(seconds: 10));
+      _scheduleNextRecord(const Duration(minutes: 5));
     }
   }
 

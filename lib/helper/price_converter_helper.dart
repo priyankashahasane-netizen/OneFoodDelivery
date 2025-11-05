@@ -2,7 +2,7 @@ import 'package:stackfood_multivendor_driver/feature/splash/controllers/splash_c
 import 'package:get/get.dart';
 
 class PriceConverter {
-  static String convertPrice(double? price, {double? discount, String? discountType, int? asFixed}) {
+  static String convertPrice(double? price, {double? discount, String? discountType, int? asFixed, bool showCurrency = true}) {
     if(discount != null && discountType != null){
       if(discountType == 'amount') {
         price = price! - discount;
@@ -11,11 +11,17 @@ class PriceConverter {
       }
     }
     bool isRightSide = Get.find<SplashController>().configModel!.currencySymbolDirection == 'right';
+    String currencySymbol = showCurrency ? Get.find<SplashController>().configModel!.currencySymbol! : '';
+    String formattedPrice = (toFixed(price!, Get.find<SplashController>().configModel!.digitAfterDecimalPoint!)).toStringAsFixed(asFixed ?? Get.find<SplashController>().configModel!.digitAfterDecimalPoint!)
+        .replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},');
 
-    return '${isRightSide ? '' : Get.find<SplashController>().configModel!.currencySymbol} '
-        '${(toFixed(price!, Get.find<SplashController>().configModel!.digitAfterDecimalPoint!)).toStringAsFixed(asFixed ?? Get.find<SplashController>().configModel!.digitAfterDecimalPoint!)
-        .replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}'
-        '${isRightSide ? ' ${Get.find<SplashController>().configModel!.currencySymbol!}' : ''}';
+    if (!showCurrency) {
+      return formattedPrice;
+    }
+
+    return '${isRightSide ? '' : currencySymbol} '
+        '$formattedPrice'
+        '${isRightSide ? ' $currencySymbol' : ''}';
   }
 
   static double convertWithDiscount(double price, double discount, String discountType) {

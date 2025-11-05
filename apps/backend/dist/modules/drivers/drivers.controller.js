@@ -44,10 +44,35 @@ let DriversController = class DriversController {
     async update(id, payload, req) {
         const driverId = req.user?.sub || req.user?.driverId;
         const isDemoAccount = req.user?.phone === '9975008124' || req.user?.phone === '+919975008124' || req.user?.driverId === 'demo-driver-id';
+        let actualDriverId = id;
+        if (isDemoAccount) {
+            const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+            for (const phone of demoPhones) {
+                const demoDriver = await this.driversService.findByPhone(phone);
+                if (demoDriver) {
+                    actualDriverId = demoDriver.id;
+                    break;
+                }
+            }
+        }
         if (!isDemoAccount && driverId !== id) {
             throw new Error('Unauthorized');
         }
-        return this.driversService.update(id, payload);
+        try {
+            return await this.driversService.update(actualDriverId, payload);
+        }
+        catch (error) {
+            if (isDemoAccount && (error.message?.includes('not found') || error instanceof NotFoundException)) {
+                const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+                for (const phone of demoPhones) {
+                    const demoDriver = await this.driversService.findByPhone(phone);
+                    if (demoDriver) {
+                        return this.driversService.update(demoDriver.id, payload);
+                    }
+                }
+            }
+            throw error;
+        }
     }
     async updateCapacity(id, body, req) {
         const driverId = req.user?.sub || req.user?.driverId;

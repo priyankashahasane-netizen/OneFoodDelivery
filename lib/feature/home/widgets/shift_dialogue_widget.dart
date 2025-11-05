@@ -72,7 +72,11 @@ class _ShiftDialogueWidgetState extends State<ShiftDialogueWidget> {
                           Text(profileController.shifts![index].name!, style: robotoMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
 
                           Text(
-                            '${DateConverter.onlyTimeShow(profileController.shifts![index].startTime!)} - ${DateConverter.onlyTimeShow(profileController.shifts![index].endTime!)}',
+                            '${profileController.shifts![index].startTime != null 
+                                ? DateConverter.onlyTimeShow(profileController.shifts![index].startTime!) 
+                                : '--'} - ${profileController.shifts![index].endTime != null 
+                                ? DateConverter.onlyTimeShow(profileController.shifts![index].endTime!) 
+                                : '--'}',
                             style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall),
                           ),
 

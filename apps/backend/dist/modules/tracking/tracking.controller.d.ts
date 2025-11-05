@@ -6,6 +6,7 @@ export declare class TrackingController {
     private readonly redisSub;
     private readonly logger;
     constructor(trackingService: TrackingService, redisSub: any);
+    trackWithoutOrderId(): Promise<void>;
     sse(orderId: string, res: Response): Promise<void>;
     private isRedisSubAvailable;
     ingest(orderId: string, payload: TrackPointDto, idempotencyKey?: string): Promise<{

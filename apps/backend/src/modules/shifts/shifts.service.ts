@@ -18,10 +18,24 @@ export class ShiftsService {
   }
 
   async findByDriverId(driverId: string): Promise<ShiftEntity[]> {
-    return await this.shiftRepository.find({
-      where: { driverId, status: 1 },
-      order: { startTime: 'ASC' }
-    });
+    // Handle demo-driver-id or invalid UUIDs by returning all shifts
+    if (driverId === 'demo-driver-id' || !this.isValidUUID(driverId)) {
+      return await this.findAll();
+    }
+    try {
+      return await this.shiftRepository.find({
+        where: { driverId, status: 1 },
+        order: { startTime: 'ASC' }
+      });
+    } catch (error) {
+      // If UUID parsing fails, return all shifts as fallback
+      return await this.findAll();
+    }
+  }
+
+  private isValidUUID(uuid: string): boolean {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(uuid);
   }
 
   async findByZoneId(zoneId: string): Promise<ShiftEntity[]> {

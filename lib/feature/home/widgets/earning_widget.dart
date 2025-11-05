@@ -21,7 +21,7 @@ class EarningWidget extends StatelessWidget {
       const SizedBox(height: Dimensions.paddingSizeSmall),
 
       amount != null ? Text(
-        PriceConverter.convertPrice(amount!),
+        PriceConverter.convertPrice(amount!, showCurrency: false),
         style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeExtraLarge, color: ColorResources.white),
         maxLines: 1, overflow: TextOverflow.ellipsis,
       ) : Shimmer(

@@ -76,6 +76,8 @@ flutter:
     - assets/language/
     - assets/notification.mp3
     - assets/json/
+    - assets/terms_and_conditions.html
+    - assets/privacy_policy.html
 
   fonts:
     - family: Roboto

@@ -1,5 +1,6 @@
 export declare class DriverProfileResponseDto {
     id: string | number;
+    uuid?: string;
     name?: string;
     f_name?: string;
     l_name?: string;

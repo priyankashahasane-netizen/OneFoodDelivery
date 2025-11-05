@@ -50,11 +50,42 @@ export class DriversController {
     const driverId = req.user?.sub || req.user?.driverId;
     const isDemoAccount = req.user?.phone === '9975008124' || req.user?.phone === '+919975008124' || req.user?.driverId === 'demo-driver-id';
     
+    // For demo accounts, find the actual driver by phone to get the correct UUID
+    let actualDriverId = id;
+    if (isDemoAccount) {
+      const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+      
+      // Find the actual driver by phone to get the correct UUID
+      for (const phone of demoPhones) {
+        const demoDriver = await this.driversService.findByPhone(phone);
+        if (demoDriver) {
+          actualDriverId = demoDriver.id;
+          break;
+        }
+      }
+    }
+    
     // Skip authorization check for demo account
     if (!isDemoAccount && driverId !== id) {
       throw new Error('Unauthorized');
     }
-    return this.driversService.update(id, payload);
+    
+    // Try to update with the actual driver ID
+    try {
+      return await this.driversService.update(actualDriverId, payload);
+    } catch (error: any) {
+      // If update fails with 404 and it's a demo account, try finding by phone one more time
+      if (isDemoAccount && (error.message?.includes('not found') || error instanceof NotFoundException)) {
+        const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+        for (const phone of demoPhones) {
+          const demoDriver = await this.driversService.findByPhone(phone);
+          if (demoDriver) {
+            return this.driversService.update(demoDriver.id, payload);
+          }
+        }
+      }
+      throw error;
+    }
   }
 
   @Patch(':id/capacity')

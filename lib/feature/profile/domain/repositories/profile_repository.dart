@@ -9,6 +9,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
+import 'dart:convert';
 import 'package:stackfood_multivendor_driver/feature/profile/domain/models/profile_model.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -44,75 +45,227 @@ class ProfileRepository implements ProfileRepositoryInterface {
     // The tracking endpoint expects: POST /api/track/:orderId with body { driverId, lat, lng, speed?, heading? }
     // Since we don't have an orderId here, we'll skip tracking for now
     // Location updates without an active order are not critical
-    // The backend tracking endpoint requires an orderId, so we'll handle 404 gracefully
+    // The backend tracking endpoint requires an orderId, so we'll handle errors gracefully
     try {
-      Response response = await apiClient.postData(AppConstants.recordLocationUri, recordLocationBody.toJson());
-      // Accept 200, 201, or even 404 (since endpoint might not exist without orderId)
-      return (response.statusCode == 200 || response.statusCode == 201);
+      // Use handleError: false to get actual status codes (not converted to empty Response)
+      Response response = await apiClient.postData(
+        AppConstants.recordLocationUri, 
+        recordLocationBody.toJson(),
+        handleError: false,
+      );
+      // Accept 200, 201 (successful tracking)
+      // Handle 400 (BadRequest - missing orderId) and 404 (Not Found) gracefully
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return true;
+      } else if (response.statusCode == 400 || response.statusCode == 404) {
+        // 400 BadRequest: Missing orderId (expected when no active orders)
+        // 404 Not Found: Endpoint doesn't exist (shouldn't happen but handle gracefully)
+        // Silently return false - location tracking without active order is not critical
+        return false;
+      }
+      return false;
     } catch (e) {
       // Silently fail for location tracking - it's not critical if it fails
       // Location is tracked when driver has an active order
+      // This catches network errors, timeouts, etc.
       return false;
+    }
+  }
+
+  /// Get driver UUID from multiple sources (profile response, token, or hardcoded fallback)
+  Future<String?> _getDriverUuid() async {
+    // First, try to get UUID from profile response (if available)
+    try {
+      Response profileResponse = await apiClient.getData(AppConstants.driverProfileUri, handleError: false);
+      if (profileResponse.statusCode == 200 && profileResponse.body != null) {
+        if (profileResponse.body is Map) {
+          Map<String, dynamic> body = profileResponse.body as Map<String, dynamic>;
+          
+          // Priority 1: Check for explicit uuid field (backend now returns this)
+          if (body['uuid'] != null && body['uuid'].toString().isNotEmpty) {
+            String uuid = body['uuid'].toString();
+            debugPrint('✅ Found UUID in profile response uuid field: $uuid');
+            return uuid;
+          }
+          
+          // Priority 2: Check if id is already a UUID (string format with dashes)
+          if (body['id'] != null) {
+            String id = body['id'].toString();
+            // Check if it's a UUID format (contains dashes and is 36 chars)
+            if (id.contains('-') && id.length == 36) {
+              debugPrint('✅ Found UUID in profile response id field: $id');
+              return id;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ Could not get UUID from profile: $e');
+    }
+    
+    // Second, try to extract from JWT token (fallback)
+    String? tokenUuid = _extractDriverUuidFromToken();
+    if (tokenUuid != null && tokenUuid.isNotEmpty) {
+      debugPrint('⚠️ Using UUID from JWT token (fallback): $tokenUuid');
+      debugPrint('⚠️ Note: This UUID may not exist in database. Consider updating profile endpoint to return UUID.');
+      return tokenUuid;
+    }
+    
+    // Last resort: return null and let the update fail with a clear error
+    debugPrint('❌ Could not determine driver UUID from any source');
+    return null;
+  }
+
+  /// Extract UUID from JWT token's 'sub' field
+  String? _extractDriverUuidFromToken() {
+    try {
+      String token = _getUserToken();
+      if (token.isEmpty) {
+        debugPrint('⚠️ Token is empty');
+        return null;
+      }
+      
+      // JWT tokens have 3 parts separated by dots: header.payload.signature
+      List<String> parts = token.split('.');
+      if (parts.length < 2) {
+        debugPrint('⚠️ Invalid token format: expected 3 parts separated by dots, got ${parts.length}');
+        return null;
+      }
+      
+      // Decode the payload (second part)
+      String payload = parts[1];
+      // Add padding if needed for base64 decoding
+      while (payload.length % 4 != 0) {
+        payload += '=';
+      }
+      
+      // Decode base64
+      String decodedPayload = utf8.decode(base64Url.decode(payload));
+      Map<String, dynamic> payloadJson = jsonDecode(decodedPayload);
+      
+      // Extract 'sub' field which contains the UUID
+      String? uuid = payloadJson['sub']?.toString();
+      if (uuid == null || uuid.isEmpty) {
+        debugPrint('⚠️ Token payload does not contain "sub" field');
+        debugPrint('Token payload: $payloadJson');
+      }
+      return uuid;
+    } catch (e) {
+      debugPrint('❌ Error extracting UUID from token: $e');
+      return null;
     }
   }
 
   @override
   Future<ResponseModel?> updateProfile(ProfileModel userInfoModel, XFile? data, String token) async {
     ResponseModel? responseModel;
-    // Get driver ID from profile first
+    
     try {
-      Response profileResponse = await apiClient.getData(AppConstants.driverProfileUri);
-      if (profileResponse.statusCode == 200 && profileResponse.body != null) {
-        String? driverId = profileResponse.body['id']?.toString();
-        if (driverId != null && driverId.isNotEmpty) {
-          // Use new endpoint: PATCH /api/drivers/:id
-          // For multipart data with image, we may need a different approach
-          // Backend may support PATCH with multipart, or we may need to update in two steps
-          
-          // Prepare body
-          Map<String, dynamic> body = {};
-          if (userInfoModel.fName != null) body['name'] = '${userInfoModel.fName} ${userInfoModel.lName ?? ""}'.trim();
-          if (userInfoModel.email != null) body['email'] = userInfoModel.email;
-          
-          // Try PATCH first (without image)
-          Response response = await apiClient.patchData(
-            '${AppConstants.driverUpdateUri}/$driverId',
-            body
-          );
-          
-          // If image provided and PATCH doesn't support multipart, use legacy endpoint
-          if (data != null && response.statusCode != 200) {
-            // Fallback to legacy multipart endpoint
-            Map<String, String> fields = {};
-            fields.addAll(<String, String>{
-              '_method': 'put', 'f_name': userInfoModel.fName!, 'l_name': userInfoModel.lName!,
-              'email': userInfoModel.email!, 'token': _getUserToken()
-            });
-            response = await apiClient.postMultipartData(AppConstants.updateProfileUri, fields, [MultipartBody('image', data)], []);
-          }
-          
-          if(response.statusCode == 200) {
-            responseModel = ResponseModel(true, response.body['message'] ?? 'Profile updated');
-          }
+      // Get the driver UUID - try multiple sources
+      String? driverUuid = await _getDriverUuid();
+      
+      if (driverUuid == null || driverUuid.isEmpty) {
+        debugPrint('❌ Could not determine driver UUID');
+        return ResponseModel(false, 'Unable to identify driver. Please log in again.');
+      }
+      
+      debugPrint('✅ Using driver UUID: $driverUuid');
+      
+      // Prepare body - only include fields that backend accepts (see UpdateDriverDto)
+      // Backend accepts: name, phone, vehicleType, capacity, online, latitude, longitude, zoneId
+      // Note: email is NOT in UpdateDriverDto, so we skip it
+      Map<String, dynamic> body = {};
+      
+      // Combine first name and last name into a single "name" field for the backend
+      // Handle both null and empty string cases
+      String? firstName = userInfoModel.fName?.trim();
+      String? lastName = userInfoModel.lName?.trim();
+      
+      // Only update name if at least one name field has a value
+      bool hasFirstName = firstName != null && firstName.isNotEmpty;
+      bool hasLastName = lastName != null && lastName.isNotEmpty;
+      
+      if (hasFirstName || hasLastName) {
+        // Combine names, removing any extra spaces
+        String fullName = '${firstName ?? ""} ${lastName ?? ""}'.trim();
+        if (fullName.isNotEmpty) {
+          body['name'] = fullName;
         }
       }
-    } catch (e) {
-      // Fallback to legacy endpoint
-      Map<String, String> fields = {};
-      fields.addAll(<String, String>{
-        '_method': 'put', 'f_name': userInfoModel.fName!, 'l_name': userInfoModel.lName!,
-        'email': userInfoModel.email!, 'token': _getUserToken()
-      });
-      Response response = await apiClient.postMultipartData(AppConstants.updateProfileUri, fields, [MultipartBody('image', data)], []);
-      if(response.statusCode == 200) {
-        responseModel = ResponseModel(true, response.body['message']);
+      
+      // Phone update is supported by UpdateDriverDto
+      if (userInfoModel.phone != null && userInfoModel.phone!.trim().isNotEmpty) {
+        body['phone'] = userInfoModel.phone!.trim();
       }
+      
+      // Validate that we have at least one field to update
+      if (body.isEmpty) {
+        debugPrint('❌ No fields to update. Body is empty.');
+        return ResponseModel(false, 'No changes to update. Please modify at least one field.');
+      }
+      
+      debugPrint('📤 Updating profile with body: $body');
+      debugPrint('📤 API Endpoint: ${AppConstants.driverUpdateUri}/$driverUuid');
+      debugPrint('📤 Driver UUID: $driverUuid');
+      
+      // Try PATCH with UUID
+      Response response = await apiClient.patchData(
+        '${AppConstants.driverUpdateUri}/$driverUuid',
+        body,
+        handleError: false,
+      );
+      
+      debugPrint('📥 Profile update response: ${response.statusCode}');
+      debugPrint('📥 Response status text: ${response.statusText}');
+      if (response.body != null) {
+        debugPrint('📥 Response body: ${response.body}');
+      }
+      
+      // Handle response - 200 and 204 are both success codes
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        String message = 'Profile updated successfully';
+        if (response.body is Map && response.body.isNotEmpty) {
+          message = response.body['message'] ?? 
+                    (response.body['name'] != null ? 'Profile updated successfully' : message);
+        }
+        responseModel = ResponseModel(true, message);
+        
+        // Note: Image upload is not currently supported by the new endpoint
+        // You may need a separate endpoint for image uploads
+        if (data != null) {
+          debugPrint('⚠️ Image upload not yet supported by new endpoint. Profile updated but image not uploaded.');
+        }
+      } else {
+        // Handle error responses
+        String errorMessage = 'Failed to update profile';
+        if (response.body != null) {
+          if (response.body is Map) {
+            // Try to extract detailed error message
+            errorMessage = response.body['message'] ?? 
+                          response.body['error'] ?? 
+                          (response.body['errors'] != null ? response.body['errors'].toString() : errorMessage);
+          } else if (response.body is String) {
+            errorMessage = response.body;
+          }
+        }
+        if (response.statusText != null && response.statusText!.isNotEmpty && errorMessage == 'Failed to update profile') {
+          errorMessage = response.statusText!;
+        }
+        debugPrint('❌ Profile update failed: Status ${response.statusCode}, Message: $errorMessage');
+        debugPrint('❌ Full response body: ${response.body}');
+        responseModel = ResponseModel(false, errorMessage);
+      }
+    } catch (e) {
+      debugPrint('❌ Error in updateProfile: $e');
+      responseModel = ResponseModel(false, 'Failed to update profile: ${e.toString()}');
     }
+    
     return responseModel;
   }
 
+
   @override
-  Future<ResponseModel?> updateActiveStatus({int? shiftId}) async {
+  Future<ResponseModel?> updateActiveStatus({String? shiftId}) async { // Changed to String to support UUID format
     ResponseModel? responseModel;
     // Get driver ID from profile first
     try {
@@ -231,7 +384,8 @@ class ProfileRepository implements ProfileRepositoryInterface {
   @override
   Future<List<ShiftModel>?> getShiftList() async {
     List<ShiftModel>? shifts;
-    Response response = await apiClient.getData('${AppConstants.shiftUri}${_getUserToken()}');
+    // Use new endpoint with JWT Bearer token (no token in query string)
+    Response response = await apiClient.getData(AppConstants.shiftUri, handleError: false);
     if (response.statusCode == 200 && response.body != null) {
       shifts = [];
       // API returns either a single object or a list

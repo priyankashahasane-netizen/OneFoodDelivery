@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Logger, Param, Post, Res } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Headers, Logger, Param, Post, Res } from '@nestjs/common';
 import type { Response } from 'express';
 
 import { TrackingService } from './tracking.service.js';
@@ -11,6 +11,17 @@ export class TrackingController {
   private readonly logger = new Logger(TrackingController.name);
 
   constructor(private readonly trackingService: TrackingService, @InjectRedisSub() private readonly redisSub) {}
+
+  // Handle POST /api/track (without orderId) - return helpful error
+  @Public()
+  @Post()
+  async trackWithoutOrderId() {
+    throw new BadRequestException({
+      error: 'Missing orderId',
+      message: 'The tracking endpoint requires an orderId. Use POST /api/track/:orderId instead.',
+      example: 'POST /api/track/12345'
+    });
+  }
 
   // PRD: GET /api/track/:orderId/sse
   @Public()

@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:stackfood_multivendor_driver/feature/Incentive/screens/incentive_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/notification/domain/models/notification_body_model.dart';
 import 'package:stackfood_multivendor_driver/feature/chat/domain/models/conversation_model.dart';
 import 'package:stackfood_multivendor_driver/feature/cash_in_hand/screens/cash_in_hand_screen.dart';
@@ -36,7 +35,6 @@ class RouteHelper {
   static const String update = '/update';
   static const String chatScreen = '/chat-screen';
   static const String conversationListScreen = '/conversation-list-screen';
-  static const String incentive = '/incentive';
   static const String cashInHand = '/cash-in-hand';
   static const String disbursement = '/disbursement';
   static const String withdrawMethod = '/withdraw-method';
@@ -78,7 +76,6 @@ class RouteHelper {
     return '$chatScreen?notification_body=$notificationBody0&user=$user0&conversation_id=$conversationId&from_notification=${fromNotification.toString()}';
   }
   static String getConversationListRoute() => conversationListScreen;
-  static String getIncentiveRoute() => incentive;
   static String getCashInHandRoute() => cashInHand;
   static String getDisbursementRoute() => disbursement;
   static String getWithdrawMethodRoute({bool isFromDashBoard = false}) => '$withdrawMethod?is_from_dashboard=${isFromDashBoard.toString()}';
@@ -135,7 +132,6 @@ class RouteHelper {
     GetPage(name: conversationListScreen, page: () => const ConversationScreen()),
     // Delivery man registration removed - simplified to JWT auth only
     // GetPage(name: deliveryManRegistration, page: () => const DeliveryManRegistrationScreen()),
-    GetPage(name: incentive, page: () => const IncentiveScreen()),
     GetPage(name: cashInHand, page: () => const CashInHandScreen()),
     GetPage(name: disbursement, page: () => const DisbursementScreen()),
     GetPage(name: withdrawMethod, page: () => WithdrawMethodScreen(isFromDashboard: Get.parameters['is_from_dashboard'] == 'true')),

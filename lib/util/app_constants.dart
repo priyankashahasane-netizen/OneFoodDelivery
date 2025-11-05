@@ -59,7 +59,7 @@ class AppConstants {
   static const String zoneUri = '/api/v1/config/get-zone-id';
   static const String orderCancellationUri = '/api/v1/customer/order/cancellation-reasons';
   static const String vehiclesUri = '/api/v1/get-vehicles';
-  static const String shiftUri = '/api/v1/delivery-man/dm-shift?token=';
+  static const String shiftUri = '/api/shifts';
   static const String deliveredOrderNotificationUri = '/api/v1/delivery-man/send-order-otp';
   static const String makeCollectedCashPaymentUri = '/api/v1/delivery-man/make-collected-cash-payment';
   static const String makeWalletAdjustmentUri = '/api/v1/delivery-man/make-wallet-adjustment';

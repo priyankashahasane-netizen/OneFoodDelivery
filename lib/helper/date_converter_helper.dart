@@ -1,6 +1,7 @@
 import 'package:stackfood_multivendor_driver/feature/splash/controllers/splash_controller.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/foundation.dart';
 
 class DateConverter {
   static String formatDate(DateTime dateTime) {
@@ -72,7 +73,35 @@ class DateConverter {
   }
 
   static String onlyTimeShow(String time) {
-    return DateFormat(_timeFormatter()).format(DateFormat('HH:mm:ss').parse(time));
+    try {
+      // Handle different time formats from API
+      String normalizedTime = time.trim();
+      
+      // If time is in HH:mm format (without seconds), add :00
+      if (normalizedTime.length == 5 && normalizedTime.contains(':')) {
+        normalizedTime = '$normalizedTime:00';
+      }
+      
+      // Parse the time - handle both HH:mm:ss and HH:mm formats
+      DateTime parsedTime;
+      if (normalizedTime.length == 8 && normalizedTime.split(':').length == 3) {
+        // HH:mm:ss format (e.g., "09:00:00")
+        parsedTime = DateFormat('HH:mm:ss').parse(normalizedTime);
+      } else if (normalizedTime.length == 5 && normalizedTime.split(':').length == 2) {
+        // HH:mm format (e.g., "09:00")
+        parsedTime = DateFormat('HH:mm').parse(normalizedTime);
+      } else {
+        // Try to parse as-is (fallback)
+        parsedTime = DateFormat('HH:mm:ss').parse(normalizedTime);
+      }
+      
+      // Format according to user preference (12-hour or 24-hour)
+      return DateFormat(_timeFormatter()).format(parsedTime);
+    } catch (e) {
+      // If parsing fails, return the original time string
+      debugPrint('Error parsing time: $time - $e');
+      return time;
+    }
   }
 
   static String isoStringToLocalDateAnTime(String dateTime) {
