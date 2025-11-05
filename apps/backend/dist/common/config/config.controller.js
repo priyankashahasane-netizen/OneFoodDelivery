@@ -17,7 +17,7 @@ let ConfigController = class ConfigController {
             address: '',
             phone: '',
             email: '',
-            currency_symbol: '$',
+            currency_symbol: '',
             cash_on_delivery: true,
             digital_payment: true,
             terms_and_conditions: '',

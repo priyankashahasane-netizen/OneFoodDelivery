@@ -4,7 +4,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_image_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_snackbar_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/controllers/profile_controller.dart';
-import 'package:stackfood_multivendor_driver/feature/splash/controllers/splash_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/language/controllers/localization_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/language/widgets/language_bottom_sheet_widget.dart';
 import 'package:stackfood_multivendor_driver/helper/route_helper.dart';
@@ -263,49 +262,66 @@ class CustomDrawerWidget extends StatelessWidget {
   }
 
   void _showContactDialog(BuildContext context) {
-    final splashController = Get.find<SplashController>();
-    final configModel = splashController.configModel;
+    // Contact information
+    const String address = '1905, Cyber One, Plot No. 4&6, behind Odisha Bhavan, Sector 30A, Vashi, Navi Mumbai, Maharashtra 400703';
+    const String email = 'support@onefooddelivery.com';
+    const String phone = '+91-8450940705';
     
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('contact_us'.tr),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (configModel?.phone != null && configModel!.phone!.isNotEmpty) ...[
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Address
               ListTile(
-                leading: const Icon(Icons.phone),
-                title: Text(configModel.phone!),
-                onTap: () async {
-                  final uri = Uri.parse('tel:${configModel.phone}');
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri);
-                  } else {
-                    showCustomSnackBar('can_not_launch'.tr);
-                  }
-                },
+                leading: const Icon(Icons.location_on),
+                title: const Text('Address', style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text(address),
+                contentPadding: EdgeInsets.zero,
+                minLeadingWidth: 24,
               ),
-            ],
-            if (configModel?.email != null && configModel!.email!.isNotEmpty) ...[
+              const SizedBox(height: Dimensions.paddingSizeSmall),
+              
+              // Email
               ListTile(
                 leading: const Icon(Icons.email),
-                title: Text(configModel.email!),
+                title: const Text('Email Id', style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text(email),
                 onTap: () async {
-                  final uri = Uri.parse('mailto:${configModel.email}');
+                  final uri = Uri.parse('mailto:$email');
                   if (await canLaunchUrl(uri)) {
                     await launchUrl(uri);
                   } else {
                     showCustomSnackBar('can_not_launch'.tr);
                   }
                 },
+                contentPadding: EdgeInsets.zero,
+                minLeadingWidth: 24,
+              ),
+              const SizedBox(height: Dimensions.paddingSizeSmall),
+              
+              // Phone
+              ListTile(
+                leading: const Icon(Icons.phone),
+                title: const Text('Contact Number', style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text(phone),
+                onTap: () async {
+                  final uri = Uri.parse('tel:$phone');
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri);
+                  } else {
+                    showCustomSnackBar('can_not_launch'.tr);
+                  }
+                },
+                contentPadding: EdgeInsets.zero,
+                minLeadingWidth: 24,
               ),
             ],
-            if ((configModel?.phone == null || configModel!.phone!.isEmpty) &&
-                (configModel?.email == null || configModel!.email!.isEmpty))
-              Text('contact_information_not_available'.tr),
-          ],
+          ),
         ),
         actions: [
           TextButton(

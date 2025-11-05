@@ -1,15 +1,17 @@
-import { Controller, Get, Query, Request, UseGuards, UnauthorizedException, Param } from '@nestjs/common';
+import { Controller, Get, Post, Query, Request, UseGuards, UnauthorizedException, Param } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt.guard.js';
 import { OrdersService } from '../orders/orders.service.js';
 import { DriversService } from '../drivers/drivers.service.js';
 import { ShiftsService } from '../shifts/shifts.service.js';
+import { WalletService } from '../wallet/wallet.service.js';
 
 @Controller('v1/delivery-man')
 export class DeliveryManController {
   constructor(
     private readonly ordersService: OrdersService,
     private readonly driversService: DriversService,
-    private readonly shiftsService: ShiftsService
+    private readonly shiftsService: ShiftsService,
+    private readonly walletService: WalletService
   ) {}
 
   @Get('all-orders')
@@ -179,22 +181,155 @@ export class DeliveryManController {
 
   @Get('wallet-payment-list')
   @UseGuards(JwtAuthGuard)
-  async getWalletPaymentList(@Request() req: any) {
-    // Return empty wallet payment list for now
-    return {
-      wallet_payments: [],
-      total_size: 0
-    };
+  async getWalletPaymentList(
+    @Request() req: any,
+    @Query('offset') offset?: string,
+    @Query('limit') limit?: string
+  ) {
+    try {
+      // Get driver ID from JWT token
+      let driverId = req?.user?.sub || req?.user?.driverId;
+      const phone = req?.user?.phone;
+
+      // Check if driver ID is demo account placeholder
+      const isDemoAccount = req?.user?.driverId === 'demo-driver-id';
+
+      // If driver ID is provided (not demo), verify it exists
+      if (driverId && !isDemoAccount) {
+        try {
+          await this.driversService.findById(driverId);
+        } catch (error) {
+          // Driver not found with this ID - try to resolve by phone if available
+          if (phone) {
+            const driverByPhone = await this.driversService.findByPhone(phone);
+            if (driverByPhone) {
+              driverId = driverByPhone.id;
+            }
+          }
+
+          // If still not found, try demo phone variations
+          if (!driverId || driverId === req?.user?.sub) {
+            const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+            for (const demoPhone of demoPhones) {
+              const demoDriver = await this.driversService.findByPhone(demoPhone);
+              if (demoDriver) {
+                driverId = demoDriver.id;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      // Resolve demo account driver ID by phone
+      if (isDemoAccount || !driverId) {
+        const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+        for (const demoPhone of demoPhones) {
+          const demoDriver = await this.driversService.findByPhone(demoPhone);
+          if (demoDriver) {
+            driverId = demoDriver.id;
+            break;
+          }
+        }
+      }
+
+      if (!driverId) {
+        return {
+          transactions: [],
+          total_size: 0,
+          limit: limit || '25',
+          offset: offset || '0'
+        };
+      }
+
+      // Get wallet transactions
+      const limitNum = limit ? parseInt(limit, 10) : 25;
+      const offsetNum = offset ? parseInt(offset, 10) : 0;
+      const result = await this.walletService.getWalletTransactions(driverId, limitNum, offsetNum);
+
+      return result;
+    } catch (error) {
+      // Return empty list on error
+      return {
+        transactions: [],
+        total_size: 0,
+        limit: limit || '25',
+        offset: offset || '0'
+      };
+    }
   }
 
   @Get('get-withdraw-method-list')
   @UseGuards(JwtAuthGuard)
   async getWithdrawMethodList(@Request() req: any) {
-    // Return empty withdraw method list for now
-    return {
-      withdraw_methods: [],
-      total_size: 0
-    };
+    try {
+      // Get driver ID from JWT token
+      let driverId = req?.user?.sub || req?.user?.driverId;
+      const phone = req?.user?.phone;
+
+      // Check if driver ID is demo account placeholder
+      const isDemoAccount = req?.user?.driverId === 'demo-driver-id';
+
+      // If driver ID is provided (not demo), verify it exists
+      if (driverId && !isDemoAccount) {
+        try {
+          await this.driversService.findById(driverId);
+        } catch (error) {
+          // Driver not found with this ID - try to resolve by phone if available
+          if (phone) {
+            const driverByPhone = await this.driversService.findByPhone(phone);
+            if (driverByPhone) {
+              driverId = driverByPhone.id;
+            }
+          }
+
+          // If still not found, try demo phone variations
+          if (!driverId || driverId === req?.user?.sub) {
+            const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+            for (const demoPhone of demoPhones) {
+              const demoDriver = await this.driversService.findByPhone(demoPhone);
+              if (demoDriver) {
+                driverId = demoDriver.id;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      // Resolve demo account driver ID by phone
+      if (isDemoAccount || !driverId) {
+        const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+        for (const demoPhone of demoPhones) {
+          const demoDriver = await this.driversService.findByPhone(demoPhone);
+          if (demoDriver) {
+            driverId = demoDriver.id;
+            break;
+          }
+        }
+      }
+
+      if (!driverId) {
+        return {
+          withdraw_methods: [],
+          total_size: 0
+        };
+      }
+
+      // Get bank accounts as withdraw methods
+      const withdrawMethods = await this.driversService.getBankAccountsForWithdrawMethods(driverId);
+
+      return {
+        withdraw_methods: withdrawMethods,
+        total_size: withdrawMethods.length
+      };
+    } catch (error) {
+      // Return empty list on error
+      return {
+        withdraw_methods: [],
+        total_size: 0
+      };
+    }
   }
 
   @Get('message/list')
@@ -275,6 +410,72 @@ export class DeliveryManController {
       // Get order details - service will check if order belongs to driver
       return await this.ordersService.findByIdForDriver(orderId, driverId);
     } catch (error) {
+      throw error;
+    }
+  }
+
+  @Post('make-wallet-adjustment')
+  @UseGuards(JwtAuthGuard)
+  async makeWalletAdjustment(@Request() req: any) {
+    try {
+      // Get driver ID from JWT token
+      let driverId = req?.user?.sub || req?.user?.driverId;
+      const phone = req?.user?.phone;
+
+      // Check if driver ID is demo account placeholder
+      const isDemoAccount = req?.user?.driverId === 'demo-driver-id';
+
+      // If driver ID is provided (not demo), verify it exists
+      if (driverId && !isDemoAccount) {
+        try {
+          await this.driversService.findById(driverId);
+        } catch (error) {
+          // Driver not found with this ID - try to resolve by phone if available
+          if (phone) {
+            const driverByPhone = await this.driversService.findByPhone(phone);
+            if (driverByPhone) {
+              driverId = driverByPhone.id;
+            }
+          }
+
+          // If still not found, try demo phone variations
+          if (!driverId || driverId === req?.user?.sub) {
+            const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+            for (const demoPhone of demoPhones) {
+              const demoDriver = await this.driversService.findByPhone(demoPhone);
+              if (demoDriver) {
+                driverId = demoDriver.id;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      // Resolve demo account driver ID by phone
+      if (isDemoAccount || !driverId) {
+        const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+        for (const demoPhone of demoPhones) {
+          const demoDriver = await this.driversService.findByPhone(demoPhone);
+          if (demoDriver) {
+            driverId = demoDriver.id;
+            break;
+          }
+        }
+      }
+
+      if (!driverId) {
+        throw new UnauthorizedException('Driver ID not found in token');
+      }
+
+      // Adjust wallet balance to zero
+      const result = await this.walletService.adjustWalletToZero(driverId);
+
+      return {
+        message: result.message,
+        success: result.success
+      };
+    } catch (error: any) {
       throw error;
     }
   }

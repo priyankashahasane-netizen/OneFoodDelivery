@@ -383,7 +383,6 @@ curl -X GET http://localhost:3000/api/shifts/SHIFT_ID \
 
 ### POST /shifts
 Create a new shift.
-
 ```bash
 curl -X POST http://localhost:3000/api/shifts \
   -H "Authorization: Bearer YOUR_TOKEN" \

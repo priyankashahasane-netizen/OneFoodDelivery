@@ -10,19 +10,22 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-import { Controller, Get, Query, Request, UseGuards, UnauthorizedException, Param } from '@nestjs/common';
+import { Controller, Get, Post, Query, Request, UseGuards, UnauthorizedException, Param } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt.guard.js';
 import { OrdersService } from '../orders/orders.service.js';
 import { DriversService } from '../drivers/drivers.service.js';
 import { ShiftsService } from '../shifts/shifts.service.js';
+import { WalletService } from '../wallet/wallet.service.js';
 let DeliveryManController = class DeliveryManController {
     ordersService;
     driversService;
     shiftsService;
-    constructor(ordersService, driversService, shiftsService) {
+    walletService;
+    constructor(ordersService, driversService, shiftsService, walletService) {
         this.ordersService = ordersService;
         this.driversService = driversService;
         this.shiftsService = shiftsService;
+        this.walletService = walletService;
     }
     async getAllOrders(offset, limit, status, token, req) {
         try {
@@ -147,17 +150,122 @@ let DeliveryManController = class DeliveryManController {
             offset: offset || '1'
         };
     }
-    async getWalletPaymentList(req) {
-        return {
-            wallet_payments: [],
-            total_size: 0
-        };
+    async getWalletPaymentList(req, offset, limit) {
+        try {
+            let driverId = req?.user?.sub || req?.user?.driverId;
+            const phone = req?.user?.phone;
+            const isDemoAccount = req?.user?.driverId === 'demo-driver-id';
+            if (driverId && !isDemoAccount) {
+                try {
+                    await this.driversService.findById(driverId);
+                }
+                catch (error) {
+                    if (phone) {
+                        const driverByPhone = await this.driversService.findByPhone(phone);
+                        if (driverByPhone) {
+                            driverId = driverByPhone.id;
+                        }
+                    }
+                    if (!driverId || driverId === req?.user?.sub) {
+                        const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+                        for (const demoPhone of demoPhones) {
+                            const demoDriver = await this.driversService.findByPhone(demoPhone);
+                            if (demoDriver) {
+                                driverId = demoDriver.id;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            if (isDemoAccount || !driverId) {
+                const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+                for (const demoPhone of demoPhones) {
+                    const demoDriver = await this.driversService.findByPhone(demoPhone);
+                    if (demoDriver) {
+                        driverId = demoDriver.id;
+                        break;
+                    }
+                }
+            }
+            if (!driverId) {
+                return {
+                    transactions: [],
+                    total_size: 0,
+                    limit: limit || '25',
+                    offset: offset || '0'
+                };
+            }
+            const limitNum = limit ? parseInt(limit, 10) : 25;
+            const offsetNum = offset ? parseInt(offset, 10) : 0;
+            const result = await this.walletService.getWalletTransactions(driverId, limitNum, offsetNum);
+            return result;
+        }
+        catch (error) {
+            return {
+                transactions: [],
+                total_size: 0,
+                limit: limit || '25',
+                offset: offset || '0'
+            };
+        }
     }
     async getWithdrawMethodList(req) {
-        return {
-            withdraw_methods: [],
-            total_size: 0
-        };
+        try {
+            let driverId = req?.user?.sub || req?.user?.driverId;
+            const phone = req?.user?.phone;
+            const isDemoAccount = req?.user?.driverId === 'demo-driver-id';
+            if (driverId && !isDemoAccount) {
+                try {
+                    await this.driversService.findById(driverId);
+                }
+                catch (error) {
+                    if (phone) {
+                        const driverByPhone = await this.driversService.findByPhone(phone);
+                        if (driverByPhone) {
+                            driverId = driverByPhone.id;
+                        }
+                    }
+                    if (!driverId || driverId === req?.user?.sub) {
+                        const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+                        for (const demoPhone of demoPhones) {
+                            const demoDriver = await this.driversService.findByPhone(demoPhone);
+                            if (demoDriver) {
+                                driverId = demoDriver.id;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            if (isDemoAccount || !driverId) {
+                const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+                for (const demoPhone of demoPhones) {
+                    const demoDriver = await this.driversService.findByPhone(demoPhone);
+                    if (demoDriver) {
+                        driverId = demoDriver.id;
+                        break;
+                    }
+                }
+            }
+            if (!driverId) {
+                return {
+                    withdraw_methods: [],
+                    total_size: 0
+                };
+            }
+            const withdrawMethods = await this.driversService.getBankAccountsForWithdrawMethods(driverId);
+            return {
+                withdraw_methods: withdrawMethods,
+                total_size: withdrawMethods.length
+            };
+        }
+        catch (error) {
+            return {
+                withdraw_methods: [],
+                total_size: 0
+            };
+        }
     }
     async getMessageList(offset, limit, type, req) {
         return {
@@ -215,6 +323,57 @@ let DeliveryManController = class DeliveryManController {
             throw error;
         }
     }
+    async makeWalletAdjustment(req) {
+        try {
+            let driverId = req?.user?.sub || req?.user?.driverId;
+            const phone = req?.user?.phone;
+            const isDemoAccount = req?.user?.driverId === 'demo-driver-id';
+            if (driverId && !isDemoAccount) {
+                try {
+                    await this.driversService.findById(driverId);
+                }
+                catch (error) {
+                    if (phone) {
+                        const driverByPhone = await this.driversService.findByPhone(phone);
+                        if (driverByPhone) {
+                            driverId = driverByPhone.id;
+                        }
+                    }
+                    if (!driverId || driverId === req?.user?.sub) {
+                        const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+                        for (const demoPhone of demoPhones) {
+                            const demoDriver = await this.driversService.findByPhone(demoPhone);
+                            if (demoDriver) {
+                                driverId = demoDriver.id;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            if (isDemoAccount || !driverId) {
+                const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+                for (const demoPhone of demoPhones) {
+                    const demoDriver = await this.driversService.findByPhone(demoPhone);
+                    if (demoDriver) {
+                        driverId = demoDriver.id;
+                        break;
+                    }
+                }
+            }
+            if (!driverId) {
+                throw new UnauthorizedException('Driver ID not found in token');
+            }
+            const result = await this.walletService.adjustWalletToZero(driverId);
+            return {
+                message: result.message,
+                success: result.success
+            };
+        }
+        catch (error) {
+            throw error;
+        }
+    }
 };
 __decorate([
     Get('all-orders'),
@@ -250,8 +409,10 @@ __decorate([
     Get('wallet-payment-list'),
     UseGuards(JwtAuthGuard),
     __param(0, Request()),
+    __param(1, Query('offset')),
+    __param(2, Query('limit')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, String, String]),
     __metadata("design:returntype", Promise)
 ], DeliveryManController.prototype, "getWalletPaymentList", null);
 __decorate([
@@ -282,10 +443,19 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], DeliveryManController.prototype, "getOrderDetails", null);
+__decorate([
+    Post('make-wallet-adjustment'),
+    UseGuards(JwtAuthGuard),
+    __param(0, Request()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], DeliveryManController.prototype, "makeWalletAdjustment", null);
 DeliveryManController = __decorate([
     Controller('v1/delivery-man'),
     __metadata("design:paramtypes", [OrdersService,
         DriversService,
-        ShiftsService])
+        ShiftsService,
+        WalletService])
 ], DeliveryManController);
 export { DeliveryManController };

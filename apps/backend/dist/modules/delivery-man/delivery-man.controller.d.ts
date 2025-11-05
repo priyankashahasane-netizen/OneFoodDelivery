@@ -1,11 +1,13 @@
 import { OrdersService } from '../orders/orders.service.js';
 import { DriversService } from '../drivers/drivers.service.js';
 import { ShiftsService } from '../shifts/shifts.service.js';
+import { WalletService } from '../wallet/wallet.service.js';
 export declare class DeliveryManController {
     private readonly ordersService;
     private readonly driversService;
     private readonly shiftsService;
-    constructor(ordersService: OrdersService, driversService: DriversService, shiftsService: ShiftsService);
+    private readonly walletService;
+    constructor(ordersService: OrdersService, driversService: DriversService, shiftsService: ShiftsService, walletService: WalletService);
     getAllOrders(offset?: string, limit?: string, status?: string, token?: string, req?: any): Promise<{
         orders: {
             id: number;
@@ -109,12 +111,48 @@ export declare class DeliveryManController {
         limit: string;
         offset: string;
     }>;
-    getWalletPaymentList(req: any): Promise<{
-        wallet_payments: any[];
+    getWalletPaymentList(req: any, offset?: string, limit?: string): Promise<{
+        transactions: {
+            id: number;
+            from_type: string;
+            from_id: number;
+            current_balance: number;
+            amount: number;
+            method: string;
+            ref: string;
+            created_at: string;
+            updated_at: string;
+            type: string;
+            created_by: string;
+            payment_method: string;
+            status: string;
+            payment_time: string;
+        }[];
         total_size: number;
+        limit: number;
+        offset: number;
+    } | {
+        transactions: any[];
+        total_size: number;
+        limit: string;
+        offset: string;
     }>;
     getWithdrawMethodList(req: any): Promise<{
-        withdraw_methods: any[];
+        withdraw_methods: {
+            id: number;
+            method_name: string;
+            method_fields: {
+                input_type: string;
+                input_name: string;
+                placeholder: string;
+                is_required: number;
+                value: string;
+            }[];
+            is_default: number;
+            is_active: number;
+            created_at: string;
+            updated_at: string;
+        }[];
         total_size: number;
     }>;
     getMessageList(offset?: string, limit?: string, type?: string, req?: any): Promise<{
@@ -220,5 +258,9 @@ export declare class DeliveryManController {
             item_campaign_id: any;
             total_add_on_price: any;
         }[];
+    }>;
+    makeWalletAdjustment(req: any): Promise<{
+        message: string;
+        success: boolean;
     }>;
 }

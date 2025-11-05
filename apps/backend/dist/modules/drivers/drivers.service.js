@@ -15,10 +15,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DriverEntity } from './entities/driver.entity.js';
 import { DriverProfileResponseDto } from './dto/driver-profile-response.dto.js';
+import { DriverBankAccountEntity } from './entities/driver-bank-account.entity.js';
 let DriversService = class DriversService {
     driversRepository;
-    constructor(driversRepository) {
+    bankAccountRepository;
+    constructor(driversRepository, bankAccountRepository) {
         this.driversRepository = driversRepository;
+        this.bankAccountRepository = bankAccountRepository;
     }
     async listDrivers(pagination) {
         const { page = 1, pageSize = 25 } = pagination;
@@ -55,10 +58,81 @@ let DriversService = class DriversService {
         driver.lastSeenAt = new Date();
         return this.driversRepository.save(driver);
     }
+    async updateMetadata(driverId, metadata) {
+        const driver = await this.findById(driverId);
+        driver.metadata = { ...(driver.metadata || {}), ...metadata };
+        return this.driversRepository.save(driver);
+    }
+    async getBankAccountsByDriverId(driverId) {
+        return await this.bankAccountRepository.find({
+            where: { driverId },
+            order: { createdAt: 'DESC' }
+        });
+    }
+    async getBankAccountsForWithdrawMethods(driverId) {
+        const bankAccounts = await this.getBankAccountsByDriverId(driverId);
+        return bankAccounts.map((account, index) => {
+            const methodFields = [
+                {
+                    input_type: 'text',
+                    input_name: 'account_holder_name',
+                    placeholder: 'Account Holder Name',
+                    is_required: 1,
+                    value: account.accountHolderName
+                },
+                {
+                    input_type: 'text',
+                    input_name: 'account_number',
+                    placeholder: 'Account Number',
+                    is_required: 1,
+                    value: account.accountNumber
+                },
+                {
+                    input_type: 'text',
+                    input_name: 'ifsc_code',
+                    placeholder: 'IFSC Code',
+                    is_required: 1,
+                    value: account.ifscCode
+                },
+                {
+                    input_type: 'text',
+                    input_name: 'bank_name',
+                    placeholder: 'Bank Name',
+                    is_required: 1,
+                    value: account.bankName
+                },
+                {
+                    input_type: 'text',
+                    input_name: 'branch_name',
+                    placeholder: 'Branch Name',
+                    is_required: 0,
+                    value: account.branchName || ''
+                },
+                {
+                    input_type: 'text',
+                    input_name: 'upi_id',
+                    placeholder: 'UPI ID (Optional)',
+                    is_required: 0,
+                    value: account.upiId || ''
+                }
+            ];
+            return {
+                id: index + 1,
+                method_name: `${account.bankName} - ${account.accountNumber.substring(account.accountNumber.length - 4)}`,
+                method_fields: methodFields,
+                is_default: index === 0 ? 1 : 0,
+                is_active: account.isVerified ? 1 : 0,
+                created_at: account.createdAt.toISOString(),
+                updated_at: account.updatedAt.toISOString()
+            };
+        });
+    }
 };
 DriversService = __decorate([
     Injectable(),
     __param(0, InjectRepository(DriverEntity)),
-    __metadata("design:paramtypes", [Repository])
+    __param(1, InjectRepository(DriverBankAccountEntity)),
+    __metadata("design:paramtypes", [Repository,
+        Repository])
 ], DriversService);
 export { DriversService };

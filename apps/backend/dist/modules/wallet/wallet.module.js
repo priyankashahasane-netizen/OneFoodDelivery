@@ -6,18 +6,20 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 };
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { DriverEntity } from './entities/driver.entity.js';
-import { DriverBankAccountEntity } from './entities/driver-bank-account.entity.js';
-import { DriversController } from './drivers.controller.js';
-import { DriversService } from './drivers.service.js';
-let DriversModule = class DriversModule {
+import { WalletService } from './wallet.service.js';
+import { DriverWalletEntity } from './entities/driver-wallet.entity.js';
+import { WalletTransactionEntity } from './entities/wallet-transaction.entity.js';
+import { DriversModule } from '../drivers/drivers.module.js';
+let WalletModule = class WalletModule {
 };
-DriversModule = __decorate([
+WalletModule = __decorate([
     Module({
-        imports: [TypeOrmModule.forFeature([DriverEntity, DriverBankAccountEntity])],
-        providers: [DriversService],
-        controllers: [DriversController],
-        exports: [DriversService]
+        imports: [
+            TypeOrmModule.forFeature([DriverWalletEntity, WalletTransactionEntity]),
+            DriversModule
+        ],
+        providers: [WalletService],
+        exports: [WalletService]
     })
-], DriversModule);
-export { DriversModule };
+], WalletModule);
+export { WalletModule };
