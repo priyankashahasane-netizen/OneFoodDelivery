@@ -41,7 +41,7 @@ class HistoryOrderWidget extends StatelessWidget {
 
               Text('${orderModel.id} ', style: robotoBold.copyWith(fontSize: Dimensions.fontSizeSmall)),
 
-              Text('(${orderModel.detailsCount} ${'item'.tr})', style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor)),
+              Text('(${orderModel.detailsCount ?? 0} ${'item'.tr})', style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor)),
 
               const Expanded(child: SizedBox()),
               Container(
@@ -51,7 +51,7 @@ class HistoryOrderWidget extends StatelessWidget {
                   borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
                 ),
                 child: Text(
-                  orderModel.orderStatus!.toTitleCase(),
+                  _formatStatusText(orderModel.orderStatus ?? ''),
                   style: robotoMedium.copyWith(
                     fontSize: Dimensions.fontSizeSmall,
                     color: _getStatusTextColor(context, orderModel.orderStatus),
@@ -109,6 +109,7 @@ class HistoryOrderWidget extends StatelessWidget {
       case 'delivered':
         return ColorResources.green.withValues(alpha: 0.1);
       case 'canceled':
+      case 'cancelled':
         return ColorResources.red.withValues(alpha: 0.1);
       case 'refund_requested':
         return ColorResources.orange.withValues(alpha: 0.1);
@@ -133,6 +134,7 @@ class HistoryOrderWidget extends StatelessWidget {
       case 'delivered':
         return ColorResources.green;
       case 'canceled':
+      case 'cancelled':
         return ColorResources.red;
       case 'refund_requested':
         return ColorResources.orange;
@@ -143,5 +145,18 @@ class HistoryOrderWidget extends StatelessWidget {
       default:
         return Theme.of(context).primaryColor;
     }
+  }
+
+  /// Format status text for display
+  String _formatStatusText(String status) {
+    if (status.isEmpty) return '';
+    
+    // Handle both "canceled" and "cancelled" spellings
+    String normalizedStatus = status.toLowerCase();
+    if (normalizedStatus == 'canceled' || normalizedStatus == 'cancelled') {
+      return 'Cancelled';
+    }
+    
+    return status.toTitleCase();
   }
 }

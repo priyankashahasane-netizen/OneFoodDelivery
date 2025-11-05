@@ -10,6 +10,7 @@ import 'package:stackfood_multivendor_driver/common/widgets/custom_app_bar_widge
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
+import 'package:intl/intl.dart';
 
 class OrderScreen extends StatefulWidget {
   const OrderScreen({super.key});
@@ -117,7 +118,22 @@ class _OrderScreenState extends State<OrderScreen> {
     final Map<String, List> grouped = {};
 
     for (var order in orders) {
-      final createdDate = DateTime.tryParse(order.createdAt ?? '') ?? now;
+      // Parse date, handling both ISO 8601 and standard formats
+      DateTime createdDate;
+      if (order.createdAt != null && order.createdAt!.isNotEmpty) {
+        try {
+          if (order.createdAt!.contains('T') || order.createdAt!.contains('Z')) {
+            createdDate = DateTime.parse(order.createdAt!).toLocal();
+          } else {
+            createdDate = DateFormat('yyyy-MM-dd HH:mm:ss').parse(order.createdAt!);
+          }
+        } catch (e) {
+          createdDate = now;
+        }
+      } else {
+        createdDate = now;
+      }
+      
       String label;
 
       if (_isSameDate(createdDate, now)) {

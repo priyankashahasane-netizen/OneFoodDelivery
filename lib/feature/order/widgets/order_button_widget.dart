@@ -55,7 +55,13 @@ class OrderButtonWidget extends StatelessWidget {
                   color: isSelected ? Theme.of(context).cardColor.withValues(alpha: 0.4) : Theme.of(context).cardColor,
                 ),
                 child: Text(
-                  fromMyOrder ? orderController.completedOrderCountList![index].toString() : orderController.currentOrderCountList![index].toString(),
+                  fromMyOrder 
+                    ? (orderController.completedOrderCountList != null && index < orderController.completedOrderCountList!.length 
+                        ? orderController.completedOrderCountList![index].toString() 
+                        : '0')
+                    : (orderController.currentOrderCountList != null && index < orderController.currentOrderCountList!.length 
+                        ? orderController.currentOrderCountList![index].toString() 
+                        : '0'),
                   maxLines: 1, overflow: TextOverflow.ellipsis,
                   style: robotoMedium.copyWith(
                     fontSize: Dimensions.fontSizeSmall,
