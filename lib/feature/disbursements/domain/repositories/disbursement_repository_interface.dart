@@ -5,4 +5,5 @@ abstract class DisbursementRepositoryInterface implements RepositoryInterface {
   Future<dynamic> makeDefaultMethod(Map<String?, String> data);
   Future<dynamic> getDisbursementReport(int offset);
   Future<dynamic> getWithdrawMethodList();
+  Future<dynamic> getBankDetails();
 }

@@ -112,6 +112,29 @@ export declare class DeliveryManController {
         offset: string;
     }>;
     getWalletPaymentList(req: any, offset?: string, limit?: string): Promise<{
+        transactions: any[];
+        total_size: number;
+        limit: string;
+        offset: string;
+        bank_details: any[];
+        bank_details_total_size: number;
+    } | {
+        bank_details: {
+            id: number;
+            method_name: string;
+            method_fields: {
+                input_type: string;
+                input_name: string;
+                placeholder: string;
+                is_required: number;
+                value: string;
+            }[];
+            is_default: number;
+            is_active: number;
+            created_at: string;
+            updated_at: string;
+        }[];
+        bank_details_total_size: number;
         transactions: {
             id: number;
             from_type: string;
@@ -131,11 +154,24 @@ export declare class DeliveryManController {
         total_size: number;
         limit: number;
         offset: number;
-    } | {
-        transactions: any[];
+    }>;
+    getBankDetails(req: any): Promise<{
+        bank_details: {
+            id: number;
+            method_name: string;
+            method_fields: {
+                input_type: string;
+                input_name: string;
+                placeholder: string;
+                is_required: number;
+                value: string;
+            }[];
+            is_default: number;
+            is_active: number;
+            created_at: string;
+            updated_at: string;
+        }[];
         total_size: number;
-        limit: string;
-        offset: string;
     }>;
     getWithdrawMethodList(req: any): Promise<{
         withdraw_methods: {

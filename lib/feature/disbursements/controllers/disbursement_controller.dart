@@ -132,6 +132,112 @@ class DisbursementController extends GetxController implements GetxService {
     if(widthDrawMethodList != null) {
       _widthDrawMethods = [];
       _widthDrawMethods!.addAll(widthDrawMethodList);
+      
+      // Convert to DisbursementMethodBody format for the screen
+      if (widthDrawMethodList.isNotEmpty) {
+        List<disburse.Methods> methods = widthDrawMethodList.map((widthDrawMethod) {
+          // Convert MethodFields from withdraw_method_model to disbursement_method_model format
+          List<disburse.MethodFields>? convertedFields = widthDrawMethod.methodFields?.map((field) {
+            // Format input name: replace underscores with spaces and capitalize first letter
+            String formattedInput = field.inputName?.replaceAll('_', ' ') ?? '';
+            if (formattedInput.isNotEmpty) {
+              formattedInput = formattedInput[0].toUpperCase() + formattedInput.substring(1);
+            }
+            return disburse.MethodFields(
+              userInput: formattedInput,
+              userData: field.value ?? '',
+            );
+          }).toList();
+          
+          return disburse.Methods(
+            id: widthDrawMethod.id,
+            methodName: widthDrawMethod.methodName,
+            methodFields: convertedFields,
+            isDefault: widthDrawMethod.isDefault,
+            createdAt: widthDrawMethod.createdAt,
+            updatedAt: widthDrawMethod.updatedAt,
+          );
+        }).toList();
+        
+        _disbursementMethodBody = disburse.DisbursementMethodBody(
+          totalSize: widthDrawMethodList.length,
+          limit: '10',
+          offset: '1',
+          methods: methods,
+        );
+      } else {
+        _disbursementMethodBody = disburse.DisbursementMethodBody(
+          totalSize: 0,
+          limit: '10',
+          offset: '1',
+          methods: [],
+        );
+      }
+    } else {
+      _disbursementMethodBody = disburse.DisbursementMethodBody(
+        totalSize: 0,
+        limit: '10',
+        offset: '1',
+        methods: [],
+      );
+    }
+    update();
+    return _widthDrawMethods;
+  }
+
+  Future<List<WidthDrawMethodModel>?> getBankDetails() async {
+    List<WidthDrawMethodModel>? bankDetailsList = await disbursementServiceInterface.getBankDetails();
+    if(bankDetailsList != null) {
+      _widthDrawMethods = [];
+      _widthDrawMethods!.addAll(bankDetailsList);
+      
+      // Convert to DisbursementMethodBody format for the screen
+      if (bankDetailsList.isNotEmpty) {
+        List<disburse.Methods> methods = bankDetailsList.map((bankDetail) {
+          // Convert MethodFields from withdraw_method_model to disbursement_method_model format
+          List<disburse.MethodFields>? convertedFields = bankDetail.methodFields?.map((field) {
+            // Format input name: replace underscores with spaces and capitalize first letter
+            String formattedInput = field.inputName?.replaceAll('_', ' ') ?? '';
+            if (formattedInput.isNotEmpty) {
+              formattedInput = formattedInput[0].toUpperCase() + formattedInput.substring(1);
+            }
+            return disburse.MethodFields(
+              userInput: formattedInput,
+              userData: field.value ?? '',
+            );
+          }).toList();
+          
+          return disburse.Methods(
+            id: bankDetail.id,
+            methodName: bankDetail.methodName,
+            methodFields: convertedFields,
+            isDefault: bankDetail.isDefault,
+            createdAt: bankDetail.createdAt,
+            updatedAt: bankDetail.updatedAt,
+          );
+        }).toList();
+        
+        _disbursementMethodBody = disburse.DisbursementMethodBody(
+          totalSize: bankDetailsList.length,
+          limit: '10',
+          offset: '1',
+          methods: methods,
+        );
+      } else {
+        _disbursementMethodBody = disburse.DisbursementMethodBody(
+          totalSize: 0,
+          limit: '10',
+          offset: '1',
+          methods: [],
+        );
+      }
+    } else {
+      _disbursementMethodBody = disburse.DisbursementMethodBody(
+        totalSize: 0,
+        limit: '10',
+        offset: '1',
+        methods: [],
+      );
     }
     update();
     return _widthDrawMethods;

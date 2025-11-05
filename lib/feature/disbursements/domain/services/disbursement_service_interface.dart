@@ -9,6 +9,7 @@ abstract class DisbursementServiceInterface {
   Future<dynamic> deleteMethod(int id);
   Future<dynamic> getDisbursementReport(int offset);
   Future<dynamic> getWithdrawMethodList();
+  Future<dynamic> getBankDetails();
   List<DropdownItem<int>> processMethodList(List<WidthDrawMethodModel>? widthDrawMethods);
   List<MethodFields> generateMethodFields(List<WidthDrawMethodModel>? widthDrawMethods, int? selectedMethodIndex);
   List<TextEditingController> generateTextControllerList(List<WidthDrawMethodModel>? widthDrawMethods, int? selectedMethodIndex);

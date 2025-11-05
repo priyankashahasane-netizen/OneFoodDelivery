@@ -64,6 +64,23 @@ class DisbursementRepository implements DisbursementRepositoryInterface {
     return widthDrawMethodList;
   }
 
+  @override
+  Future<List<WidthDrawMethodModel>?> getBankDetails() async {
+    List<WidthDrawMethodModel>? bankDetailsList;
+    Response response = await apiClient.getData(AppConstants.bankDetailsUri);
+    if(response.statusCode == 200) {
+      bankDetailsList = [];
+      // The API returns { "bank_details": [...] }
+      if (response.body['bank_details'] != null) {
+        response.body['bank_details'].forEach((method) {
+          WidthDrawMethodModel bankDetail = WidthDrawMethodModel.fromJson(method);
+          bankDetailsList!.add(bankDetail);
+        });
+      }
+    }
+    return bankDetailsList;
+  }
+
   String _getUserToken() {
     return sharedPreferences.getString(AppConstants.token) ?? "";
   }

@@ -70,6 +70,7 @@ class AppConstants {
   static const String deleteDisbursementMethodUri = '/api/v1/delivery-man/withdraw-method/delete';
   static const String getDisbursementReportUri = '/api/v1/delivery-man/get-disbursement-report';
   static const String withdrawRequestMethodUri = '/api/v1/delivery-man/get-withdraw-method-list';
+  static const String bankDetailsUri = '/api/v1/delivery-man/bank-details';
   static const String firebaseAuthVerify = '/api/v1/auth/delivery-man/firebase-verify-token';
 
 

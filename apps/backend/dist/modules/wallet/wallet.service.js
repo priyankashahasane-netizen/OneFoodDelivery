@@ -131,6 +131,21 @@ let WalletService = class WalletService {
             message: 'Wallet balance adjusted to zero successfully'
         };
     }
+    async getBankDetails(driverId) {
+        try {
+            const bankAccounts = await this.driversService.getBankAccountsForWithdrawMethods(driverId);
+            return {
+                bank_details: bankAccounts,
+                total_size: bankAccounts.length
+            };
+        }
+        catch (error) {
+            return {
+                bank_details: [],
+                total_size: 0
+            };
+        }
+    }
 };
 WalletService = __decorate([
     Injectable(),

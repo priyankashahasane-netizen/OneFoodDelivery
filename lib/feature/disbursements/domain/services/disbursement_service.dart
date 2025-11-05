@@ -41,6 +41,11 @@ class DisbursementService implements DisbursementServiceInterface {
   }
 
   @override
+  Future<List<WidthDrawMethodModel>?> getBankDetails() async {
+    return await disbursementRepositoryInterface.getBankDetails();
+  }
+
+  @override
   List<DropdownItem<int>> processMethodList(List<WidthDrawMethodModel>? widthDrawMethods) {
     List<DropdownItem<int>> methodList = [];
     if(widthDrawMethods != null && widthDrawMethods.isNotEmpty) {

@@ -238,7 +238,9 @@ export class DeliveryManController {
           transactions: [],
           total_size: 0,
           limit: limit || '25',
-          offset: offset || '0'
+          offset: offset || '0',
+          bank_details: [],
+          bank_details_total_size: 0
         };
       }
 
@@ -247,14 +249,93 @@ export class DeliveryManController {
       const offsetNum = offset ? parseInt(offset, 10) : 0;
       const result = await this.walletService.getWalletTransactions(driverId, limitNum, offsetNum);
 
-      return result;
+      // Get bank details
+      const bankDetailsResult = await this.walletService.getBankDetails(driverId);
+
+      return {
+        ...result,
+        bank_details: bankDetailsResult.bank_details,
+        bank_details_total_size: bankDetailsResult.total_size
+      };
     } catch (error) {
       // Return empty list on error
       return {
         transactions: [],
         total_size: 0,
         limit: limit || '25',
-        offset: offset || '0'
+        offset: offset || '0',
+        bank_details: [],
+        bank_details_total_size: 0
+      };
+    }
+  }
+
+  @Get('bank-details')
+  @UseGuards(JwtAuthGuard)
+  async getBankDetails(@Request() req: any) {
+    try {
+      // Get driver ID from JWT token
+      let driverId = req?.user?.sub || req?.user?.driverId;
+      const phone = req?.user?.phone;
+
+      // Check if driver ID is demo account placeholder
+      const isDemoAccount = req?.user?.driverId === 'demo-driver-id';
+
+      // If driver ID is provided (not demo), verify it exists
+      if (driverId && !isDemoAccount) {
+        try {
+          await this.driversService.findById(driverId);
+        } catch (error) {
+          // Driver not found with this ID - try to resolve by phone if available
+          if (phone) {
+            const driverByPhone = await this.driversService.findByPhone(phone);
+            if (driverByPhone) {
+              driverId = driverByPhone.id;
+            }
+          }
+
+          // If still not found, try demo phone variations
+          if (!driverId || driverId === req?.user?.sub) {
+            const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+            for (const demoPhone of demoPhones) {
+              const demoDriver = await this.driversService.findByPhone(demoPhone);
+              if (demoDriver) {
+                driverId = demoDriver.id;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      // Resolve demo account driver ID by phone
+      if (isDemoAccount || !driverId) {
+        const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+        for (const demoPhone of demoPhones) {
+          const demoDriver = await this.driversService.findByPhone(demoPhone);
+          if (demoDriver) {
+            driverId = demoDriver.id;
+            break;
+          }
+        }
+      }
+
+      if (!driverId) {
+        return {
+          bank_details: [],
+          total_size: 0
+        };
+      }
+
+      // Get bank details
+      const result = await this.walletService.getBankDetails(driverId);
+
+      return result;
+    } catch (error) {
+      // Return empty list on error
+      return {
+        bank_details: [],
+        total_size: 0
       };
     }
   }

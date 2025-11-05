@@ -193,20 +193,83 @@ let DeliveryManController = class DeliveryManController {
                     transactions: [],
                     total_size: 0,
                     limit: limit || '25',
-                    offset: offset || '0'
+                    offset: offset || '0',
+                    bank_details: [],
+                    bank_details_total_size: 0
                 };
             }
             const limitNum = limit ? parseInt(limit, 10) : 25;
             const offsetNum = offset ? parseInt(offset, 10) : 0;
             const result = await this.walletService.getWalletTransactions(driverId, limitNum, offsetNum);
-            return result;
+            const bankDetailsResult = await this.walletService.getBankDetails(driverId);
+            return {
+                ...result,
+                bank_details: bankDetailsResult.bank_details,
+                bank_details_total_size: bankDetailsResult.total_size
+            };
         }
         catch (error) {
             return {
                 transactions: [],
                 total_size: 0,
                 limit: limit || '25',
-                offset: offset || '0'
+                offset: offset || '0',
+                bank_details: [],
+                bank_details_total_size: 0
+            };
+        }
+    }
+    async getBankDetails(req) {
+        try {
+            let driverId = req?.user?.sub || req?.user?.driverId;
+            const phone = req?.user?.phone;
+            const isDemoAccount = req?.user?.driverId === 'demo-driver-id';
+            if (driverId && !isDemoAccount) {
+                try {
+                    await this.driversService.findById(driverId);
+                }
+                catch (error) {
+                    if (phone) {
+                        const driverByPhone = await this.driversService.findByPhone(phone);
+                        if (driverByPhone) {
+                            driverId = driverByPhone.id;
+                        }
+                    }
+                    if (!driverId || driverId === req?.user?.sub) {
+                        const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+                        for (const demoPhone of demoPhones) {
+                            const demoDriver = await this.driversService.findByPhone(demoPhone);
+                            if (demoDriver) {
+                                driverId = demoDriver.id;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            if (isDemoAccount || !driverId) {
+                const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+                for (const demoPhone of demoPhones) {
+                    const demoDriver = await this.driversService.findByPhone(demoPhone);
+                    if (demoDriver) {
+                        driverId = demoDriver.id;
+                        break;
+                    }
+                }
+            }
+            if (!driverId) {
+                return {
+                    bank_details: [],
+                    total_size: 0
+                };
+            }
+            const result = await this.walletService.getBankDetails(driverId);
+            return result;
+        }
+        catch (error) {
+            return {
+                bank_details: [],
+                total_size: 0
             };
         }
     }
@@ -415,6 +478,14 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, String]),
     __metadata("design:returntype", Promise)
 ], DeliveryManController.prototype, "getWalletPaymentList", null);
+__decorate([
+    Get('bank-details'),
+    UseGuards(JwtAuthGuard),
+    __param(0, Request()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], DeliveryManController.prototype, "getBankDetails", null);
 __decorate([
     Get('get-withdraw-method-list'),
     UseGuards(JwtAuthGuard),

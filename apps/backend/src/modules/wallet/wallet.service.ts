@@ -158,5 +158,21 @@ export class WalletService {
       message: 'Wallet balance adjusted to zero successfully'
     };
   }
+
+  async getBankDetails(driverId: string) {
+    try {
+      const bankAccounts = await this.driversService.getBankAccountsForWithdrawMethods(driverId);
+      return {
+        bank_details: bankAccounts,
+        total_size: bankAccounts.length
+      };
+    } catch (error) {
+      // Return empty list on error
+      return {
+        bank_details: [],
+        total_size: 0
+      };
+    }
+  }
 }
 

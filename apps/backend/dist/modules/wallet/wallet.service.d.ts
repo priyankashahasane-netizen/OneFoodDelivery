@@ -33,4 +33,22 @@ export declare class WalletService {
         success: boolean;
         message: string;
     }>;
+    getBankDetails(driverId: string): Promise<{
+        bank_details: {
+            id: number;
+            method_name: string;
+            method_fields: {
+                input_type: string;
+                input_name: string;
+                placeholder: string;
+                is_required: number;
+                value: string;
+            }[];
+            is_default: number;
+            is_active: number;
+            created_at: string;
+            updated_at: string;
+        }[];
+        total_size: number;
+    }>;
 }
