@@ -6,14 +6,19 @@ import { PaginationQueryDto } from '../../common/dto/pagination.dto.js';
 import { DriverEntity } from '../drivers/entities/driver.entity.js';
 import { DriversService } from '../drivers/drivers.service.js';
 import type { RoutesService } from '../routes/routes.service.js';
+import type { NotificationsService } from '../notifications/notifications.service.js';
 import { OrderEntity } from './entities/order.entity.js';
 import { UpsertOrderDto } from './dto/upsert-order.dto.js';
+import { ListOrdersDto } from './dto/list-orders.dto.js';
 
-// Lazy class reference to avoid circular dependency
+// Lazy class references to avoid circular dependency
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const getRoutesService = () => {
   return require('../routes/routes.service.js').RoutesService;
+};
+const getNotificationsService = () => {
+  return require('../notifications/notifications.service.js').NotificationsService;
 };
 
 @Injectable()
@@ -23,16 +28,52 @@ export class OrdersService {
     private readonly ordersRepository: Repository<OrderEntity>,
     private readonly driversService: DriversService,
     @Inject(forwardRef(() => getRoutesService()))
-    private readonly routesService: RoutesService
+    private readonly routesService: RoutesService,
+    @Inject(forwardRef(() => getNotificationsService()))
+    private readonly notificationsService: NotificationsService
   ) {}
 
-  async listOrders(pagination: PaginationQueryDto) {
-    const { page = 1, pageSize = 25 } = pagination;
-    const [items, total] = await this.ordersRepository.findAndCount({
-      take: pageSize,
-      skip: (page - 1) * pageSize,
-      order: { createdAt: 'DESC' }
-    });
+  async listOrders(filters: ListOrdersDto) {
+    const { page = 1, pageSize = 25, status, paymentType, driverId, assigned } = filters;
+    
+    const queryBuilder = this.ordersRepository.createQueryBuilder('order')
+      .leftJoinAndSelect('order.driver', 'driver')
+      .orderBy('order.createdAt', 'DESC');
+
+    // Apply filters
+    if (status) {
+      // Handle both "cancelled" and "canceled" spellings
+      if (status === 'cancelled' || status === 'canceled') {
+        queryBuilder.andWhere('(order.status = :status OR order.status = :altStatus)', { 
+          status: status,
+          altStatus: status === 'cancelled' ? 'canceled' : 'cancelled'
+        });
+      } else {
+        queryBuilder.andWhere('order.status = :status', { status });
+      }
+    }
+
+    if (paymentType) {
+      queryBuilder.andWhere('order.paymentType = :paymentType', { paymentType });
+    }
+
+    if (driverId) {
+      queryBuilder.andWhere('order.driverId = :driverId', { driverId });
+    }
+
+    if (assigned !== undefined) {
+      if (assigned) {
+        queryBuilder.andWhere('order.driverId IS NOT NULL');
+      } else {
+        queryBuilder.andWhere('order.driverId IS NULL');
+      }
+    }
+
+    // Apply pagination
+    queryBuilder.take(pageSize).skip((page - 1) * pageSize);
+
+    const [items, total] = await queryBuilder.getManyAndCount();
+    
     return { items, total, page, pageSize };
   }
 
@@ -245,7 +286,53 @@ export class OrdersService {
 
     await this.routesService.enqueueOptimizationForDriver(driver.id);
 
+    // Send notification to driver about the assignment
+    // Don't await to avoid blocking the response, but handle errors
+    this.notificationsService.broadcastAssignment(orderId, driverId).catch((error) => {
+      // Log error but don't throw - notification failure shouldn't break assignment
+      console.error('Failed to send assignment notification:', error);
+    });
+
     return order;
+  }
+
+  async unassignDriver(orderId: string) {
+    const order = await this.findById(orderId);
+    
+    const previousDriverId = order.driverId;
+    
+    order.driver = null;
+    order.driverId = null;
+    order.assignedAt = null;
+    
+    // Reset status to 'created' if it was 'assigned', otherwise keep current status
+    if (order.status === 'assigned') {
+      order.status = 'created';
+    }
+
+    await this.ordersRepository.save(order);
+
+    // Re-optimize routes for the previous driver if they had one
+    if (previousDriverId) {
+      await this.routesService.enqueueOptimizationForDriver(previousDriverId);
+    }
+
+    return order;
+  }
+
+  async delete(orderId: string) {
+    const order = await this.findById(orderId);
+    
+    const previousDriverId = order.driverId;
+    
+    await this.ordersRepository.remove(order);
+
+    // Re-optimize routes for the previous driver if they had one
+    if (previousDriverId) {
+      await this.routesService.enqueueOptimizationForDriver(previousDriverId);
+    }
+
+    return { success: true, message: 'Order deleted successfully' };
   }
 
   async updateStatus(orderId: string, status: string, payload?: Partial<Pick<OrderEntity, 'trackingUrl'>>) {

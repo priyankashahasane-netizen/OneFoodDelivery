@@ -1,4 +1,5 @@
 import 'package:stackfood_multivendor_driver/interface/repository_interface.dart';
+import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_model.dart';
 
 abstract class NotificationRepositoryInterface extends RepositoryInterface {
   void saveSeenNotificationCount(int count);
@@ -6,4 +7,5 @@ abstract class NotificationRepositoryInterface extends RepositoryInterface {
   Future<dynamic> sendDeliveredNotification(int? orderID);
   List<int> getNotificationIdList();
   void addSeenNotificationIdList(List<int> notificationList);
+  Future<List<OrderModel>?> getAssignedOrders();
 }

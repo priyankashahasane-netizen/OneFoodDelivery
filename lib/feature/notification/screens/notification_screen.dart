@@ -8,6 +8,7 @@ import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/util/images.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_app_bar_widget.dart';
+import 'package:stackfood_multivendor_driver/common/widgets/order_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -25,7 +26,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
   void initState() {
     super.initState();
 
-    Get.find<NotificationController>().getNotificationList();
+    final notificationController = Get.find<NotificationController>();
+    notificationController.getNotificationList();
+    
+    // Defer getAssignedOrders to avoid calling update() during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      notificationController.getAssignedOrders();
+    });
   }
 
   @override
@@ -59,17 +66,84 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
           List<DateTime> dateTimeList = [];
 
-          return notificationController.notificationList != null ? notificationController.notificationList!.isNotEmpty ? RefreshIndicator(
+          // Combine notifications and assigned orders
+          final hasNotifications = notificationController.notificationList != null && notificationController.notificationList!.isNotEmpty;
+          final hasAssignedOrders = notificationController.assignedOrdersList != null && notificationController.assignedOrdersList!.isNotEmpty;
+          final hasAssignedOrdersList = notificationController.assignedOrdersList != null; // True if list was loaded (even if empty)
+          final hasContent = hasNotifications || hasAssignedOrders;
+          final isLoading = notificationController.isLoadingAssignedOrders;
+          final shouldShowContent = hasContent || isLoading || hasAssignedOrdersList;
+
+          return RefreshIndicator(
             onRefresh: () async {
               await notificationController.getNotificationList();
+              await notificationController.getAssignedOrders();
             },
-            child: ListView.builder(
-              itemCount: notificationController.notificationList!.length,
+            child: shouldShowContent ? ListView(
               padding: EdgeInsets.all(Dimensions.paddingSizeLarge),
               shrinkWrap: true,
-              itemBuilder: (context, index) {
+              children: [
+                // Assigned Orders Section
+                if (isLoading || hasAssignedOrders || (notificationController.assignedOrdersList != null && notificationController.assignedOrdersList!.isEmpty)) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: Dimensions.paddingSizeDefault),
+                    child: Text(
+                      'assigned_orders'.tr,
+                      style: robotoBold.copyWith(
+                        fontSize: Dimensions.fontSizeLarge,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
+                      ),
+                    ),
+                  ),
+                  if (isLoading)
+                    const Center(child: Padding(
+                      padding: EdgeInsets.all(Dimensions.paddingSizeDefault),
+                      child: CircularProgressIndicator(),
+                    ))
+                  else if (hasAssignedOrders)
+                    ...notificationController.assignedOrdersList!.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final order = entry.value;
+                      return Padding(
+                        padding: EdgeInsets.only(bottom: Dimensions.paddingSizeSmall),
+                        child: OrderWidget(
+                          orderModel: order,
+                          isRunningOrder: false,
+                          orderIndex: index,
+                        ),
+                      );
+                    }).toList()
+                  else if (notificationController.assignedOrdersList != null && notificationController.assignedOrdersList!.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
+                      child: Center(
+                        child: Text(
+                          'no_assigned_orders'.tr,
+                          style: robotoRegular.copyWith(
+                            fontSize: Dimensions.fontSizeDefault,
+                            color: Theme.of(context).disabledColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                  SizedBox(height: Dimensions.paddingSizeLarge),
+                ],
+                
+                // Notifications Section
+                if (hasNotifications) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: Dimensions.paddingSizeDefault),
+                    child: Text(
+                      'notifications'.tr,
+                      style: robotoBold.copyWith(
+                        fontSize: Dimensions.fontSizeLarge,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
+                      ),
+                    ),
+                  ),
+                  ...notificationController.notificationList!.map((notification) {
 
-                DateTime originalDateTime = DateConverter.dateTimeStringToDate(notificationController.notificationList![index].createdAt!);
+                    DateTime originalDateTime = DateConverter.dateTimeStringToDate(notification.createdAt!);
                 DateTime convertedDate = DateTime(originalDateTime.year, originalDateTime.month, originalDateTime.day);
                 bool addTitle = false;
 
@@ -78,7 +152,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   dateTimeList.add(convertedDate);
                 }
 
-                bool isSeen = notificationController.getSeenNotificationIdList()!.contains(notificationController.notificationList![index].id);
+                    bool isSeen = notificationController.getSeenNotificationIdList()!.contains(notification.id);
 
                 return Padding(
                   padding: EdgeInsets.only(bottom: Dimensions.paddingSizeSmall),
@@ -87,19 +161,19 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     addTitle ? Padding(
                       padding: const EdgeInsets.only(bottom: Dimensions.paddingSizeDefault),
                       child: Text(
-                        DateConverter.convertTodayYesterdayDate(notificationController.notificationList![index].createdAt!),
+                            DateConverter.convertTodayYesterdayDate(notification.createdAt!),
                         style: robotoRegular.copyWith(color: Theme.of(context).textTheme.bodyLarge?.color?.withValues(alpha: 0.7)),
                       ),
                     ) : const SizedBox(),
 
                     InkWell(
                       onTap: () {
-                        notificationController.addSeenNotificationId(notificationController.notificationList![index].id!);
+                            notificationController.addSeenNotificationId(notification.id!);
 
                         showDialog(
                           context: context,
                           builder: (BuildContext context) {
-                            return NotificationDialogWidget(notificationModel: notificationController.notificationList![index]);
+                                return NotificationDialogWidget(notificationModel: notification);
                           },
                         );
                       },
@@ -112,9 +186,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
                         ),
                         child: Row(children: [
 
-                          notificationController.notificationList![index].data?.type == 'push_notification' ? ClipOval(
+                              notification.data?.type == 'push_notification' ? ClipOval(
                             child: CustomImageWidget(
-                              image: '${notificationController.notificationList![index].imageFullUrl}',
+                                  image: '${notification.imageFullUrl}',
                               height: 60, width: 60,
                               fit: BoxFit.cover,
                             ),
@@ -131,7 +205,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
                                 Expanded(
                                   child: Text(
-                                    notificationController.notificationList![index].title ?? '',
+                                        notification.title ?? '',
                                     style: robotoMedium.copyWith(color: Theme.of(context).textTheme.bodyLarge?.color, fontWeight: isSeen ? FontWeight.w400 : FontWeight.w700),
                                     maxLines: 1, overflow: TextOverflow.ellipsis,
                                   ),
@@ -139,7 +213,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                 SizedBox(width: Dimensions.paddingSizeSmall),
 
                                 Text(
-                                  DateConverter.convertTimeDifferenceInMinutes(notificationController.notificationList![index].createdAt!),
+                                      DateConverter.convertTimeDifferenceInMinutes(notification.createdAt!),
                                   style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: isSeen ? Theme.of(context).textTheme.bodyLarge?.color : Theme.of(context).primaryColor),
                                 ),
 
@@ -149,7 +223,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                               Padding(
                                 padding: const EdgeInsets.only(right: 40),
                                 child: Text(
-                                  notificationController.notificationList![index].description ?? '',
+                                      notification.description ?? '',
                                   style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: isSeen ? Theme.of(context).disabledColor : Theme.of(context).textTheme.bodyLarge?.color),
                                   maxLines: 1, overflow: TextOverflow.ellipsis,
                                 ),
@@ -164,9 +238,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
                   ]),
                 );
-              },
-            ),
-          ) : Center(child: Text('no_notification_found'.tr)) : const Center(child: CircularProgressIndicator());
+                  }).toList(),
+                ],
+              ],
+            ) : Center(child: Text('no_notification_found'.tr)),
+          );
         }),
       ),
     );

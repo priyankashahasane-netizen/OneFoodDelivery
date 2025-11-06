@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Query, Request, UseGuards, UnauthorizedException, Param } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Query, Request, UseGuards, UnauthorizedException, Param } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt.guard.js';
 import { OrdersService } from '../orders/orders.service.js';
 import { DriversService } from '../drivers/drivers.service.js';
@@ -555,6 +555,65 @@ export class DeliveryManController {
       return {
         message: result.message,
         success: result.success
+      };
+    } catch (error: any) {
+      throw error;
+    }
+  }
+
+  @Put('update-fcm-token')
+  @UseGuards(JwtAuthGuard)
+  async updateFcmToken(@Body() body: { fcm_token?: string; token?: string }, @Request() req: any) {
+    try {
+      // Get driver ID from JWT token
+      let driverId = req?.user?.sub || req?.user?.driverId;
+      const phone = req?.user?.phone;
+      const isDemoAccount = req?.user?.driverId === 'demo-driver-id';
+
+      // Resolve driver ID
+      if (isDemoAccount || !driverId) {
+        const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+        for (const demoPhone of demoPhones) {
+          const demoDriver = await this.driversService.findByPhone(demoPhone);
+          if (demoDriver) {
+            driverId = demoDriver.id;
+            break;
+          }
+        }
+      } else if (phone) {
+        // Try to find driver by phone if UUID lookup fails
+        try {
+          await this.driversService.findById(driverId);
+        } catch (error) {
+          const driverByPhone = await this.driversService.findByPhone(phone);
+          if (driverByPhone) {
+            driverId = driverByPhone.id;
+          }
+        }
+      }
+
+      if (!driverId) {
+        throw new UnauthorizedException('Driver ID not found');
+      }
+
+      // Get FCM token from body (support both fcm_token and fcmToken)
+      const fcmToken = body.fcm_token || (body as any).fcmToken || '';
+
+      if (!fcmToken || fcmToken.trim() === '') {
+        return {
+          message: 'FCM token is required',
+          success: false
+        };
+      }
+
+      // Update driver metadata with FCM token
+      await this.driversService.updateMetadata(driverId, {
+        fcmToken: fcmToken.trim()
+      });
+
+      return {
+        message: 'FCM token updated successfully',
+        success: true
       };
     } catch (error: any) {
       throw error;

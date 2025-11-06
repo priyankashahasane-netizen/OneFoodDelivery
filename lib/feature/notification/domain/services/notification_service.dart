@@ -1,6 +1,7 @@
 import 'package:stackfood_multivendor_driver/feature/notification/domain/models/notification_model.dart';
 import 'package:stackfood_multivendor_driver/feature/notification/domain/repositories/notification_repository_interface.dart';
 import 'package:stackfood_multivendor_driver/feature/notification/domain/services/notification_service_interface.dart';
+import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_model.dart';
 
 class NotificationService implements NotificationServiceInterface{
   final NotificationRepositoryInterface notificationRepositoryInterface;
@@ -34,6 +35,11 @@ class NotificationService implements NotificationServiceInterface{
   @override
   void addSeenNotificationIdList(List<int> notificationList) {
     notificationRepositoryInterface.addSeenNotificationIdList(notificationList);
+  }
+
+  @override
+  Future<List<OrderModel>?> getAssignedOrders() async {
+    return await notificationRepositoryInterface.getAssignedOrders();
   }
 
 }

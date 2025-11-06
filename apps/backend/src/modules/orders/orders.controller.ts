@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, Query, Request } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Request } from '@nestjs/common';
 import { Roles } from '../auth/roles.decorator.js';
 import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt.guard.js';
@@ -8,6 +8,7 @@ import { AssignOrderDto } from './dto/assign-order.dto.js';
 import { OrdersService } from './orders.service.js';
 import { UpsertOrderDto } from './dto/upsert-order.dto.js';
 import { DriversService } from '../drivers/drivers.service.js';
+import { ListOrdersDto } from './dto/list-orders.dto.js';
 
 @Controller('orders')
 export class OrdersController {
@@ -18,8 +19,8 @@ export class OrdersController {
 
   @Get()
   @Roles('admin', 'dispatcher', 'support')
-  async list(@Query() pagination: PaginationQueryDto) {
-    return this.ordersService.listOrders(pagination);
+  async list(@Query() filters: ListOrdersDto) {
+    return this.ordersService.listOrders(filters);
   }
 
   @Get('driver/:driverId/active')
@@ -151,10 +152,22 @@ export class OrdersController {
     return this.ordersService.assignDriver(id, payload.driverId);
   }
 
+  @Put(':id/unassign')
+  @Roles('admin', 'dispatcher')
+  async unassign(@Param('id') id: string) {
+    return this.ordersService.unassignDriver(id);
+  }
+
   @Put(':id/status')
   @UseGuards(JwtAuthGuard)
   async updateStatus(@Param('id') id: string, @Body() body: { status: string }, @Request() req: any) {
     return this.ordersService.updateStatus(id, body.status);
+  }
+
+  @Delete(':id')
+  @Roles('admin', 'dispatcher')
+  async delete(@Param('id') id: string) {
+    return this.ordersService.delete(id);
   }
 }
 
