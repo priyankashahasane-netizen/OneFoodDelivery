@@ -26,7 +26,8 @@ class OrderRequestWidget extends StatelessWidget {
   final int index;
   final bool fromDetailsPage;
   final Function onTap;
-  const OrderRequestWidget({super.key, required this.orderModel, required this.index, required this.onTap, this.fromDetailsPage = false});
+  final bool isAssigned;
+  const OrderRequestWidget({super.key, required this.orderModel, required this.index, required this.onTap, this.fromDetailsPage = false, this.isAssigned = false});
 
   @override
   Widget build(BuildContext context) {
@@ -228,9 +229,39 @@ class OrderRequestWidget extends StatelessWidget {
               Expanded(
                 flex: 3,
                 child: Row(children: [
-
+                  // For assigned orders, show Reject button; for available orders, show Ignore button
                   Expanded(
-                    child: TextButton(
+                    child: isAssigned ? TextButton(
+                      onPressed: () {
+                        showCustomBottomSheet(
+                          child: CustomConfirmationBottomSheet(
+                            title: 'reject_this_order'.tr,
+                            description: 'are_you_sure_want_to_reject_this_order'.tr,
+                            confirmButtonText: 'reject'.tr,
+                            onConfirm: (){
+                              orderController.rejectOrder(orderModel.id, index).then((isSuccess) {
+                                if(isSuccess) {
+                                  Get.back();
+                                  // Refresh assigned orders list
+                                  orderController.getAssignedOrders();
+                                }
+                              });
+                            },
+                          ),
+                        );
+                      },
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(1170, 45), padding: EdgeInsets.zero,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+                          side: BorderSide(width: 1, color: Theme.of(context).colorScheme.error),
+                        ),
+                      ),
+                      child: Text('reject'.tr, textAlign: TextAlign.center, style: robotoBold.copyWith(
+                        color: Theme.of(context).colorScheme.error,
+                        fontSize: Dimensions.fontSizeLarge,
+                      )),
+                    ) : TextButton(
                       onPressed: () {
                         showCustomBottomSheet(
                           child: CustomConfirmationBottomSheet(
@@ -271,21 +302,43 @@ class OrderRequestWidget extends StatelessWidget {
                             title: 'accept_this_order'.tr,
                             description: 'make_sure_your_availability_to_deliver_this_order_on_time_before_accept'.tr,
                             onConfirm: (){
-                              orderController.acceptOrder(orderModel.id, index, orderModel).then((isSuccess) {
-                                if(isSuccess) {
-                                  onTap();
-                                  orderModel.orderStatus = (orderModel.orderStatus == 'pending' || orderModel.orderStatus == 'confirmed') ? 'accepted' : orderModel.orderStatus;
-                                  Get.back();
-                                  Get.toNamed(
-                                    RouteHelper.getOrderDetailsRoute(orderModel.id),
-                                    arguments: OrderDetailsScreen(
-                                      orderId: orderModel.id, isRunningOrder: true, orderIndex: orderController.currentOrderList!.length-1,
-                                    ),
-                                  );
-                                }else {
-                                  orderController.getLatestOrders();
-                                }
-                              });
+                              if (isAssigned) {
+                                // For assigned orders, accept directly (status is already assigned)
+                                orderController.acceptOrder(orderModel.id, index, orderModel).then((isSuccess) {
+                                  if(isSuccess) {
+                                    onTap();
+                                    orderModel.orderStatus = 'accepted';
+                                    Get.back();
+                                    // Refresh assigned orders list
+                                    orderController.getAssignedOrders();
+                                    Get.toNamed(
+                                      RouteHelper.getOrderDetailsRoute(orderModel.id),
+                                      arguments: OrderDetailsScreen(
+                                        orderId: orderModel.id, isRunningOrder: true, orderIndex: orderController.currentOrderList!.length-1,
+                                      ),
+                                    );
+                                  } else {
+                                    orderController.getAssignedOrders();
+                                  }
+                                });
+                              } else {
+                                // For available orders, use existing flow
+                                orderController.acceptOrder(orderModel.id, index, orderModel).then((isSuccess) {
+                                  if(isSuccess) {
+                                    onTap();
+                                    orderModel.orderStatus = (orderModel.orderStatus == 'pending' || orderModel.orderStatus == 'confirmed') ? 'accepted' : orderModel.orderStatus;
+                                    Get.back();
+                                    Get.toNamed(
+                                      RouteHelper.getOrderDetailsRoute(orderModel.id),
+                                      arguments: OrderDetailsScreen(
+                                        orderId: orderModel.id, isRunningOrder: true, orderIndex: orderController.currentOrderList!.length-1,
+                                      ),
+                                    );
+                                  }else {
+                                    orderController.getLatestOrders();
+                                  }
+                                });
+                              }
                             },
                           ),
                         );

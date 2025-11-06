@@ -2,6 +2,7 @@ import 'package:stackfood_multivendor_driver/common/models/response_model.dart';
 import 'package:stackfood_multivendor_driver/feature/order/domain/services/order_service_interface.dart';
 import 'package:stackfood_multivendor_driver/feature/splash/controllers/splash_controller.dart';
 import 'package:stackfood_multivendor_driver/api/api_client.dart';
+import 'package:get/get_connect/http/src/response/response.dart';
 import 'package:stackfood_multivendor_driver/feature/order/domain/models/update_status_body.dart';
 import 'package:stackfood_multivendor_driver/feature/order/domain/models/ignore_model.dart';
 import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_cancellation_body_model.dart';
@@ -41,6 +42,12 @@ class OrderController extends GetxController implements GetxService {
 
   List<OrderModel>? _latestOrderList;
   List<OrderModel>? get latestOrderList => _latestOrderList;
+
+  List<OrderModel>? _assignedOrderList;
+  List<OrderModel>? get assignedOrderList => _assignedOrderList;
+
+  bool _isLoadingAssignedOrders = false;
+  bool get isLoadingAssignedOrders => _isLoadingAssignedOrders;
 
   List<OrderDetailsModel>? _orderDetailsModel;
   List<OrderDetailsModel>? get orderDetailsModel => _orderDetailsModel;
@@ -326,6 +333,89 @@ class OrderController extends GetxController implements GetxService {
       _latestOrderList = [];
     }
     update();
+  }
+
+  Future<void> getAssignedOrders() async {
+    _isLoadingAssignedOrders = true;
+    update();
+    try {
+      // Get driver UUID from profile API
+      String? driverId;
+      final apiClient = Get.find<ApiClient>();
+      Response profileResponse = await apiClient.getData(
+        '/api/drivers/me',
+        handleError: false,
+      );
+      
+      if (profileResponse.statusCode == 200 && profileResponse.body != null) {
+        Map<String, dynamic>? body = profileResponse.body is Map ? profileResponse.body as Map<String, dynamic> : null;
+        if (body != null) {
+          if (body['uuid'] != null && body['uuid'].toString().isNotEmpty) {
+            driverId = body['uuid'].toString();
+          } else if (body['id'] != null) {
+            String idStr = body['id'].toString();
+            if (idStr.contains('-') && idStr.length == 36) {
+              driverId = idStr;
+            }
+          }
+        }
+      }
+      
+      if (driverId != null && driverId.isNotEmpty) {
+        // Get active orders and filter for assigned status
+        List<OrderModel>? activeOrders = await orderServiceInterface.getActiveOrders(driverId);
+        if (activeOrders != null) {
+          _assignedOrderList = activeOrders.where((order) => order.orderStatus?.toLowerCase().trim() == 'assigned').toList();
+        } else {
+          _assignedOrderList = [];
+        }
+      } else {
+        _assignedOrderList = [];
+      }
+    } catch (e) {
+      debugPrint('Error fetching assigned orders: $e');
+      _assignedOrderList = [];
+    } finally {
+      _isLoadingAssignedOrders = false;
+      update();
+    }
+  }
+
+  Future<bool> rejectOrder(int? orderID, int index) async {
+    _isLoading = true;
+    update();
+    
+    try {
+      // Get order UUID if available
+      String? orderUuid;
+      if (_assignedOrderList != null && index < _assignedOrderList!.length) {
+        orderUuid = _assignedOrderList![index].uuid;
+      }
+      
+      // Use status update to change order back to pending (effectively unassigns it)
+      String orderId = orderUuid ?? orderID.toString();
+      ResponseModel responseModel = await orderServiceInterface.updateOrderStatusNew(orderId, 'pending');
+      
+      if(responseModel.isSuccess) {
+        // Remove from assigned orders list
+        if (_assignedOrderList != null && index < _assignedOrderList!.length) {
+          _assignedOrderList!.removeAt(index);
+        }
+        showCustomSnackBar('Order rejected successfully', isError: false);
+      } else {
+        showCustomSnackBar(responseModel.message, isError: true);
+      }
+      
+      _isLoading = false;
+      update();
+      return responseModel.isSuccess;
+    } catch (e) {
+      debugPrint('Error rejecting order: $e');
+      _isLoading = false;
+      update();
+      showCustomSnackBar('Failed to reject order', isError: true);
+      return false;
+    }
   }
 
   Future<bool> updateOrderStatus(int? orderId, String status, {bool back = false,  String? reason}) async {

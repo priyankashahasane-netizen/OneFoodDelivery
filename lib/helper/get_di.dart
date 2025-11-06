@@ -39,10 +39,15 @@ import 'package:stackfood_multivendor_driver/feature/profile/domain/services/pro
 import 'package:stackfood_multivendor_driver/feature/profile/domain/services/profile_service_interface.dart';
 import 'package:stackfood_multivendor_driver/feature/dashboard/controllers/drawer_controller.dart' as drawer_ctrl;
 import 'package:stackfood_multivendor_driver/feature/auth/controllers/auth_controller.dart';
+import 'package:stackfood_multivendor_driver/feature/auth/controllers/address_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/auth/domain/repositories/auth_repository.dart';
 import 'package:stackfood_multivendor_driver/feature/auth/domain/repositories/auth_repository_interface.dart';
+import 'package:stackfood_multivendor_driver/feature/auth/domain/repositories/address_repository.dart';
+import 'package:stackfood_multivendor_driver/feature/auth/domain/repositories/address_repository_interface.dart';
 import 'package:stackfood_multivendor_driver/feature/auth/domain/services/auth_service.dart';
 import 'package:stackfood_multivendor_driver/feature/auth/domain/services/auth_service_interface.dart';
+import 'package:stackfood_multivendor_driver/feature/auth/domain/services/address_service.dart';
+import 'package:stackfood_multivendor_driver/feature/auth/domain/services/address_service_interface.dart';
 import 'package:stackfood_multivendor_driver/feature/splash/domain/repositories/splash_repository.dart';
 import 'package:stackfood_multivendor_driver/feature/splash/domain/repositories/splash_repository_interface.dart';
 import 'package:stackfood_multivendor_driver/feature/splash/domain/services/splash_service.dart';
@@ -87,6 +92,9 @@ Future<Map<String, Map<String, String>>> init() async {
   AuthRepositoryInterface authRepositoryInterface = AuthRepository(apiClient: Get.find(), sharedPreferences: Get.find());
   Get.lazyPut(() => authRepositoryInterface);
 
+  AddressRepositoryInterface addressRepositoryInterface = AddressRepository(apiClient: Get.find(), sharedPreferences: Get.find());
+  Get.lazyPut(() => addressRepositoryInterface);
+
   ///Service Interface
   ProfileServiceInterface profileServiceInterface = ProfileService(profileRepositoryInterface: Get.find());
   Get.lazyPut(() => profileServiceInterface);
@@ -115,6 +123,9 @@ Future<Map<String, Map<String, String>>> init() async {
   AuthServiceInterface authServiceInterface = AuthService(authRepositoryInterface: Get.find());
   Get.lazyPut(() => authServiceInterface);
 
+  AddressServiceInterface addressServiceInterface = AddressService(addressRepositoryInterface: Get.find());
+  Get.lazyPut(() => addressServiceInterface);
+
 
   ///Services
   Get.lazyPut(() => ProfileService(profileRepositoryInterface: Get.find()));
@@ -139,6 +150,7 @@ Future<Map<String, Map<String, String>>> init() async {
   Get.lazyPut(() => OrderController(orderServiceInterface: Get.find()));
   Get.lazyPut(() => CashInHandController(cashInHandServiceInterface: Get.find()));
   Get.lazyPut(() => AuthController(authServiceInterface: Get.find()));
+  Get.lazyPut(() => AddressController(addressServiceInterface: Get.find()));
   // Initialize AppDrawerController immediately since it's used early in the app lifecycle
   Get.put(drawer_ctrl.AppDrawerController(), permanent: true);
 
