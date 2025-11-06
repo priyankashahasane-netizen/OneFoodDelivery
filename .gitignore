@@ -47,3 +47,20 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Node.js
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+.next/
+**/.next/
+out/
+.nuxt/
+.cache/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.npm
+.eslintcache
