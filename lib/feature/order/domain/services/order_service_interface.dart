@@ -11,11 +11,11 @@ abstract class OrderServiceInterface{
   Future<dynamic> getCurrentOrders({required String status});
   Future<dynamic> getLatestOrders();
   Future<dynamic> updateOrderStatus(UpdateStatusBody updateStatusBody, List<MultipartBody> proofAttachment);
-  Future<dynamic> getOrderDetails(int? orderID);
+  Future<dynamic> getOrderDetails(dynamic orderID); // Accept int or String (UUID)
   Future<dynamic> acceptOrder(int? orderID);
   void setIgnoreList(List<IgnoreModel> ignoreList);
   List<IgnoreModel> getIgnoreList();
-  Future<dynamic> getOrderWithId(int? orderId);
+  Future<dynamic> getOrderWithId(dynamic orderId); // Accept int or String (UUID)
   Future<dynamic> getCancelReasons();
   List<OrderModel> sortDeliveredOrderList(List<OrderModel> allOrderList);
   List<OrderModel> processLatestOrders(List<OrderModel> latestOrderList, List<int?> ignoredIdList);

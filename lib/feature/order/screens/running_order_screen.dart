@@ -21,17 +21,15 @@ class _RunningOrderScreenState extends State<RunningOrderScreen> {
   @override
   void initState() {
     super.initState();
-    // Ensure orders are loaded when screen opens
+    // Always load orders when screen opens to show latest active orders
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final orderController = Get.find<OrderController>();
       // Initialize selected status to 'all' (index 0) if not already set
       if (orderController.selectedRunningOrderStatusIndex == null) {
         orderController.setSelectedRunningOrderStatusIndex(0, 'all');
       }
-      // Load orders if not already loaded or if list is empty
-      if (orderController.currentOrderList == null || orderController.currentOrderList!.isEmpty) {
-        orderController.getCurrentOrders(status: orderController.selectedRunningOrderStatus ?? 'all', isDataClear: true);
-      }
+      // Always refresh orders when screen opens to show all active orders
+      orderController.getCurrentOrders(status: orderController.selectedRunningOrderStatus ?? 'all', isDataClear: true);
     });
   }
 

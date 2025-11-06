@@ -239,15 +239,17 @@ class OrderController extends GetxController implements GetxService {
       if(paginatedOrderModel != null && paginatedOrderModel.orders != null) {
         _currentOrderList = [];
         _currentOrderList!.addAll(paginatedOrderModel.orders!);
+        // Map counts to match status list order: all, pending, assigned, accepted, confirmed, processing, handover, picked_up, in_transit
         _currentOrderCountList = [
           paginatedOrderModel.orderCount?.all ?? 0,
+          paginatedOrderModel.orderCount?.pending ?? 0,
+          paginatedOrderModel.orderCount?.assigned ?? 0,
           paginatedOrderModel.orderCount?.accepted ?? 0,
           paginatedOrderModel.orderCount?.confirmed ?? 0,
           paginatedOrderModel.orderCount?.processing ?? 0,
           paginatedOrderModel.orderCount?.handover ?? 0,
           paginatedOrderModel.orderCount?.pickedUp ?? 0,
-          paginatedOrderModel.orderCount?.delivered ?? 0,
-          paginatedOrderModel.orderCount?.canceled ?? 0,
+          paginatedOrderModel.orderCount?.inTransit ?? 0,
         ];
         debugPrint('✅ OrderController.getCurrentOrders: Successfully loaded ${_currentOrderList!.length} orders');
       } else {
@@ -258,7 +260,8 @@ class OrderController extends GetxController implements GetxService {
         // For now, set to empty list to show "no orders" state
         // But we should distinguish between error and no orders in the future
         _currentOrderList = [];
-        _currentOrderCountList = [0, 0, 0, 0, 0, 0, 0, 0];
+        // Initialize with 9 zeros to match the 9 status buttons
+        _currentOrderCountList = [0, 0, 0, 0, 0, 0, 0, 0, 0];
         debugPrint('⚠️ OrderController.getCurrentOrders: Set empty list - check repository logs for actual error');
       }
     } catch (e, stackTrace) {
@@ -273,8 +276,33 @@ class OrderController extends GetxController implements GetxService {
     update();
   }
 
-  Future<void> getOrderWithId(int? orderId) async {
-    OrderModel? orderModel = await orderServiceInterface.getOrderWithId(orderId);
+  Future<void> getOrderWithId(dynamic orderId) async {
+    // Try to find UUID from existing orderModel or currentOrderList
+    String? orderUuid;
+    if (orderId != null) {
+      // If orderId is already a string (UUID), use it
+      if (orderId is String) {
+        orderUuid = orderId;
+      } 
+      // Otherwise, try to find UUID from existing data
+      else if (orderId is int) {
+        // First check _orderModel
+        if (_orderModel != null && _orderModel!.id == orderId && _orderModel!.uuid != null) {
+          orderUuid = _orderModel!.uuid;
+        } 
+        // If not found, check currentOrderList
+        else if (_currentOrderList != null) {
+          for (var order in _currentOrderList!) {
+            if (order.id == orderId && order.uuid != null) {
+              orderUuid = order.uuid;
+              break;
+            }
+          }
+        }
+      }
+    }
+    // Use UUID if available, otherwise use the original orderId (backend will handle fallback)
+    OrderModel? orderModel = await orderServiceInterface.getOrderWithId(orderUuid ?? orderId);
     if(orderModel != null) {
       _orderModel = orderModel;
     }
@@ -324,10 +352,37 @@ class OrderController extends GetxController implements GetxService {
     return responseModel.isSuccess;
   }
 
-  Future<void> getOrderDetails(int? orderID) async {
+  Future<void> getOrderDetails(dynamic orderID) async {
     _orderDetailsModel = null;
     update(); // Show loading state
-    List<OrderDetailsModel>? orderDetailsModel = await orderServiceInterface.getOrderDetails(orderID);
+    
+    // Try to find UUID from existing orderModel or currentOrderList
+    String? orderUuid;
+    if (orderID != null) {
+      // If orderID is already a string (UUID), use it
+      if (orderID is String) {
+        orderUuid = orderID;
+      } 
+      // Otherwise, try to find UUID from existing data
+      else if (orderID is int) {
+        // First check _orderModel
+        if (_orderModel != null && _orderModel!.id == orderID && _orderModel!.uuid != null) {
+          orderUuid = _orderModel!.uuid;
+        } 
+        // If not found, check currentOrderList
+        else if (_currentOrderList != null) {
+          for (var order in _currentOrderList!) {
+            if (order.id == orderID && order.uuid != null) {
+              orderUuid = order.uuid;
+              break;
+            }
+          }
+        }
+      }
+    }
+    
+    // Use UUID if available, otherwise use the original orderID
+    List<OrderDetailsModel>? orderDetailsModel = await orderServiceInterface.getOrderDetails(orderUuid ?? orderID);
     if(orderDetailsModel != null && orderDetailsModel.isNotEmpty) {
       _orderDetailsModel = [];
       _orderDetailsModel!.addAll(orderDetailsModel);

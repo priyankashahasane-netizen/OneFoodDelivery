@@ -39,7 +39,7 @@ class OrderService implements OrderServiceInterface {
   }
 
   @override
-  Future<List<OrderDetailsModel>?> getOrderDetails(int? orderID) async {
+  Future<List<OrderDetailsModel>?> getOrderDetails(dynamic orderID) async {
     return await orderRepositoryInterface.getOrderDetails(orderID);
   }
 
@@ -59,7 +59,7 @@ class OrderService implements OrderServiceInterface {
   }
 
   @override
-  Future<OrderModel?> getOrderWithId(int? orderId) async {
+  Future<OrderModel?> getOrderWithId(dynamic orderId) async {
     return await orderRepositoryInterface.getOrderWithId(orderId);
   }
 

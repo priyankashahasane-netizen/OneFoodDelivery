@@ -43,6 +43,9 @@ export class UpsertOrderDto {
     slaSeconds;
     trackingUrl;
     zoneId;
+    subscriptionId;
+    cancellationSource;
+    cancellationReason;
 }
 __decorate([
     IsOptional(),
@@ -85,3 +88,18 @@ __decorate([
     IsString(),
     __metadata("design:type", String)
 ], UpsertOrderDto.prototype, "zoneId", void 0);
+__decorate([
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], UpsertOrderDto.prototype, "subscriptionId", void 0);
+__decorate([
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], UpsertOrderDto.prototype, "cancellationSource", void 0);
+__decorate([
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], UpsertOrderDto.prototype, "cancellationReason", void 0);

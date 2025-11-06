@@ -6,11 +6,14 @@ class StatusListModel{
   static List<StatusListModel> getRunningOrderStatusList(){
     return [
       StatusListModel(statusTitle: 'all', status: 'all'),
+      StatusListModel(statusTitle: 'pending', status: 'pending'),
+      StatusListModel(statusTitle: 'assigned', status: 'assigned'),
       StatusListModel(statusTitle: 'accepted', status: 'accepted'),
       StatusListModel(statusTitle: 'confirmed', status: 'confirmed'),
       StatusListModel(statusTitle: 'processing', status: 'processing'),
       StatusListModel(statusTitle: 'handover', status: 'handover'),
       StatusListModel(statusTitle: 'picked_up', status: 'picked_up'),
+      StatusListModel(statusTitle: 'in_transit', status: 'in_transit'),
     ];
   }
 

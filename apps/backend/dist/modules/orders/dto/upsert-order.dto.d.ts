@@ -18,4 +18,7 @@ export declare class UpsertOrderDto {
     slaSeconds?: number;
     trackingUrl?: string;
     zoneId?: string;
+    subscriptionId?: string;
+    cancellationSource?: string;
+    cancellationReason?: string;
 }

@@ -113,6 +113,9 @@ class OrderRepository implements OrderRepositoryInterface {
                 return null;
               }
               
+              // Keep a copy of all orders before filtering for count calculation
+              final allOrdersForCounting = List<OrderModel>.from(orders);
+              
               // Filter by status if needed
               int beforeFilterCount = orders.length;
               if (status != 'all' && status.isNotEmpty) {
@@ -127,21 +130,25 @@ class OrderRepository implements OrderRepositoryInterface {
                   }
                 }
               }
-              // Create paginated model with default orderCount to avoid null errors
+              
+              // Calculate counts for each status from all orders (before filtering)
               paginatedOrderModel = PaginatedOrderModel(
                 orders: orders,
                 totalSize: orders.length,
                 offset: '1',
                 limit: '10',
                 orderCount: OrderCount(
-                  all: orders.length,
-                  accepted: 0,
-                  confirmed: 0,
-                  processing: 0,
-                  handover: 0,
-                  pickedUp: 0,
-                  delivered: 0,
-                  canceled: 0,
+                  all: allOrdersForCounting.length,
+                  pending: allOrdersForCounting.where((o) => o.orderStatus == 'pending').length,
+                  assigned: allOrdersForCounting.where((o) => o.orderStatus == 'assigned').length,
+                  accepted: allOrdersForCounting.where((o) => o.orderStatus == 'accepted').length,
+                  confirmed: allOrdersForCounting.where((o) => o.orderStatus == 'confirmed').length,
+                  processing: allOrdersForCounting.where((o) => o.orderStatus == 'processing').length,
+                  handover: allOrdersForCounting.where((o) => o.orderStatus == 'handover').length,
+                  pickedUp: allOrdersForCounting.where((o) => o.orderStatus == 'picked_up').length,
+                  inTransit: allOrdersForCounting.where((o) => o.orderStatus == 'in_transit').length,
+                  delivered: 0,  // Not applicable for running orders
+                  canceled: 0,  // Not applicable for running orders
                 ),
               );
               debugPrint('✅ getCurrentOrders: Found ${orders.length} active orders');
@@ -237,50 +244,65 @@ class OrderRepository implements OrderRepositoryInterface {
   }
 
   @override
-  Future<List<OrderDetailsModel>?> getOrderDetails(int? orderID) async {
+  Future<List<OrderDetailsModel>?> getOrderDetails(dynamic orderID) async {
     List<OrderDetailsModel>? orderDetailsModel;
+    // Convert orderID to string - if it's already a string (UUID), use it; otherwise convert int to string
+    String orderIdStr = orderID is String ? orderID : orderID.toString();
     // Use new driver endpoint: GET /api/v1/delivery-man/order/:orderId
-    Response response = await apiClient.getData('${AppConstants.orderDetailsUri}/$orderID', handleError: false);
+    Response response = await apiClient.getData('${AppConstants.orderDetailsUri}/$orderIdStr', handleError: false);
     if (response.statusCode == 200) {
       orderDetailsModel = [];
       // Backend returns order object with order_details array
       if (response.body != null) {
+        debugPrint('🔍 getOrderDetails: Parsing response for order $orderID');
+        debugPrint('Response body keys: ${response.body.keys.toList()}');
+        
+        // Check for order_details array (most common case)
         if (response.body['order_details'] != null && response.body['order_details'] is List) {
-          // Use order_details array from response
-          response.body['order_details'].forEach((orderDetails) {
+          debugPrint('✅ Found order_details array with ${(response.body['order_details'] as List).length} items');
+          (response.body['order_details'] as List).forEach((orderDetails) {
             try {
               orderDetailsModel!.add(OrderDetailsModel.fromJson(orderDetails));
-            } catch (e) {
-              debugPrint('Error parsing order detail: $e');
+            } catch (e, stackTrace) {
+              debugPrint('❌ Error parsing order detail: $e');
+              debugPrint('Stack trace: $stackTrace');
+              debugPrint('Order detail data: $orderDetails');
             }
           });
         } else if (response.body is List) {
           // If response is directly a list
-          response.body.forEach((orderDetails) {
+          debugPrint('✅ Response is directly a list');
+          (response.body as List).forEach((orderDetails) {
             try {
               orderDetailsModel!.add(OrderDetailsModel.fromJson(orderDetails));
-            } catch (e) {
-              debugPrint('Error parsing order detail: $e');
+            } catch (e, stackTrace) {
+              debugPrint('❌ Error parsing order detail: $e');
+              debugPrint('Stack trace: $stackTrace');
             }
           });
-        } else {
+        } else if (response.body is Map) {
           // Single order object - try to extract order_details or use items
           if (response.body['order_details'] != null) {
-            response.body['order_details'].forEach((orderDetails) {
-              try {
-                orderDetailsModel!.add(OrderDetailsModel.fromJson(orderDetails));
-              } catch (e) {
-                debugPrint('Error parsing order detail: $e');
-              }
-            });
-          } else if (response.body['items'] != null) {
+            debugPrint('✅ Found order_details in map');
+            if (response.body['order_details'] is List) {
+              (response.body['order_details'] as List).forEach((orderDetails) {
+                try {
+                  orderDetailsModel!.add(OrderDetailsModel.fromJson(orderDetails));
+                } catch (e, stackTrace) {
+                  debugPrint('❌ Error parsing order detail: $e');
+                  debugPrint('Stack trace: $stackTrace');
+                }
+              });
+            }
+          } else if (response.body['items'] != null && response.body['items'] is List) {
             // Fallback: create order details from items
-            response.body['items'].forEach((item, index) {
+            debugPrint('✅ Found items array, creating order details');
+            (response.body['items'] as List).asMap().forEach((index, item) {
               try {
                 orderDetailsModel!.add(OrderDetailsModel.fromJson({
                   'id': index + 1,
                   'food_id': item['food_id'] ?? null,
-                  'order_id': response.body['id'],
+                  'order_id': response.body['id'] ?? orderID,
                   'price': item['price'] ?? 0.0,
                   'food_details': {
                     'id': item['food_id'] ?? null,
@@ -289,14 +311,22 @@ class OrderRepository implements OrderRepositoryInterface {
                   },
                   'add_ons': item['add_ons'] ?? [],
                   'quantity': item['quantity'] ?? 1,
-                  'tax_amount': 0.0,
+                  'tax_amount': item['tax_amount'] ?? 0.0,
                 }));
-              } catch (e) {
-                debugPrint('Error creating order detail from item: $e');
+              } catch (e, stackTrace) {
+                debugPrint('❌ Error creating order detail from item: $e');
+                debugPrint('Stack trace: $stackTrace');
               }
             });
+          } else {
+            debugPrint('⚠️ getOrderDetails: No order_details or items found in response');
+            debugPrint('Available keys: ${response.body.keys.toList()}');
           }
         }
+        
+        debugPrint('✅ getOrderDetails: Successfully parsed ${orderDetailsModel.length} order details');
+      } else {
+        debugPrint('⚠️ getOrderDetails: Response body is null');
       }
     } else if (response.statusCode == 403 || response.statusCode == 404) {
       debugPrint('⚠️ getOrderDetails: Order ${orderID} not accessible (${response.statusCode})');
@@ -395,10 +425,12 @@ class OrderRepository implements OrderRepositoryInterface {
   }
 
   @override
-  Future<OrderModel?> getOrderWithId(int? orderId) async {
+  Future<OrderModel?> getOrderWithId(dynamic orderId) async {
     OrderModel? orderModel;
+    // Convert orderId to string - if it's already a string (UUID), use it; otherwise convert int to string
+    String orderIdStr = orderId is String ? orderId : orderId.toString();
     // Use new driver endpoint: GET /api/v1/delivery-man/order/:orderId
-    Response response = await apiClient.getData('${AppConstants.orderDetailsUri}/$orderId', handleError: false);
+    Response response = await apiClient.getData('${AppConstants.orderDetailsUri}/$orderIdStr', handleError: false);
     if (response.statusCode == 200) {
       try {
         orderModel = OrderModel.fromJson(response.body);

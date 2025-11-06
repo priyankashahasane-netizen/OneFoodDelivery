@@ -114,6 +114,7 @@ export declare class OrdersService {
         }[];
     }>;
     private transformOrderForFlutter;
+    create(payload: UpsertOrderDto): Promise<OrderEntity>;
     upsert(orderId: string, payload: UpsertOrderDto): Promise<OrderEntity>;
     assignDriver(orderId: string, driverId: string): Promise<OrderEntity>;
     updateStatus(orderId: string, status: string, payload?: Partial<Pick<OrderEntity, 'trackingUrl'>>): Promise<OrderEntity>;

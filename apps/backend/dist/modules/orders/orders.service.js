@@ -46,23 +46,37 @@ let OrdersService = class OrdersService {
         return order;
     }
     async findByIdForDriver(orderId, driverId) {
-        let order = await this.ordersRepository.findOne({
-            where: { id: orderId, driverId },
-            relations: ['driver']
-        });
+        let order = null;
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId);
+        if (isUUID) {
+            try {
+                order = await this.ordersRepository.findOne({
+                    where: { id: orderId, driverId },
+                    relations: ['driver']
+                });
+            }
+            catch (error) {
+                console.log(`UUID query failed for ${orderId}, trying numeric fallback`);
+            }
+        }
         if (!order) {
             const numericId = parseInt(orderId, 10);
             if (!isNaN(numericId)) {
-                const allOrders = await this.ordersRepository.find({
-                    where: { driverId },
-                    relations: ['driver']
-                });
-                for (const o of allOrders) {
-                    const orderNumericId = Math.abs(o.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % 1000000;
-                    if (orderNumericId === numericId) {
-                        order = o;
-                        break;
+                try {
+                    const allOrders = await this.ordersRepository.find({
+                        where: { driverId },
+                        relations: ['driver']
+                    });
+                    for (const o of allOrders) {
+                        const orderNumericId = Math.abs(o.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % 1000000;
+                        if (orderNumericId === numericId) {
+                            order = o;
+                            break;
+                        }
                     }
+                }
+                catch (error) {
+                    console.error(`Error finding order by numeric ID: ${error}`);
                 }
             }
         }
@@ -178,6 +192,14 @@ let OrdersService = class OrdersService {
                 total_add_on_price: (item.addOns || []).reduce((sum, addon) => sum + ((addon.price || 0) * (addon.quantity || 1)), 0),
             })),
         };
+    }
+    async create(payload) {
+        const orderData = {
+            ...payload,
+            status: payload.status || 'created',
+        };
+        const entity = this.ordersRepository.create(orderData);
+        return this.ordersRepository.save(entity);
     }
     async upsert(orderId, payload) {
         const existing = await this.ordersRepository.findOne({ where: { id: orderId } });
@@ -301,8 +323,14 @@ let OrdersService = class OrdersService {
     }
     async getAvailableOrders(driverId) {
         const qb = this.ordersRepository.createQueryBuilder('order')
-            .where('order.driverId IS NULL')
-            .orderBy('order.createdAt', 'DESC')
+            .where('order.driverId IS NULL');
+        if (driverId && driverId !== 'demo-driver-id') {
+            qb.orWhere('(order.driverId = :driverId AND order.status = :assignedStatus)', {
+                driverId: driverId,
+                assignedStatus: 'assigned'
+            });
+        }
+        qb.orderBy('order.createdAt', 'DESC')
             .take(50);
         const orders = await qb.getMany();
         const transformedOrders = orders.map((o) => {

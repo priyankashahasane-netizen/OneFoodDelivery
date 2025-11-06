@@ -37,6 +37,7 @@ class PaginatedOrderModel {
 
 class OrderModel {
   int? id;
+  String? uuid; // Store original UUID for API calls
   int? userId;
   double? orderAmount;
   double? couponDiscountAmount;
@@ -85,6 +86,7 @@ class OrderModel {
 
   OrderModel({
     this.id,
+    this.uuid,
     this.userId,
     this.orderAmount,
     this.couponDiscountAmount,
@@ -136,8 +138,9 @@ class OrderModel {
     // Handle both string UUID and int IDs from backend
     if (json['id'] != null) {
       if (json['id'] is String) {
-        // Convert string UUID to int hash for compatibility
+        // Store original UUID and convert to int hash for compatibility
         final idStr = json['id'] as String;
+        uuid = idStr; // Store original UUID for API calls
         id = idStr.hashCode.abs() % 1000000;
       } else if (json['id'] is int) {
         id = json['id'] as int;
@@ -289,6 +292,8 @@ class OrderCount {
   int? refunded;
   int? refundRequestCanceled;
   int? failed;
+  int? assigned;
+  int? inTransit;
 
   OrderCount({
     this.accepted,
@@ -304,6 +309,8 @@ class OrderCount {
     this.refunded,
     this.refundRequestCanceled,
     this.failed,
+    this.assigned,
+    this.inTransit,
   });
 
   OrderCount.fromJson(Map<String, dynamic> json) {
@@ -320,6 +327,8 @@ class OrderCount {
     refunded = json['refunded'];
     refundRequestCanceled = json['refund_request_canceled'];
     failed = json['failed'];
+    assigned = json['assigned'];
+    inTransit = json['in_transit'] ?? json['inTransit'];
   }
 
   Map<String, dynamic> toJson() {
@@ -337,6 +346,8 @@ class OrderCount {
     data['refunded'] = refunded;
     data['refund_request_canceled'] = refundRequestCanceled;
     data['failed'] = failed;
+    data['assigned'] = assigned;
+    data['in_transit'] = inTransit;
     return data;
   }
 }

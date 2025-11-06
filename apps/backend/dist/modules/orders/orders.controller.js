@@ -10,12 +10,12 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-import { Body, Controller, Get, Param, Put, Query, Request } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, Query, Request } from '@nestjs/common';
 import { Roles } from '../auth/roles.decorator.js';
 import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt.guard.js';
 import { PaginationQueryDto } from '../../common/dto/pagination.dto.js';
-import { AssignOrderDto } from '../assignments/dto/assign-order.dto.js';
+import { AssignOrderDto } from './dto/assign-order.dto.js';
 import { OrdersService } from './orders.service.js';
 import { UpsertOrderDto } from './dto/upsert-order.dto.js';
 import { DriversService } from '../drivers/drivers.service.js';
@@ -73,8 +73,33 @@ let OrdersController = class OrdersController {
             return [];
         }
     }
-    async getAvailable(query) {
-        return this.ordersService.getAvailableOrders(query.driverId);
+    async getAvailable(query, req) {
+        let driverId = query.driverId || req?.user?.sub || req?.user?.driverId;
+        if (!driverId || driverId === 'demo-driver-id') {
+            const phone = req?.user?.phone;
+            if (phone) {
+                try {
+                    const phoneVariations = [
+                        phone,
+                        phone.replace('+91', '').replace(/-/g, ''),
+                        phone.replace('+', ''),
+                        `+91${phone.replace('+91', '').replace(/-/g, '')}`,
+                        `91${phone.replace('+91', '').replace(/-/g, '')}`
+                    ];
+                    for (const phoneVar of phoneVariations) {
+                        const driver = await this.driversService.findByPhone(phoneVar);
+                        if (driver) {
+                            driverId = driver.id;
+                            break;
+                        }
+                    }
+                }
+                catch (e) {
+                    console.warn('getAvailable: Failed to lookup driver by phone:', e);
+                }
+            }
+        }
+        return this.ordersService.getAvailableOrders(driverId);
     }
     async getById(id) {
         return this.ordersService.findById(id);
@@ -85,6 +110,9 @@ let OrdersController = class OrdersController {
         const due = o.slaSeconds ? new Date(new Date(started).getTime() + o.slaSeconds * 1000) : null;
         const remainingSeconds = due ? Math.max(0, Math.floor((due.getTime() - Date.now()) / 1000)) : null;
         return { dueAt: due?.toISOString() ?? null, remainingSeconds };
+    }
+    async create(payload) {
+        return this.ordersService.create(payload);
     }
     async upsert(id, payload) {
         return this.ordersService.upsert(id, payload);
@@ -117,8 +145,9 @@ __decorate([
     Get('available'),
     UseGuards(JwtAuthGuard),
     __param(0, Query()),
+    __param(1, Request()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], OrdersController.prototype, "getAvailable", null);
 __decorate([
@@ -137,6 +166,14 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], OrdersController.prototype, "getSla", null);
+__decorate([
+    Post(),
+    Roles('admin', 'dispatcher'),
+    __param(0, Body()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [UpsertOrderDto]),
+    __metadata("design:returntype", Promise)
+], OrdersController.prototype, "create", null);
 __decorate([
     Put(':id'),
     Roles('admin', 'dispatcher'),

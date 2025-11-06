@@ -41,12 +41,17 @@ class OrderDetailsModel {
     id = json['id'];
     foodId = json['food_id'];
     orderId = json['order_id'];
-    price = json['price'].toDouble();
-    foodDetails = json['food_details'] != null ? FoodDetails.fromJson(json['food_details']) : null;
+    // Handle price - can be int, double, or null
+    if (json['price'] != null) {
+      price = json['price'] is double ? json['price'] : (json['price'] is int ? json['price'].toDouble() : double.tryParse(json['price'].toString()) ?? 0.0);
+    } else {
+      price = 0.0;
+    }
+    foodDetails = json['food_details'] != null ? FoodDetails.fromJson(json['food_details'] is Map ? json['food_details'] : {}) : null;
     variation = [];
     oldVariation = [];
-    if (json['variation'] != null && json['variation'].isNotEmpty) {
-      if(json['variation'][0]['values'] != null) {
+    if (json['variation'] != null && json['variation'] is List && json['variation'].isNotEmpty) {
+      if(json['variation'][0] is Map && json['variation'][0]['values'] != null) {
         json['variation'].forEach((v) {
           variation!.add(Variation.fromJson(v));
         });
@@ -56,21 +61,21 @@ class OrderDetailsModel {
         });
       }
     }
-    if (json['add_ons'] != null) {
-      addOns = [];
+    addOns = [];
+    if (json['add_ons'] != null && json['add_ons'] is List) {
       json['add_ons'].forEach((v) {
         addOns!.add(AddOn.fromJson(v));
       });
     }
     discountOnFood = json['discount_on_food']?.toDouble();
     discountType = json['discount_type'];
-    quantity = json['quantity'];
-    taxAmount = json['tax_amount']?.toDouble();
+    quantity = json['quantity'] ?? 1;
+    taxAmount = json['tax_amount']?.toDouble() ?? 0.0;
     variant = json['variant'];
-    createdAt = json['created_at'];
-    updatedAt = json['updated_at'];
+    createdAt = json['created_at']?.toString();
+    updatedAt = json['updated_at']?.toString();
     itemCampaignId = json['item_campaign_id'];
-    totalAddOnPrice = json['total_add_on_price']?.toDouble();
+    totalAddOnPrice = json['total_add_on_price']?.toDouble() ?? 0.0;
   }
 
   Map<String, dynamic> toJson() {

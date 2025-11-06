@@ -134,7 +134,7 @@ describe('OrdersController', () => {
       mockOrdersService.assignDriver.mockResolvedValue(mockAssignedOrder);
 
       // Act
-      const result = await controller.assign(orderId, { driverId, orderId });
+      const result = await controller.assign(orderId, { driverId });
 
       // Assert
       expect(result).toEqual(mockAssignedOrder);

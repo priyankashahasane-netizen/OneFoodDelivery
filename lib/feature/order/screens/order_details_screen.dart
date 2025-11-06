@@ -37,6 +37,7 @@ import 'package:stackfood_multivendor_driver/util/styles.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_button_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_image_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_snackbar_widget.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
@@ -89,8 +90,21 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         }
       }
     }
-    Get.find<OrderController>().getOrderWithId(widget.orderId);
-    Get.find<OrderController>().getOrderDetails(widget.orderId);
+    // Get UUID if available from currentOrderList
+    String? orderUuid;
+    if (widget.orderId != null && Get.find<OrderController>().currentOrderList != null) {
+      for (var order in Get.find<OrderController>().currentOrderList!) {
+        if (order.id == widget.orderId && order.uuid != null) {
+          orderUuid = order.uuid;
+          break;
+        }
+      }
+    }
+    
+    // Use UUID if available, otherwise use integer ID
+    dynamic orderIdToUse = orderUuid ?? widget.orderId;
+    Get.find<OrderController>().getOrderWithId(orderIdToUse);
+    Get.find<OrderController>().getOrderDetails(orderIdToUse);
   }
 
   @override
@@ -99,8 +113,12 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
 
     orderPosition = widget.orderIndex;
 
-    _loadData();
-    _startApiCalling();
+    // Defer _loadData() until after the current frame is built
+    // This prevents setState()/update() from being called during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+      _startApiCalling();
+    });
   }
 
   @override
@@ -222,16 +240,29 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
               }
 
               // Check if we have data to display
-              bool hasData = orderController.orderDetailsModel != null && 
-                            orderController.orderDetailsModel!.isNotEmpty &&
-                            controllerOrderModel != null && 
-                            order != null;
+              // We have data if we have orderModel and orderDetailsModel (even if empty, we'll show "no items")
+              bool hasData = controllerOrderModel != null && 
+                            order != null &&
+                            orderController.orderDetailsModel != null; // Allow empty list - we'll show "no items"
+              
+              // Check if we're still loading (haven't attempted yet, or orderModel exists but orderDetailsModel is null)
+              bool isLoading = !_hasAttemptedLoad || 
+                              (controllerOrderModel != null && orderController.orderDetailsModel == null);
               
               // Check if we're in error state (tried to load but got 403/404)
               bool isErrorState = _hasAttemptedLoad && // We've attempted to load
                                  controllerOrderModel == null && 
                                  orderController.orderDetailsModel == null &&
                                  widget.orderId != null; // Order ID was provided but nothing loaded
+              
+              // Debug logging
+              debugPrint('🔍 OrderDetailsScreen state check:');
+              debugPrint('  - hasAttemptedLoad: $_hasAttemptedLoad');
+              debugPrint('  - controllerOrderModel: ${controllerOrderModel != null}');
+              debugPrint('  - orderDetailsModel: ${orderController.orderDetailsModel != null} (length: ${orderController.orderDetailsModel?.length ?? 0})');
+              debugPrint('  - hasData: $hasData');
+              debugPrint('  - isLoading: $isLoading');
+              debugPrint('  - isErrorState: $isErrorState');
               
               if (isErrorState) {
                 return Center(
@@ -270,6 +301,12 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 );
               }
               
+              // Show loading shimmer if still loading
+              if (isLoading) {
+                return const OrderDetailsShimmer();
+              }
+              
+              // Show content if we have data (even if orderDetailsModel is empty, we'll show the order info)
               return hasData ? Column(children: [
 
                 Expanded(child: SingleChildScrollView(
@@ -399,14 +436,24 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                         ]),
                         SizedBox(height: Dimensions.paddingSizeSmall),
 
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: orderController.orderDetailsModel!.length,
-                          itemBuilder: (context, index) {
-                            return OrderProductWidgetWidget(order: controllerOrderModel, orderDetails: orderController.orderDetailsModel![index], showDivider: index != orderController.orderDetailsModel!.length - 1);
-                          },
-                        ),
+                        orderController.orderDetailsModel!.isEmpty 
+                          ? Padding(
+                              padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
+                              child: Center(
+                                child: Text(
+                                  'No items found in this order'.tr,
+                                  style: robotoRegular.copyWith(color: Theme.of(context).hintColor),
+                                ),
+                              ),
+                            )
+                          : ListView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: orderController.orderDetailsModel!.length,
+                              itemBuilder: (context, index) {
+                                return OrderProductWidgetWidget(order: controllerOrderModel, orderDetails: orderController.orderDetailsModel![index], showDivider: index != orderController.orderDetailsModel!.length - 1);
+                              },
+                            ),
 
                       ]),
                     ),

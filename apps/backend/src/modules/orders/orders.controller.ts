@@ -1,10 +1,10 @@
-import { Body, Controller, Get, Param, Put, Query, Request } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, Query, Request } from '@nestjs/common';
 import { Roles } from '../auth/roles.decorator.js';
 import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt.guard.js';
 
 import { PaginationQueryDto } from '../../common/dto/pagination.dto.js';
-import { AssignOrderDto } from '../assignments/dto/assign-order.dto.js';
+import { AssignOrderDto } from './dto/assign-order.dto.js';
 import { OrdersService } from './orders.service.js';
 import { UpsertOrderDto } from './dto/upsert-order.dto.js';
 import { DriversService } from '../drivers/drivers.service.js';
@@ -81,8 +81,40 @@ export class OrdersController {
 
   @Get('available')
   @UseGuards(JwtAuthGuard)
-  async getAvailable(@Query() query: { driverId?: string }) {
-    return this.ordersService.getAvailableOrders(query.driverId);
+  async getAvailable(@Query() query: { driverId?: string }, @Request() req: any) {
+    // Extract driverId from JWT token if not provided in query
+    // This allows the endpoint to return orders assigned to the authenticated driver
+    let driverId = query.driverId || req?.user?.sub || req?.user?.driverId;
+    
+    // Handle demo account - resolve to actual driver ID by phone if needed
+    if (!driverId || driverId === 'demo-driver-id') {
+      const phone = req?.user?.phone;
+      if (phone) {
+        try {
+          // Try to find driver by phone (check multiple phone format variations)
+          const phoneVariations = [
+            phone,
+            phone.replace('+91', '').replace(/-/g, ''),
+            phone.replace('+', ''),
+            `+91${phone.replace('+91', '').replace(/-/g, '')}`,
+            `91${phone.replace('+91', '').replace(/-/g, '')}`
+          ];
+          
+          for (const phoneVar of phoneVariations) {
+            const driver = await this.driversService.findByPhone(phoneVar);
+            if (driver) {
+              driverId = driver.id;
+              break;
+            }
+          }
+        } catch (e) {
+          // If driver lookup fails, continue with what we have
+          console.warn('getAvailable: Failed to lookup driver by phone:', e);
+        }
+      }
+    }
+    
+    return this.ordersService.getAvailableOrders(driverId);
   }
 
   @Get(':id')
@@ -99,6 +131,12 @@ export class OrdersController {
     const due = o.slaSeconds ? new Date(new Date(started).getTime() + o.slaSeconds * 1000) : null;
     const remainingSeconds = due ? Math.max(0, Math.floor((due.getTime() - Date.now()) / 1000)) : null;
     return { dueAt: due?.toISOString() ?? null, remainingSeconds };
+  }
+
+  @Post()
+  @Roles('admin', 'dispatcher')
+  async create(@Body() payload: UpsertOrderDto) {
+    return this.ordersService.create(payload);
   }
 
   @Put(':id')

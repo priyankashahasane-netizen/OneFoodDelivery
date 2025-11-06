@@ -45,28 +45,44 @@ export class OrdersService {
   }
 
   async findByIdForDriver(orderId: string, driverId: string) {
-    // First try to find by UUID directly
-    let order = await this.ordersRepository.findOne({ 
-      where: { id: orderId, driverId }, 
-      relations: ['driver'] 
-    });
+    let order: OrderEntity | null = null;
+    
+    // Check if orderId is a valid UUID format
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId);
+    
+    if (isUUID) {
+      // Try to find by UUID directly
+      try {
+        order = await this.ordersRepository.findOne({ 
+          where: { id: orderId, driverId }, 
+          relations: ['driver'] 
+        });
+      } catch (error) {
+        // If UUID query fails, log and continue to fallback
+        console.log(`UUID query failed for ${orderId}, trying numeric fallback`);
+      }
+    }
 
-    // If not found by UUID, try to find by numeric ID (hash of UUID)
+    // If not found by UUID (or not a UUID), try to find by numeric ID (hash of UUID)
     if (!order) {
       const numericId = parseInt(orderId, 10);
       if (!isNaN(numericId)) {
         // Get all orders for this driver and find the one with matching numeric ID
-        const allOrders = await this.ordersRepository.find({
-          where: { driverId },
-          relations: ['driver']
-        });
-        
-        for (const o of allOrders) {
-          const orderNumericId = Math.abs(o.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % 1000000;
-          if (orderNumericId === numericId) {
-            order = o;
-            break;
+        try {
+          const allOrders = await this.ordersRepository.find({
+            where: { driverId },
+            relations: ['driver']
+          });
+          
+          for (const o of allOrders) {
+            const orderNumericId = Math.abs(o.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % 1000000;
+            if (orderNumericId === numericId) {
+              order = o;
+              break;
+            }
           }
+        } catch (error) {
+          console.error(`Error finding order by numeric ID: ${error}`);
         }
       }
     }
@@ -191,6 +207,16 @@ export class OrdersService {
         total_add_on_price: (item.addOns || []).reduce((sum: number, addon: any) => sum + ((addon.price || 0) * (addon.quantity || 1)), 0),
       })),
     };
+  }
+
+  async create(payload: UpsertOrderDto) {
+    // Set default status if not provided
+    const orderData: DeepPartial<OrderEntity> = {
+      ...payload,
+      status: payload.status || 'created',
+    };
+    const entity = this.ordersRepository.create(orderData);
+    return this.ordersRepository.save(entity);
   }
 
   async upsert(orderId: string, payload: UpsertOrderDto) {
@@ -337,12 +363,22 @@ export class OrdersService {
   }
 
   async getAvailableOrders(driverId?: string) {
-    // Orders not assigned (available for any driver to pick up)
-    // Return unassigned orders regardless of status for now
+    // Return orders that are:
+    // 1. Unassigned (driverId IS NULL) - available for any driver
+    // 2. Assigned to the authenticated driver with status 'assigned' - requests for that driver
     const qb = this.ordersRepository.createQueryBuilder('order')
-      .where('order.driverId IS NULL')
-      .orderBy('order.createdAt', 'DESC')
-      .take(50); // Limit to 50 most recent unassigned orders
+      .where('order.driverId IS NULL');
+    
+    // If driverId is provided, also include orders assigned to that driver with status 'assigned'
+    if (driverId && driverId !== 'demo-driver-id') {
+      qb.orWhere('(order.driverId = :driverId AND order.status = :assignedStatus)', {
+        driverId: driverId,
+        assignedStatus: 'assigned'
+      });
+    }
+    
+    qb.orderBy('order.createdAt', 'DESC')
+      .take(50); // Limit to 50 most recent orders
     
     const orders = await qb.getMany();
     

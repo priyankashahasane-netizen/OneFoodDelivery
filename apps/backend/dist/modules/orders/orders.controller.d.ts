@@ -1,5 +1,5 @@
 import { PaginationQueryDto } from '../../common/dto/pagination.dto.js';
-import { AssignOrderDto } from '../assignments/dto/assign-order.dto.js';
+import { AssignOrderDto } from './dto/assign-order.dto.js';
 import { OrdersService } from './orders.service.js';
 import { UpsertOrderDto } from './dto/upsert-order.dto.js';
 import { DriversService } from '../drivers/drivers.service.js';
@@ -87,7 +87,7 @@ export declare class OrdersController {
     }[]>;
     getAvailable(query: {
         driverId?: string;
-    }): Promise<{
+    }, req: any): Promise<{
         id: number;
         user_id: any;
         order_amount: any;
@@ -164,6 +164,7 @@ export declare class OrdersController {
         dueAt: string;
         remainingSeconds: number;
     }>;
+    create(payload: UpsertOrderDto): Promise<import("./entities/order.entity.js").OrderEntity>;
     upsert(id: string, payload: UpsertOrderDto): Promise<import("./entities/order.entity.js").OrderEntity>;
     assign(id: string, payload: AssignOrderDto): Promise<import("./entities/order.entity.js").OrderEntity>;
     updateStatus(id: string, body: {

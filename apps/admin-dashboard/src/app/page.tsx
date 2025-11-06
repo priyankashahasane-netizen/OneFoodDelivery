@@ -1,8 +1,18 @@
+"use client";
+
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import RequireAuth from '../components/RequireAuth';
 import { clearToken } from '../lib/auth';
 
 export default function Home() {
+  const router = useRouter();
+
+  const handleLogout = () => {
+    clearToken();
+    router.push('/login');
+  };
+
   return (
     <RequireAuth>
       <main style={{ padding: 16 }}>
@@ -12,7 +22,7 @@ export default function Home() {
           <Link href="/orders">Orders</Link>
           <Link href="/drivers">Drivers</Link>
           <span style={{ flex: 1 }} />
-          <button onClick={() => { clearToken(); location.href = '/login'; }}>Logout</button>
+          <button onClick={handleLogout}>Logout</button>
         </nav>
       </main>
     </RequireAuth>

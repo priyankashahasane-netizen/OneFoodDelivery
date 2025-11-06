@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import RequireAuth from '../../components/RequireAuth';
 import { authedFetch } from '../../lib/auth';
@@ -7,6 +8,7 @@ import { authedFetch } from '../../lib/auth';
 const fetcher = (url: string) => authedFetch(url).then((r) => r.json());
 
 export default function OrdersPage() {
+  const router = useRouter();
   const { data, mutate, isLoading } = useSWR('/api/orders', fetcher);
   const { data: drivers } = useSWR('/api/drivers?page=1&pageSize=100', fetcher);
 
@@ -35,7 +37,24 @@ export default function OrdersPage() {
   return (
     <RequireAuth>
       <main style={{ padding: 16 }}>
-        <h1>Orders</h1>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h1 style={{ margin: 0 }}>Orders</h1>
+          <button
+            onClick={() => router.push('/orders/create')}
+            style={{
+              background: '#2563eb',
+              color: '#fff',
+              border: 0,
+              padding: '8px 16px',
+              borderRadius: 6,
+              cursor: 'pointer',
+              fontSize: 14,
+              fontWeight: 500,
+            }}
+          >
+            + Create Order
+          </button>
+        </div>
       {isLoading ? (
         <p>Loading…</p>
       ) : (

@@ -51,6 +51,18 @@ export class UpsertOrderDto {
   @IsOptional()
   @IsString()
   zoneId?: string;
+
+  @IsOptional()
+  @IsString()
+  subscriptionId?: string;
+
+  @IsOptional()
+  @IsString()
+  cancellationSource?: string;
+
+  @IsOptional()
+  @IsString()
+  cancellationReason?: string;
 }
 
 
