@@ -144,9 +144,17 @@ class OrderModel {
         id = idStr.hashCode.abs() % 1000000;
       } else if (json['id'] is int) {
         id = json['id'] as int;
+        // If we have a separate uuid field, use it
+        if (json['uuid'] != null && json['uuid'] is String) {
+          uuid = json['uuid'] as String;
+        }
       } else {
         id = int.tryParse(json['id'].toString());
       }
+    }
+    // Also check for uuid field directly (in case id is numeric but uuid is provided)
+    if (uuid == null && json['uuid'] != null && json['uuid'] is String) {
+      uuid = json['uuid'] as String;
     }
     // Handle userId which might be string or int
     if (json['user_id'] != null) {

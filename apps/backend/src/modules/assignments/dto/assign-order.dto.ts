@@ -1,11 +1,12 @@
-import { IsString } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 
 export class AssignOrderDto {
   @IsString()
   orderId!: string;
 
+  @IsOptional()
   @IsString()
-  driverId!: string;
+  driverId?: string;
 }
 
 

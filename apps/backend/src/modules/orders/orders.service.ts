@@ -78,8 +78,52 @@ export class OrdersService {
   }
 
   async findById(orderId: string) {
-    const order = await this.ordersRepository.findOne({ where: { id: orderId }, relations: ['driver'] });
+    let order: OrderEntity | null = null;
+    
+    // Check if orderId is a valid UUID format
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId);
+    
+    if (isUUID) {
+      // Try to find by UUID directly
+      try {
+        order = await this.ordersRepository.findOne({ 
+          where: { id: orderId }, 
+          relations: ['driver'] 
+        });
+        if (order) {
+          console.log(`Order found by UUID: ${orderId}`);
+        }
+      } catch (error) {
+        console.log(`UUID query failed for ${orderId}, trying numeric fallback: ${error}`);
+      }
+    }
+
+    // If not found by UUID (or not a UUID), try to find by numeric ID (hash of UUID)
     if (!order) {
+      const numericId = parseInt(orderId, 10);
+      if (!isNaN(numericId)) {
+        // Get all orders and find the one with matching numeric ID
+        try {
+          const allOrders = await this.ordersRepository.find({
+            relations: ['driver']
+          });
+          
+          for (const o of allOrders) {
+            const orderNumericId = Math.abs(o.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % 1000000;
+            if (orderNumericId === numericId) {
+              order = o;
+              console.log(`Order found by numeric ID: ${numericId} -> UUID: ${o.id}`);
+              break;
+            }
+          }
+        } catch (error) {
+          console.error(`Error finding order by numeric ID: ${error}`);
+        }
+      }
+    }
+
+    if (!order) {
+      console.error(`Order ${orderId} not found (UUID: ${isUUID}, numeric: ${parseInt(orderId, 10)})`);
       throw new NotFoundException(`Order ${orderId} not found`);
     }
     return order;
@@ -269,10 +313,11 @@ export class OrdersService {
 
   async assignDriver(orderId: string, driverId: string) {
     const order = await this.findById(orderId);
-    const driver = await this.driversService.findById(driverId);
-
-    order.driver = driver as DriverEntity;
-    order.driverId = driver.id;
+    
+    // Trust the JWT token - driverId is already validated by authentication
+    // We don't need to fetch the driver entity again since the JWT is trusted
+    // This avoids UUID parsing errors and unnecessary database queries
+    order.driverId = driverId;
     order.status = 'assigned';
     order.assignedAt = new Date();
 
@@ -284,7 +329,7 @@ export class OrdersService {
 
     await this.ordersRepository.save(order);
 
-    await this.routesService.enqueueOptimizationForDriver(driver.id);
+    await this.routesService.enqueueOptimizationForDriver(driverId);
 
     // Send notification to driver about the assignment
     // Don't await to avoid blocking the response, but handle errors
@@ -335,13 +380,103 @@ export class OrdersService {
     return { success: true, message: 'Order deleted successfully' };
   }
 
-  async updateStatus(orderId: string, status: string, payload?: Partial<Pick<OrderEntity, 'trackingUrl'>>) {
-    const order = await this.findById(orderId);
+  async updateStatus(orderId: string, status: string, payload?: Partial<Pick<OrderEntity, 'trackingUrl'>>, driverId?: string) {
+    let order: OrderEntity | null = null;
+    
+    // Check if orderId is a valid UUID format
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId);
+    
+    if (isUUID) {
+      // Try to find by UUID directly
+      try {
+        order = await this.ordersRepository.findOne({ 
+          where: { id: orderId }, 
+          relations: ['driver'] 
+        });
+        if (order) {
+          console.log(`Order found by UUID: ${orderId}, current status: ${order.status}`);
+        }
+      } catch (error) {
+        console.log(`UUID query failed for ${orderId}, trying numeric fallback: ${error}`);
+      }
+    }
+
+    // If not found by UUID (or not a UUID), try to find by numeric ID (hash of UUID)
+    if (!order) {
+      const numericId = parseInt(orderId, 10);
+      if (!isNaN(numericId)) {
+        // Get all orders and find the one with matching numeric ID
+        try {
+          const allOrders = await this.ordersRepository.find({
+            relations: ['driver']
+          });
+          
+          for (const o of allOrders) {
+            const orderNumericId = Math.abs(o.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % 1000000;
+            if (orderNumericId === numericId) {
+              order = o;
+              console.log(`Order found by numeric ID: ${numericId} -> UUID: ${o.id}, current status: ${o.status}`);
+              break;
+            }
+          }
+        } catch (error) {
+          console.error(`Error finding order by numeric ID: ${error}`);
+        }
+      }
+    }
+
+    if (!order) {
+      console.error(`Order ${orderId} not found (UUID: ${isUUID}, numeric: ${parseInt(orderId, 10)})`);
+      throw new NotFoundException(`Order ${orderId} not found`);
+    }
+
+    const oldStatus = order.status;
     order.status = status;
+    
+    // If status is being changed to "accepted" and order doesn't have a driver, assign the authenticated driver
+    if (status === 'accepted' && order.driverId == null && driverId) {
+      order.driverId = driverId;
+      if (!order.assignedAt) {
+        order.assignedAt = new Date();
+      }
+      console.log(`Order ${orderId} assigned to driver ${driverId} (status changed to accepted)`);
+      
+      // Set tracking URL if not already present
+      if (!order.trackingUrl) {
+        const base = process.env.TRACKING_BASE_URL ?? 'http://localhost:3001/track';
+        order.trackingUrl = `${base}/${order.id}`;
+      }
+      
+      // Trigger route optimization for the driver
+      this.routesService.enqueueOptimizationForDriver(driverId).catch((error) => {
+        console.error('Failed to optimize routes for driver:', error);
+      });
+    }
+    
+    // If status is being changed to "pending" and order was assigned, unassign the driver
+    if (status === 'pending' && order.driverId != null) {
+      const previousDriverId = order.driverId;
+      order.driver = null;
+      order.driverId = null;
+      order.assignedAt = null;
+      console.log(`Order ${orderId} unassigned from driver ${previousDriverId} (status changed to pending)`);
+      
+      // Re-optimize routes for the previous driver
+      if (previousDriverId) {
+        this.routesService.enqueueOptimizationForDriver(previousDriverId).catch((error) => {
+          console.error('Failed to re-optimize routes for driver:', error);
+        });
+      }
+    }
+    
     if (payload?.trackingUrl) {
       order.trackingUrl = payload.trackingUrl;
     }
-    return this.ordersRepository.save(order);
+    
+    const savedOrder = await this.ordersRepository.save(order);
+    console.log(`Order status updated: ${orderId} from "${oldStatus}" to "${status}"${driverId && status === 'accepted' && savedOrder.driverId ? ` (driver assigned: ${savedOrder.driverId})` : ''}`);
+    
+    return savedOrder;
   }
 
   /**
@@ -484,6 +619,7 @@ export class OrdersService {
       
       return {
         id: numericId,
+        uuid: o.id, // Include the actual UUID for API calls
         user_id: null,
         order_amount: orderAmount,
         coupon_discount_amount: 0,

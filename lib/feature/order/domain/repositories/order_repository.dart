@@ -341,19 +341,56 @@ class OrderRepository implements OrderRepositoryInterface {
   }
 
   @override
-  Future<ResponseModel> acceptOrder(int? orderID) async {
+  Future<ResponseModel> acceptOrder(int? orderID, {String? orderUuid}) async {
     ResponseModel responseModel;
-    // New backend endpoint expects: { orderId: string, driverId?: string }
+    // New backend endpoint expects: { orderId: string (UUID), driverId?: string }
     // driverId is optional as it can be extracted from JWT token
+    // Use UUID if provided, otherwise fall back to numeric ID (backend will handle conversion)
+    String orderIdToSend = orderUuid ?? orderID.toString();
     Response response = await apiClient.postData(
       AppConstants.acceptOrderUri, 
-      {'orderId': orderID.toString()}, 
+      {'orderId': orderIdToSend}, 
       handleError: false
     );
+    
+    debugPrint('====> acceptOrder Response: [${response.statusCode}] ${response.body}');
+    
     if (response.statusCode == 200 || response.statusCode == 201) {
-      responseModel = ResponseModel(true, response.body['message'] ?? 'Order assigned successfully');
+      // Parse response body safely
+      String message = 'Order assigned successfully';
+      if (response.body != null) {
+        if (response.body is Map) {
+          message = response.body['message'] ?? response.body['status'] ?? message;
+        } else if (response.body is String) {
+          try {
+            final parsed = jsonDecode(response.body);
+            if (parsed is Map) {
+              message = parsed['message'] ?? message;
+            }
+          } catch (e) {
+            message = response.body;
+          }
+        }
+      }
+      responseModel = ResponseModel(true, message);
     } else {
-      responseModel = ResponseModel(false, response.body['message'] ?? response.statusText);
+      // Handle error response
+      String errorMessage = 'Failed to accept order';
+      if (response.body != null) {
+        if (response.body is Map) {
+          errorMessage = response.body['message'] ?? response.body['error'] ?? response.statusText ?? errorMessage;
+          // Handle array of messages (validation errors)
+          if (response.body['message'] is List) {
+            errorMessage = (response.body['message'] as List).join(', ');
+          }
+        } else if (response.body is String) {
+          errorMessage = response.body;
+        }
+      } else {
+        errorMessage = response.statusText ?? errorMessage;
+      }
+      responseModel = ResponseModel(false, errorMessage);
+      debugPrint('====> acceptOrder Error: $errorMessage');
     }
     return responseModel;
   }
@@ -397,10 +434,42 @@ class OrderRepository implements OrderRepositoryInterface {
       {'status': status},
       handleError: false
     );
-    if (response.statusCode == 200) {
-      responseModel = ResponseModel(true, response.body['message'] ?? 'Status updated');
+    
+    debugPrint('====> updateOrderStatusNew Response: [${response.statusCode}] ${response.body}');
+    
+    // Handle both 200 and 201 status codes
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      // Parse response body safely
+      String message = 'Status updated';
+      if (response.body != null) {
+        if (response.body is Map) {
+          message = response.body['message'] ?? response.body['status'] ?? message;
+        } else if (response.body is String) {
+          try {
+            final parsed = jsonDecode(response.body);
+            if (parsed is Map) {
+              message = parsed['message'] ?? message;
+            }
+          } catch (e) {
+            message = response.body;
+          }
+        }
+      }
+      responseModel = ResponseModel(true, message);
     } else {
-      responseModel = ResponseModel(false, response.body['message'] ?? response.statusText);
+      // Handle error response
+      String errorMessage = 'Failed to update status';
+      if (response.body != null) {
+        if (response.body is Map) {
+          errorMessage = response.body['message'] ?? response.body['error'] ?? response.statusText ?? errorMessage;
+        } else if (response.body is String) {
+          errorMessage = response.body;
+        }
+      } else {
+        errorMessage = response.statusText ?? errorMessage;
+      }
+      responseModel = ResponseModel(false, errorMessage);
+      debugPrint('====> updateOrderStatusNew Error: $errorMessage');
     }
     return responseModel;
   }

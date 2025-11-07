@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, Request } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpException, HttpStatus, NotFoundException, Param, Post, Put, Query, Request } from '@nestjs/common';
 import { Roles } from '../auth/roles.decorator.js';
 import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt.guard.js';
@@ -161,7 +161,30 @@ export class OrdersController {
   @Put(':id/status')
   @UseGuards(JwtAuthGuard)
   async updateStatus(@Param('id') id: string, @Body() body: { status: string }, @Request() req: any) {
-    return this.ordersService.updateStatus(id, body.status);
+    try {
+      // Extract driver ID from JWT token for automatic assignment when status is "accepted"
+      const driverId = req?.user?.sub || req?.user?.driverId;
+      
+      const order = await this.ordersService.updateStatus(id, body.status, undefined, driverId);
+      return {
+        success: true,
+        message: `Order status updated to ${body.status}`,
+        order: {
+          id: order.id,
+          status: order.status,
+          driverId: order.driverId
+        }
+      };
+    } catch (error: any) {
+      console.error(`Error updating order status: ${error.message}`);
+      if (error instanceof NotFoundException) {
+        throw error; // Let NestJS handle 404
+      }
+      throw new HttpException(
+        `Failed to update order status: ${error.message || 'Internal server error'}`,
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
   }
 
   @Delete(':id')

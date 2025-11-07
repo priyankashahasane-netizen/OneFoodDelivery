@@ -239,9 +239,15 @@ class OrderRequestWidget extends StatelessWidget {
                             description: 'are_you_sure_want_to_reject_this_order'.tr,
                             confirmButtonText: 'reject'.tr,
                             onConfirm: (){
+                              // Close the bottom sheet immediately when user confirms
+                              try {
+                                Get.back();
+                              } catch (_) {
+                                // Bottom sheet already closed, ignore
+                              }
+                              
                               orderController.rejectOrder(orderModel.id, index).then((isSuccess) {
                                 if(isSuccess) {
-                                  Get.back();
                                   // Refresh assigned orders list
                                   orderController.getAssignedOrders();
                                 }
@@ -269,8 +275,14 @@ class OrderRequestWidget extends StatelessWidget {
                             description: 'are_you_sure_want_to_ignore_this_order'.tr,
                             confirmButtonText: 'ignore'.tr,
                             onConfirm: (){
+                              // Close the bottom sheet immediately when user confirms
+                              try {
+                                Get.back();
+                              } catch (_) {
+                                // Bottom sheet already closed, ignore
+                              }
+                              
                               orderController.ignoreOrder(index);
-                              Get.back();
                               showCustomSnackBar('order_ignored'.tr, isError: false);
                             },
                           ),
@@ -301,16 +313,40 @@ class OrderRequestWidget extends StatelessWidget {
                           child: CustomConfirmationBottomSheet(
                             title: 'accept_this_order'.tr,
                             description: 'make_sure_your_availability_to_deliver_this_order_on_time_before_accept'.tr,
-                            onConfirm: (){
+                            onConfirm: () async {
+                              // Close the bottom sheet immediately when user confirms
+                              try {
+                                Get.back();
+                              } catch (_) {
+                                // Bottom sheet already closed, ignore
+                              }
+                              
                               if (isAssigned) {
-                                // For assigned orders, accept directly (status is already assigned)
-                                orderController.acceptOrder(orderModel.id, index, orderModel).then((isSuccess) {
+                                // For assigned orders, update status to "accepted"
+                                try {
+                                  // Use UUID if available, otherwise use numeric ID
+                                  String? orderIdToUse = orderModel.uuid ?? orderModel.id?.toString();
+                                  bool isSuccess = await orderController.acceptAssignedOrder(orderModel.id, index, orderIdToUse);
                                   if(isSuccess) {
                                     onTap();
-                                    orderModel.orderStatus = 'accepted';
-                                    Get.back();
-                                    // Refresh assigned orders list
-                                    orderController.getAssignedOrders();
+                                    // Navigate to order details
+                                    Get.toNamed(
+                                      RouteHelper.getOrderDetailsRoute(orderModel.id),
+                                      arguments: OrderDetailsScreen(
+                                        orderId: orderModel.id, isRunningOrder: true, orderIndex: orderController.currentOrderList?.length ?? 0,
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  debugPrint('Error accepting assigned order: $e');
+                                }
+                              } else {
+                                // For available orders, use existing flow
+                                try {
+                                  bool isSuccess = await orderController.acceptOrder(orderModel.id, index, orderModel);
+                                  if(isSuccess) {
+                                    onTap();
+                                    orderModel.orderStatus = (orderModel.orderStatus == 'pending' || orderModel.orderStatus == 'confirmed') ? 'accepted' : orderModel.orderStatus;
                                     Get.toNamed(
                                       RouteHelper.getOrderDetailsRoute(orderModel.id),
                                       arguments: OrderDetailsScreen(
@@ -318,26 +354,11 @@ class OrderRequestWidget extends StatelessWidget {
                                       ),
                                     );
                                   } else {
-                                    orderController.getAssignedOrders();
-                                  }
-                                });
-                              } else {
-                                // For available orders, use existing flow
-                                orderController.acceptOrder(orderModel.id, index, orderModel).then((isSuccess) {
-                                  if(isSuccess) {
-                                    onTap();
-                                    orderModel.orderStatus = (orderModel.orderStatus == 'pending' || orderModel.orderStatus == 'confirmed') ? 'accepted' : orderModel.orderStatus;
-                                    Get.back();
-                                    Get.toNamed(
-                                      RouteHelper.getOrderDetailsRoute(orderModel.id),
-                                      arguments: OrderDetailsScreen(
-                                        orderId: orderModel.id, isRunningOrder: true, orderIndex: orderController.currentOrderList!.length-1,
-                                      ),
-                                    );
-                                  }else {
                                     orderController.getLatestOrders();
                                   }
-                                });
+                                } catch (e) {
+                                  debugPrint('Error accepting order: $e');
+                                }
                               }
                             },
                           ),

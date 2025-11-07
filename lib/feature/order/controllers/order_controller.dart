@@ -362,10 +362,13 @@ class OrderController extends GetxController implements GetxService {
       }
       
       if (driverId != null && driverId.isNotEmpty) {
-        // Get active orders and filter for assigned status
+        // Get active orders and filter for assigned status only (accepted orders should appear in Running Orders)
         List<OrderModel>? activeOrders = await orderServiceInterface.getActiveOrders(driverId);
         if (activeOrders != null) {
-          _assignedOrderList = activeOrders.where((order) => order.orderStatus?.toLowerCase().trim() == 'assigned').toList();
+          _assignedOrderList = activeOrders.where((order) {
+            final status = order.orderStatus?.toLowerCase().trim();
+            return status == 'assigned';
+          }).toList();
         } else {
           _assignedOrderList = [];
         }
@@ -394,15 +397,21 @@ class OrderController extends GetxController implements GetxService {
       
       // Use status update to change order back to pending (effectively unassigns it)
       String orderId = orderUuid ?? orderID.toString();
+      debugPrint('====> Rejecting order with ID: $orderId (UUID: ${orderUuid != null}, numeric: ${orderID?.toString()})');
       ResponseModel responseModel = await orderServiceInterface.updateOrderStatusNew(orderId, 'pending');
+      
+      debugPrint('====> Reject order response: success=${responseModel.isSuccess}, message=${responseModel.message}');
       
       if(responseModel.isSuccess) {
         // Remove from assigned orders list
         if (_assignedOrderList != null && index < _assignedOrderList!.length) {
           _assignedOrderList!.removeAt(index);
         }
+        // Refresh assigned orders list to get updated data
+        await getAssignedOrders();
         showCustomSnackBar('Order rejected successfully', isError: false);
       } else {
+        debugPrint('====> Failed to reject order: ${responseModel.message}');
         showCustomSnackBar(responseModel.message, isError: true);
       }
       
@@ -410,10 +419,10 @@ class OrderController extends GetxController implements GetxService {
       update();
       return responseModel.isSuccess;
     } catch (e) {
-      debugPrint('Error rejecting order: $e');
+      debugPrint('====> Exception rejecting order: $e');
       _isLoading = false;
       update();
-      showCustomSnackBar('Failed to reject order', isError: true);
+      showCustomSnackBar('Failed to reject order: ${e.toString()}', isError: true);
       return false;
     }
   }
@@ -440,6 +449,53 @@ class OrderController extends GetxController implements GetxService {
     _isLoading = false;
     update();
     return responseModel.isSuccess;
+  }
+
+  /// Accept an assigned order by updating its status to "accepted"
+  Future<bool> acceptAssignedOrder(int? orderId, int index, [String? orderIdStr]) async {
+    _isLoading = true;
+    update();
+    
+    try {
+      // Use provided orderIdStr if available, otherwise try to get UUID from list
+      String? orderUuid = orderIdStr;
+      if (orderUuid == null && _assignedOrderList != null && index < _assignedOrderList!.length) {
+        orderUuid = _assignedOrderList![index].uuid;
+      }
+      
+      // Use UUID if available, otherwise fall back to numeric ID
+      String finalOrderId = orderUuid ?? orderId.toString();
+      
+      // Use updateOrderStatusNew which accepts string (UUID or numeric ID)
+      debugPrint('====> Accepting order with ID: $finalOrderId (UUID: ${orderUuid != null}, numeric: ${orderId?.toString()})');
+      ResponseModel responseModel = await orderServiceInterface.updateOrderStatusNew(finalOrderId, 'accepted');
+      
+      debugPrint('====> Accept order response: success=${responseModel.isSuccess}, message=${responseModel.message}');
+      
+      if(responseModel.isSuccess) {
+        // Remove from assigned orders list
+        if (_assignedOrderList != null && index < _assignedOrderList!.length) {
+          _assignedOrderList!.removeAt(index);
+        }
+        // Refresh assigned orders list to get updated data
+        await getAssignedOrders();
+        // Refresh running orders to show the accepted order in Running Order page
+        await getCurrentOrders(status: selectedRunningOrderStatus ?? 'all');
+        showCustomSnackBar(responseModel.message, isError: false);
+      } else {
+        debugPrint('====> Failed to accept order: ${responseModel.message}');
+        showCustomSnackBar(responseModel.message, isError: true);
+      }
+      _isLoading = false;
+      update();
+      return responseModel.isSuccess;
+    } catch (e) {
+      debugPrint('====> Exception accepting assigned order: $e');
+      _isLoading = false;
+      update();
+      showCustomSnackBar('Failed to accept order: ${e.toString()}', isError: true);
+      return false;
+    }
   }
 
   Future<void> getOrderDetails(dynamic orderID) async {
@@ -517,10 +573,51 @@ class OrderController extends GetxController implements GetxService {
       print('Could not check capacity: $e');
     }
     
-    ResponseModel responseModel = await orderServiceInterface.acceptOrder(orderID);
-    Get.back();
+    // Get order UUID before calling acceptOrder
+    String? orderUuid = orderModel.uuid;
+    
+    // If UUID not available, try to find it from the latestOrderList
+    if (orderUuid == null || orderUuid.isEmpty) {
+      if (_latestOrderList != null && index < _latestOrderList!.length) {
+        final orderFromList = _latestOrderList![index];
+        orderUuid = orderFromList.uuid;
+        debugPrint('====> Got UUID from latestOrderList before acceptOrder: $orderUuid');
+      }
+    }
+    
+    // Call acceptOrder with UUID if available
+    debugPrint('====> Calling acceptOrder with orderID: $orderID, UUID: $orderUuid');
+    ResponseModel responseModel = await orderServiceInterface.acceptOrder(orderID, orderUuid: orderUuid);
     
     if(responseModel.isSuccess) {
+      // Update status to "accepted" after assignment
+      // Use UUID if we have it, otherwise the backend will handle numeric ID
+      if (orderUuid != null && orderUuid.isNotEmpty) {
+        debugPrint('====> Updating order status to accepted: $orderUuid');
+        ResponseModel statusResponse = await orderServiceInterface.updateOrderStatusNew(orderUuid, 'accepted');
+        if (statusResponse.isSuccess) {
+          debugPrint('====> Order status updated to accepted successfully');
+          // Update the order model status locally
+          orderModel.orderStatus = 'accepted';
+        } else {
+          debugPrint('====> Failed to update order status to accepted: ${statusResponse.message}');
+          // Still update locally since assignment was successful
+          orderModel.orderStatus = 'accepted';
+        }
+      } else {
+        debugPrint('====> UUID not available, trying to update status with numeric ID: $orderID');
+        // Try with numeric ID as fallback (backend should handle it)
+        ResponseModel statusResponse = await orderServiceInterface.updateOrderStatusNew(orderID.toString(), 'accepted');
+        if (statusResponse.isSuccess) {
+          debugPrint('====> Order status updated to accepted successfully (using numeric ID)');
+          orderModel.orderStatus = 'accepted';
+        } else {
+          debugPrint('====> Failed to update order status: ${statusResponse.message}');
+          // Still update locally since assignment was successful
+          orderModel.orderStatus = 'accepted';
+        }
+      }
+      
       if (_latestOrderList != null && _latestOrderList!.isNotEmpty && index < _latestOrderList!.length) {
         _latestOrderList!.removeAt(index);
       }
@@ -528,6 +625,9 @@ class OrderController extends GetxController implements GetxService {
         _currentOrderList = [];
       }
       _currentOrderList!.add(orderModel);
+      
+      // Refresh assigned orders list to include the newly accepted order
+      await getAssignedOrders();
       
       // Trigger route optimization after accepting order
       _optimizeRouteForActiveOrders();

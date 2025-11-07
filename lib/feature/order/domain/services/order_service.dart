@@ -44,8 +44,8 @@ class OrderService implements OrderServiceInterface {
   }
 
   @override
-  Future<ResponseModel> acceptOrder(int? orderID) async {
-    return await orderRepositoryInterface.acceptOrder(orderID);
+  Future<ResponseModel> acceptOrder(int? orderID, {String? orderUuid}) async {
+    return await orderRepositoryInterface.acceptOrder(orderID, orderUuid: orderUuid);
   }
 
   @override

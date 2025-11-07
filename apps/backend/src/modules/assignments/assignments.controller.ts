@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Request } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Post, Request } from '@nestjs/common';
 import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt.guard.js';
 
@@ -12,10 +12,16 @@ export class AssignmentsController {
   @Post('assign')
   @UseGuards(JwtAuthGuard)
   async assign(@Body() payload: AssignOrderDto, @Request() req: any) {
-    // If driverId not provided, use authenticated driver
+    // If driverId not provided, use authenticated driver from JWT token
     if (!payload.driverId) {
       payload.driverId = req.user?.sub || req.user?.driverId;
     }
+    
+    // Ensure driverId is set (should be from JWT if not provided)
+    if (!payload.driverId) {
+      throw new BadRequestException('Driver ID is required. Please ensure you are authenticated.');
+    }
+    
     return this.assignmentsService.assign(payload);
   }
 }

@@ -44,6 +44,7 @@ export default function OrdersPage() {
     'created',
     'pending',
     'assigned',
+    'accepted',
     'picked_up',
     'delivered',
     'cancelled', // Backend will match both 'cancelled' and 'canceled'
@@ -317,11 +318,13 @@ export default function OrdersPage() {
                         background: o.status === 'delivered' ? '#d1fae5' : 
                                     o.status === 'cancelled' || o.status === 'canceled' ? '#fee2e2' :
                                     o.status === 'assigned' ? '#dbeafe' :
+                                    o.status === 'accepted' ? '#dcfce7' :
                                     o.status === 'picked_up' ? '#fef3c7' :
                                     '#f3f4f6',
                         color: o.status === 'delivered' ? '#065f46' :
                                o.status === 'cancelled' || o.status === 'canceled' ? '#991b1b' :
                                o.status === 'assigned' ? '#1e40af' :
+                               o.status === 'accepted' ? '#166534' :
                                o.status === 'picked_up' ? '#92400e' :
                                '#374151'
                       }}>

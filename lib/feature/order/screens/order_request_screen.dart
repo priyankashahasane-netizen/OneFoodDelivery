@@ -68,26 +68,72 @@ class OrderRequestScreenState extends State<OrderRequestScreen> {
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
               // Assigned Orders Section
-              if (hasAssignedOrders) ...[
+              if (orderController.isLoadingAssignedOrders || hasAssignedOrders || (orderController.assignedOrderList != null && orderController.assignedOrderList!.isEmpty)) ...[
                 Padding(
                   padding: const EdgeInsets.only(bottom: Dimensions.paddingSizeDefault),
-                  child: Text(
-                    'assigned_orders'.tr,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'assigned_orders'.tr,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (orderController.isLoadingAssignedOrders)
+                        const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      else if (hasAssignedOrders)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeSmall, vertical: Dimensions.paddingSizeExtraSmall),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).primaryColor,
+                            borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+                          ),
+                          child: Text(
+                            '${orderController.assignedOrderList!.length}',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-                ...orderController.assignedOrderList!.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final order = entry.value;
-                  return OrderRequestWidget(
-                    orderModel: order,
-                    index: index,
-                    onTap: widget.onTap,
-                    isAssigned: true,
-                  );
-                }).toList(),
+                if (orderController.isLoadingAssignedOrders)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(Dimensions.paddingSizeLarge),
+                      child: CircularProgressIndicator(),
+                    ),
+                  )
+                else if (hasAssignedOrders)
+                  ...orderController.assignedOrderList!.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final order = entry.value;
+                    return OrderRequestWidget(
+                      orderModel: order,
+                      index: index,
+                      onTap: widget.onTap,
+                      isAssigned: true,
+                    );
+                  }).toList()
+                else if (orderController.assignedOrderList != null && orderController.assignedOrderList!.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
+                    child: Center(
+                      child: Text(
+                        'no_assigned_orders'.tr,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).hintColor,
+                        ),
+                      ),
+                    ),
+                  ),
                 const SizedBox(height: Dimensions.paddingSizeLarge),
               ],
 
@@ -95,11 +141,30 @@ class OrderRequestScreenState extends State<OrderRequestScreen> {
               if (hasAvailableOrders) ...[
                 Padding(
                   padding: const EdgeInsets.only(bottom: Dimensions.paddingSizeDefault),
-                  child: Text(
-                    'available_orders'.tr,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'available_orders'.tr,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeSmall, vertical: Dimensions.paddingSizeExtraSmall),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).primaryColor,
+                          borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+                        ),
+                        child: Text(
+                          '${orderController.latestOrderList!.length}',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 ...orderController.latestOrderList!.asMap().entries.map((entry) {

@@ -87,12 +87,32 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 if (isLoading || hasAssignedOrders || (notificationController.assignedOrdersList != null && notificationController.assignedOrdersList!.isEmpty)) ...[
                   Padding(
                     padding: const EdgeInsets.only(bottom: Dimensions.paddingSizeDefault),
-                    child: Text(
-                      'assigned_orders'.tr,
-                      style: robotoBold.copyWith(
-                        fontSize: Dimensions.fontSizeLarge,
-                        color: Theme.of(context).textTheme.bodyLarge?.color,
-                      ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'assigned_orders'.tr,
+                          style: robotoBold.copyWith(
+                            fontSize: Dimensions.fontSizeLarge,
+                            color: Theme.of(context).textTheme.bodyLarge?.color,
+                          ),
+                        ),
+                        if (notificationController.assignedOrdersList != null && notificationController.assignedOrdersList!.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeSmall, vertical: Dimensions.paddingSizeExtraSmall),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).primaryColor,
+                              borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+                            ),
+                            child: Text(
+                              '${notificationController.assignedOrdersList!.length}',
+                              style: robotoBold.copyWith(
+                                fontSize: Dimensions.fontSizeDefault,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                   if (isLoading)

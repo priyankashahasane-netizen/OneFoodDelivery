@@ -206,7 +206,7 @@ class NotificationRepository implements NotificationRepositoryInterface{
           debugPrint('  - Order ID: ${order.id}, Status: "${order.orderStatus}", UUID: ${order.uuid}');
         }
         
-        // Filter for orders with status "assigned"
+        // Filter for orders with status "assigned" only (accepted orders should appear in Running Orders)
         assignedOrdersList = allOrders.where((order) {
           final status = order.orderStatus?.toLowerCase().trim();
           final isAssigned = status == 'assigned';
