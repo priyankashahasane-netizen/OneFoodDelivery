@@ -483,16 +483,63 @@ export class OrdersService {
    * Get raw active orders (OrderEntity) for internal use (e.g., route optimization)
    */
   async getActiveOrdersByDriverRaw(driverId: string): Promise<OrderEntity[]> {
-    return this.ordersRepository
+    // Exclude completed statuses - handle both 'canceled' and 'cancelled' spellings
+    const excludedStatuses = ['delivered', 'canceled', 'cancelled', 'failed', 'refunded', 'refund_requested', 'refund_request_canceled'];
+    
+    // First, let's check what orders exist for this driver (for debugging)
+    const allDriverOrders = await this.ordersRepository
       .createQueryBuilder('order')
       .where('order.driverId = :driverId', { driverId })
-      .andWhere('order.status NOT IN (:...statuses)', { statuses: ['delivered', 'canceled', 'failed', 'refunded', 'refund_requested', 'refund_request_canceled'] })
+      .getMany();
+    
+    console.log(`getActiveOrdersByDriverRaw: Total orders for driver ${driverId}: ${allDriverOrders.length}`);
+    if (allDriverOrders.length > 0) {
+      const statusBreakdown = allDriverOrders.reduce((acc, o) => {
+        const status = o.status?.toLowerCase() || 'null';
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      console.log(`getActiveOrdersByDriverRaw: Status breakdown for driver:`, statusBreakdown);
+    }
+    
+    const orders = await this.ordersRepository
+      .createQueryBuilder('order')
+      .where('order.driverId = :driverId', { driverId })
+      .andWhere('LOWER(order.status) NOT IN (:...statuses)', { 
+        statuses: excludedStatuses.map(s => s.toLowerCase())
+      })
       .orderBy('order.assignedAt', 'DESC')
       .getMany();
+    
+    // Debug logging
+    console.log(`getActiveOrdersByDriverRaw: Found ${orders.length} active orders for driver ${driverId} (after excluding final statuses)`);
+    if (orders.length > 0) {
+      const statusBreakdown = orders.reduce((acc, o) => {
+        const status = o.status?.toLowerCase() || 'null';
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      console.log(`getActiveOrdersByDriverRaw: Active order status breakdown:`, statusBreakdown);
+      const orderIds = orders.map(o => `${o.id.substring(0, 8)}:${o.status}`).join(', ');
+      console.log(`getActiveOrdersByDriverRaw: Order IDs and statuses: ${orderIds}`);
+    } else if (allDriverOrders.length > 0) {
+      console.warn(`getActiveOrdersByDriverRaw: WARNING - Driver has ${allDriverOrders.length} orders but ${orders.length} active orders. All orders may be in excluded statuses.`);
+    }
+    
+    return orders;
   }
 
   async getActiveOrdersByDriver(driverId: string) {
     const orders = await this.getActiveOrdersByDriverRaw(driverId);
+    
+    console.log(`getActiveOrdersByDriver: Transforming ${orders.length} orders for driver ${driverId}`);
+    if (orders.length > 0) {
+      const statusBreakdown = orders.reduce((acc, o) => {
+        acc[o.status] = (acc[o.status] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      console.log(`getActiveOrdersByDriver: Status breakdown:`, statusBreakdown);
+    }
 
     // Transform orders to match Flutter app's expected format
     const transformedOrders = orders.map((o) => {
@@ -707,8 +754,12 @@ export class OrdersService {
     const limit = options.limit || 10;
     const status = options.status || 'all';
 
-    // Define completed order statuses
-    const completedStatuses = ['delivered', 'canceled', 'refund_requested', 'refunded', 'refund_request_canceled'];
+    // Define all order statuses for My Orders page
+    // Includes both active statuses and completed statuses
+    const allMyOrderStatuses = [
+      'accepted', 'confirmed', 'processing', 'handover', 'picked_up', 'in_transit',
+      'delivered', 'canceled', 'refund_requested', 'refunded', 'refund_request_canceled'
+    ];
 
     const qb = this.ordersRepository
       .createQueryBuilder('order')
@@ -719,8 +770,8 @@ export class OrdersService {
     if (status !== 'all') {
       qb.andWhere('order.status = :status', { status });
     } else {
-      // For 'all', only show completed statuses
-      qb.andWhere('order.status IN (:...statuses)', { statuses: completedStatuses });
+      // For 'all', show all statuses (both active and completed)
+      qb.andWhere('order.status IN (:...statuses)', { statuses: allMyOrderStatuses });
     }
 
     // Get total count for pagination
@@ -732,8 +783,12 @@ export class OrdersService {
 
     const orders = await qb.getMany();
 
-    // Get counts for each status
-    const countPromises = completedStatuses.map(async (s) => {
+    // Get counts for each status in the order they appear in the UI
+    const statusesForCount = [
+      'accepted', 'confirmed', 'processing', 'handover', 'picked_up', 'in_transit',
+      'delivered', 'canceled', 'refund_requested', 'refunded', 'refund_request_canceled'
+    ];
+    const countPromises = statusesForCount.map(async (s) => {
       const count = await this.ordersRepository.count({
         where: { driverId, status: s }
       });
@@ -743,7 +798,7 @@ export class OrdersService {
     const allCount = await this.ordersRepository
       .createQueryBuilder('order')
       .where('order.driverId = :driverId', { driverId })
-      .andWhere('order.status IN (:...statuses)', { statuses: completedStatuses })
+      .andWhere('order.status IN (:...statuses)', { statuses: allMyOrderStatuses })
       .getCount();
 
     const statusCounts = await Promise.all(countPromises);
@@ -839,6 +894,12 @@ export class OrdersService {
       offset: offset.toString(),
       order_count: {
         all: allCount,
+        accepted: statusCounts.find((c) => c.status === 'accepted')?.count || 0,
+        confirmed: statusCounts.find((c) => c.status === 'confirmed')?.count || 0,
+        processing: statusCounts.find((c) => c.status === 'processing')?.count || 0,
+        handover: statusCounts.find((c) => c.status === 'handover')?.count || 0,
+        picked_up: statusCounts.find((c) => c.status === 'picked_up')?.count || 0,
+        in_transit: statusCounts.find((c) => c.status === 'in_transit')?.count || 0,
         delivered: statusCounts.find((c) => c.status === 'delivered')?.count || 0,
         canceled: statusCounts.find((c) => c.status === 'canceled')?.count || 0,
         refund_requested: statusCounts.find((c) => c.status === 'refund_requested')?.count || 0,

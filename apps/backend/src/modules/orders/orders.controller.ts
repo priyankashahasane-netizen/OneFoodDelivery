@@ -18,6 +18,7 @@ export class OrdersController {
   ) {}
 
   @Get()
+  @UseGuards(JwtAuthGuard)
   @Roles('admin', 'dispatcher', 'support')
   async list(@Query() filters: ListOrdersDto) {
     return this.ordersService.listOrders(filters);
@@ -119,12 +120,14 @@ export class OrdersController {
   }
 
   @Get(':id')
+  @UseGuards(JwtAuthGuard)
   @Roles('admin', 'dispatcher', 'support')
   async getById(@Param('id') id: string) {
     return this.ordersService.findById(id);
   }
 
   @Get(':id/sla')
+  @UseGuards(JwtAuthGuard)
   @Roles('admin', 'dispatcher', 'support')
   async getSla(@Param('id') id: string) {
     const o = await this.ordersService.findById(id);
@@ -135,24 +138,28 @@ export class OrdersController {
   }
 
   @Post()
+  @UseGuards(JwtAuthGuard)
   @Roles('admin', 'dispatcher')
   async create(@Body() payload: UpsertOrderDto) {
     return this.ordersService.create(payload);
   }
 
   @Put(':id')
+  @UseGuards(JwtAuthGuard)
   @Roles('admin', 'dispatcher')
   async upsert(@Param('id') id: string, @Body() payload: UpsertOrderDto) {
     return this.ordersService.upsert(id, payload);
   }
 
   @Put(':id/assign')
+  @UseGuards(JwtAuthGuard)
   @Roles('admin', 'dispatcher')
   async assign(@Param('id') id: string, @Body() payload: AssignOrderDto) {
     return this.ordersService.assignDriver(id, payload.driverId);
   }
 
   @Put(':id/unassign')
+  @UseGuards(JwtAuthGuard)
   @Roles('admin', 'dispatcher')
   async unassign(@Param('id') id: string) {
     return this.ordersService.unassignDriver(id);
@@ -188,6 +195,7 @@ export class OrdersController {
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard)
   @Roles('admin', 'dispatcher')
   async delete(@Param('id') id: string) {
     return this.ordersService.delete(id);

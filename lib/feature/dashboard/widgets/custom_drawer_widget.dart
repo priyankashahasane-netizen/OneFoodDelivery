@@ -115,19 +115,19 @@ class CustomDrawerWidget extends StatelessWidget {
                   _DrawerMenuItem(
                     icon: Icons.delivery_dining,
                     title: 'orders'.tr,
-                    isSelected: currentPageIndex == 3,
+                    isSelected: currentPageIndex == 2,
                     onTap: () {
                       Navigator.pop(context);
-                      onPageChange(3);
+                      onPageChange(2);
                     },
                   ),
                   _DrawerMenuItem(
                     icon: Icons.person,
                     title: 'profile'.tr,
-                    isSelected: currentPageIndex == 4,
+                    isSelected: currentPageIndex == 3,
                     onTap: () {
                       Navigator.pop(context);
-                      onPageChange(4);
+                      onPageChange(3);
                     },
                   ),
                   GetBuilder<ProfileController>(

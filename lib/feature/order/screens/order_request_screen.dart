@@ -23,11 +23,17 @@ class OrderRequestScreenState extends State<OrderRequestScreen> {
     super.initState();
 
     final orderController = Get.find<OrderController>();
-    orderController.getLatestOrders();
-    orderController.getAssignedOrders();
+    // Run both API calls in parallel for faster initial load
+    Future.wait([
+      orderController.getLatestOrders(),
+      orderController.getAssignedOrders(),
+    ]);
     _timer = Timer.periodic(const Duration(seconds: 10), (timer) {
-      orderController.getLatestOrders();
-      orderController.getAssignedOrders();
+      // Run both API calls in parallel
+      Future.wait([
+        orderController.getLatestOrders(),
+        orderController.getAssignedOrders(),
+      ]);
     });
   }
 
@@ -45,9 +51,17 @@ class OrderRequestScreenState extends State<OrderRequestScreen> {
       appBar: CustomAppBarWidget(title: 'order_request'.tr, isBackButtonExist: false),
 
       body: GetBuilder<OrderController>(builder: (orderController) {
-        final hasAvailableOrders = orderController.latestOrderList != null && orderController.latestOrderList!.isNotEmpty;
-        final hasAssignedOrders = orderController.assignedOrderList != null && orderController.assignedOrderList!.isNotEmpty;
-        final isLoading = orderController.latestOrderList == null || orderController.isLoadingAssignedOrders;
+        // Cache filtered lists to avoid recalculating on every rebuild
+        // Filter orders to show only those with status "pending" in Available Orders section
+        final latestOrderList = orderController.latestOrderList;
+        final assignedOrderList = orderController.assignedOrderList;
+        final pendingOrders = latestOrderList?.where((order) => order.orderStatus == 'pending').toList() ?? [];
+        final hasAvailableOrders = pendingOrders.isNotEmpty;
+        // Filter orders to show only those with status "assigned" in Assigned Orders section
+        // Note: assignedOrderList is already filtered in getAssignedOrders(), but double-check for safety
+        final assignedOrders = assignedOrderList?.where((order) => order.orderStatus == 'assigned').toList() ?? [];
+        final hasAssignedOrders = assignedOrders.isNotEmpty;
+        final isLoading = latestOrderList == null || orderController.isLoadingAssignedOrders;
         final hasAnyOrders = hasAvailableOrders || hasAssignedOrders;
 
         if (isLoading && !hasAnyOrders) {
@@ -60,15 +74,18 @@ class OrderRequestScreenState extends State<OrderRequestScreen> {
 
         return RefreshIndicator(
           onRefresh: () async {
-            await Get.find<OrderController>().getLatestOrders();
-            await Get.find<OrderController>().getAssignedOrders();
+            // Run both API calls in parallel for faster refresh
+            await Future.wait([
+              Get.find<OrderController>().getLatestOrders(),
+              Get.find<OrderController>().getAssignedOrders(),
+            ]);
           },
           child: ListView(
             padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
               // Assigned Orders Section
-              if (orderController.isLoadingAssignedOrders || hasAssignedOrders || (orderController.assignedOrderList != null && orderController.assignedOrderList!.isEmpty)) ...[
+              if (orderController.isLoadingAssignedOrders || hasAssignedOrders || (orderController.assignedOrderList != null && assignedOrders.isEmpty)) ...[
                 Padding(
                   padding: const EdgeInsets.only(bottom: Dimensions.paddingSizeDefault),
                   child: Row(
@@ -94,7 +111,7 @@ class OrderRequestScreenState extends State<OrderRequestScreen> {
                             borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
                           ),
                           child: Text(
-                            '${orderController.assignedOrderList!.length}',
+                            '${assignedOrders.length}',
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
@@ -112,7 +129,7 @@ class OrderRequestScreenState extends State<OrderRequestScreen> {
                     ),
                   )
                 else if (hasAssignedOrders)
-                  ...orderController.assignedOrderList!.asMap().entries.map((entry) {
+                  ...assignedOrders.asMap().entries.map((entry) {
                     final index = entry.key;
                     final order = entry.value;
                     return OrderRequestWidget(
@@ -122,7 +139,7 @@ class OrderRequestScreenState extends State<OrderRequestScreen> {
                       isAssigned: true,
                     );
                   }).toList()
-                else if (orderController.assignedOrderList != null && orderController.assignedOrderList!.isEmpty)
+                else if (orderController.assignedOrderList != null && assignedOrders.isEmpty)
                   Padding(
                     padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
                     child: Center(
@@ -157,7 +174,7 @@ class OrderRequestScreenState extends State<OrderRequestScreen> {
                           borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
                         ),
                         child: Text(
-                          '${orderController.latestOrderList!.length}',
+                          '${pendingOrders.length}',
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -167,7 +184,7 @@ class OrderRequestScreenState extends State<OrderRequestScreen> {
                     ],
                   ),
                 ),
-                ...orderController.latestOrderList!.asMap().entries.map((entry) {
+                ...pendingOrders.asMap().entries.map((entry) {
                   final index = entry.key;
                   final order = entry.value;
                   return OrderRequestWidget(

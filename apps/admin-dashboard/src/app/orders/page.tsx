@@ -6,7 +6,15 @@ import useSWR from 'swr';
 import RequireAuth from '../../components/RequireAuth';
 import { authedFetch } from '../../lib/auth';
 
-const fetcher = (url: string) => authedFetch(url).then((r) => r.json());
+const fetcher = async (url: string) => {
+  try {
+    const response = await authedFetch(url);
+    return await response.json();
+  } catch (error: any) {
+    console.error('Fetcher error:', error);
+    throw error;
+  }
+};
 
 export default function OrdersPage() {
   const router = useRouter();
@@ -32,7 +40,7 @@ export default function OrdersPage() {
   }, [filters]);
 
   const apiUrl = `/api/orders?${queryString}`;
-  const { data, mutate, isLoading } = useSWR(apiUrl, fetcher);
+  const { data, mutate, isLoading, error } = useSWR(apiUrl, fetcher);
   
   // Fetch total count without filters for display
   const { data: totalData } = useSWR('/api/orders?pageSize=1', fetcher);
@@ -45,12 +53,15 @@ export default function OrdersPage() {
     'pending',
     'assigned',
     'accepted',
+    'confirmed',
+    'processing',
+    'handover',
     'picked_up',
+    'in_transit',
     'delivered',
     'cancelled', // Backend will match both 'cancelled' and 'canceled'
-    'failed',
-    'refunded',
     'refund_requested',
+    'refunded',
     'refund_request_canceled'
   ];
 
@@ -280,6 +291,11 @@ export default function OrdersPage() {
         </div>
       {isLoading ? (
         <p>Loading…</p>
+      ) : error ? (
+        <div style={{ padding: 16, background: '#fee2e2', borderRadius: 8, color: '#991b1b' }}>
+          <strong>Error loading orders:</strong> {error.message || 'Unknown error'}
+          <pre style={{ marginTop: 8, fontSize: 12, overflow: 'auto' }}>{JSON.stringify(error, null, 2)}</pre>
+        </div>
       ) : (
         <>
           {hasActiveFilters && (
@@ -287,21 +303,27 @@ export default function OrdersPage() {
               Showing {filteredCount} of {totalOrders} orders {hasActiveFilters && '(filtered)'}
             </div>
           )}
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 1000 }}>
-              <thead>
-                <tr style={{ background: '#f9fafb' }}>
-                  <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Ref</th>
-                  <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Status</th>
-                  <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Payment</th>
-                  <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Pickup</th>
-                  <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Dropoff</th>
-                  <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Driver</th>
-                  <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151', minWidth: 300 }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data?.items?.map((o: any) => (
+          {!data?.items || data.items.length === 0 ? (
+            <div style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>
+              <p>No orders found.</p>
+              {data && <pre style={{ marginTop: 8, fontSize: 12, textAlign: 'left', background: '#f3f4f6', padding: 12, borderRadius: 4, overflow: 'auto' }}>{JSON.stringify(data, null, 2)}</pre>}
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 1000 }}>
+                <thead>
+                  <tr style={{ background: '#f9fafb' }}>
+                    <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Ref</th>
+                    <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Status</th>
+                    <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Payment</th>
+                    <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Pickup</th>
+                    <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Dropoff</th>
+                    <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Driver</th>
+                    <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151', minWidth: 300 }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data?.items?.map((o: any) => (
                   <tr key={o.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
                     <td style={{ padding: '12px 8px', verticalAlign: 'middle' }}>
                       <span style={{ fontSize: 14, color: '#111827' }}>
@@ -441,10 +463,11 @@ export default function OrdersPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       )}
       </main>

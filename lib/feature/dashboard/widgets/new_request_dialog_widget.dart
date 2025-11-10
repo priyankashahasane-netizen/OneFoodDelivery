@@ -21,6 +21,7 @@ class NewRequestDialogWidget extends StatefulWidget {
 class _NewRequestDialogWidgetState extends State<NewRequestDialogWidget> {
 
   Timer? _timer;
+  AudioPlayer? _audioPlayer;
 
   @override
   void initState() {
@@ -35,15 +36,16 @@ class _NewRequestDialogWidgetState extends State<NewRequestDialogWidget> {
     super.dispose();
 
     _timer?.cancel();
+    _audioPlayer?.dispose();
   }
 
   void _startAlarm() {
-    AudioPlayer audio = AudioPlayer();
+    _audioPlayer = AudioPlayer();
     //audio.play('notification.mp3');
-    audio.play(AssetSource('notification.mp3'));
+    _audioPlayer!.play(AssetSource('notification.mp3'));
     _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
       //audio.play('notification.mp3');
-      audio.play(AssetSource('notification.mp3'));
+      _audioPlayer!.play(AssetSource('notification.mp3'));
     });
   }
 

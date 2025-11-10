@@ -127,18 +127,6 @@ Future<Map<String, Map<String, String>>> init() async {
   Get.lazyPut(() => addressServiceInterface);
 
 
-  ///Services
-  Get.lazyPut(() => ProfileService(profileRepositoryInterface: Get.find()));
-  Get.lazyPut(() => ChatService(chatRepositoryInterface: Get.find()));
-  Get.lazyPut(() => SplashService(splashRepositoryInterface: Get.find()));
-  Get.lazyPut(() => NotificationService(notificationRepositoryInterface: Get.find()));
-  Get.lazyPut(() => DisbursementService(disbursementRepositoryInterface: Get.find()));
-  Get.lazyPut(() => LanguageService(languageRepositoryInterface: Get.find()));
-  Get.lazyPut(() => OrderService(orderRepositoryInterface: Get.find()));
-  Get.lazyPut(() => CashInHandService(cashInHandRepositoryInterface: Get.find()));
-  Get.lazyPut(() => AuthService(authRepositoryInterface: Get.find()));
-
-
   ///Controller
   Get.lazyPut(() => ProfileController(profileServiceInterface: Get.find()));
   Get.lazyPut(() => ChatController(chatServiceInterface: Get.find()));

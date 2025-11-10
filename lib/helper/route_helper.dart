@@ -15,7 +15,6 @@ import 'package:stackfood_multivendor_driver/feature/html/screens/html_viewer_sc
 import 'package:stackfood_multivendor_driver/feature/language/screens/language_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/notification/screens/notification_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/order/screens/order_details_screen.dart';
-import 'package:stackfood_multivendor_driver/feature/order/screens/running_order_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/screens/update_profile_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/splash/screens/splash_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/update/screens/update_screen.dart';
@@ -28,7 +27,6 @@ class RouteHelper {
   static const String orderDetails = '/order-details';
   static const String updateProfile = '/update-profile';
   static const String notification = '/notification';
-  static const String runningOrder = '/running-order';
   static const String terms = '/terms-and-condition';
   static const String privacy = '/privacy-policy';
   static const String language = '/language';
@@ -57,7 +55,6 @@ class RouteHelper {
   static String getOrderDetailsRoute(int? id, {bool fromNotification = false}) => '$orderDetails?id=$id&from_notification=${fromNotification.toString()}';
   static String getUpdateProfileRoute() => updateProfile;
   static String getNotificationRoute({bool fromNotification = false}) => '$notification?from_notification=${fromNotification.toString()}';
-  static String getRunningOrderRoute() => runningOrder;
   static String getTermsRoute() => terms;
   static String getPrivacyRoute() => privacy;
   static String getLanguageRoute() => language;
@@ -109,7 +106,6 @@ class RouteHelper {
     }),
     GetPage(name: updateProfile, page: () => const UpdateProfileScreen()),
     GetPage(name: notification, page: () => NotificationScreen(fromNotification: Get.parameters['from_notification'] == 'true')),
-    GetPage(name: runningOrder, page: () => const RunningOrderScreen()),
     GetPage(name: terms, page: () => const HtmlViewerScreen(isPrivacyPolicy: false)),
     GetPage(name: privacy, page: () => const HtmlViewerScreen(isPrivacyPolicy: true)),
     GetPage(name: language, page: () => ChooseLanguageScreen()),

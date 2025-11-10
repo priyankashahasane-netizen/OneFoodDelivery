@@ -22,6 +22,19 @@ export async function authedFetch(input: string, init: RequestInit = {}) {
   if (res.status === 401) {
     clearToken();
     if (typeof window !== 'undefined') window.location.href = '/login';
+    throw new Error('Unauthorized');
+  }
+  if (!res.ok) {
+    // Clone the response to read the body without consuming it
+    const clonedRes = res.clone();
+    const errorText = await clonedRes.text();
+    let errorData;
+    try {
+      errorData = JSON.parse(errorText);
+    } catch {
+      errorData = { message: errorText || `HTTP ${res.status}` };
+    }
+    throw new Error(errorData.message || `Request failed with status ${res.status}`);
   }
   return res;
 }

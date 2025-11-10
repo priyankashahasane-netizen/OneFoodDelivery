@@ -9,7 +9,6 @@ import 'package:stackfood_multivendor_driver/feature/order/controllers/order_con
 import 'package:stackfood_multivendor_driver/feature/home/widgets/count_card_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/home/widgets/earning_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/home/widgets/shift_dialogue_widget.dart';
-import 'package:stackfood_multivendor_driver/feature/order/screens/running_order_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/controllers/profile_controller.dart';
 import 'package:stackfood_multivendor_driver/helper/price_converter_helper.dart';
 import 'package:stackfood_multivendor_driver/helper/route_helper.dart';
@@ -300,7 +299,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     GetBuilder<OrderController>(builder: (orderController) {
                       bool hasActiveOrder = orderController.currentOrderList != null && orderController.currentOrderList!.isNotEmpty;
-                      bool hasMoreOrder = orderController.currentOrderList != null && orderController.currentOrderList!.length > 1;
                       bool isLoading = orderController.currentOrderList == null;
                       bool isEmpty = orderController.currentOrderList != null && orderController.currentOrderList!.isEmpty;
                       
@@ -309,9 +307,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         // Always show the title section
                         TitleWidget(
                           title: 'active_order'.tr, 
-                          onTap: hasMoreOrder ? () {
-                            Get.toNamed(RouteHelper.getRunningOrderRoute(), arguments: const RunningOrderScreen());
-                          } : null,
+                          onTap: null,
                         ),
                         const SizedBox(height: Dimensions.paddingSizeSmall),
 

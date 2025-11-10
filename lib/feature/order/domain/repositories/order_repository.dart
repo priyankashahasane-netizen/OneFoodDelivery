@@ -4,6 +4,7 @@ import 'package:stackfood_multivendor_driver/api/api_client.dart';
 import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_cancellation_body_model.dart';
 import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_details_model.dart';
 import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_model.dart';
+import 'package:stackfood_multivendor_driver/feature/order/domain/models/status_list_model.dart';
 import 'package:stackfood_multivendor_driver/feature/order/domain/repositories/order_repository_interface.dart';
 import 'package:stackfood_multivendor_driver/util/app_constants.dart';
 import 'package:get/get.dart';
@@ -90,7 +91,9 @@ class OrderRepository implements OrderRepositoryInterface {
               try {
                 (response.body as List).forEach((order) {
                   try {
-                    orders.add(OrderModel.fromJson(order));
+                    final orderModel = OrderModel.fromJson(order);
+                    orders.add(orderModel);
+                    debugPrint('✅ Parsed order: id=${orderModel.id}, status=${orderModel.orderStatus}');
                   } catch (e, stackTrace) {
                     parseFailures++;
                     debugPrint('❌ Error parsing order: $e');
@@ -98,6 +101,12 @@ class OrderRepository implements OrderRepositoryInterface {
                     debugPrint('Stack trace: $stackTrace');
                   }
                 });
+                
+                // Log all order statuses received
+                if (orders.isNotEmpty) {
+                  final statuses = orders.map((o) => o.orderStatus ?? 'null').join(', ');
+                  debugPrint('📋 getCurrentOrders: Received orders with statuses: $statuses');
+                }
                 
                 // Log warning if all orders failed to parse
                 if (parseFailures > 0) {
@@ -115,43 +124,107 @@ class OrderRepository implements OrderRepositoryInterface {
               
               // Keep a copy of all orders before filtering for count calculation
               final allOrdersForCounting = List<OrderModel>.from(orders);
-              
-              // Filter by status if needed
-              int beforeFilterCount = orders.length;
-              if (status != 'all' && status.isNotEmpty) {
-                orders = orders.where((o) => o.orderStatus == status).toList();
-                if (orders.isEmpty && beforeFilterCount > 0) {
-                  debugPrint('⚠️ getCurrentOrders: Status filter "$status" filtered out all $beforeFilterCount orders');
-                  try {
-                    final statuses = (response.body as List).map((o) => (o as Map<String, dynamic>)['order_status']?.toString() ?? 'unknown').toSet().join(", ");
-                    debugPrint('⚠️ Available statuses: $statuses');
-                  } catch (e) {
-                    debugPrint('⚠️ Could not extract available statuses: $e');
+
+              // ============================================================================
+              // DEBUG: Log all received orders and their statuses
+              // ============================================================================
+              debugPrint('');
+              debugPrint('═══════════════════════════════════════════════════════════');
+              debugPrint('🔍 getCurrentOrders: REQUEST - Fetching orders with status filter: "$status"');
+              debugPrint('🔍 getCurrentOrders: RESPONSE - Received ${orders.length} orders from backend API');
+
+              if (orders.isNotEmpty) {
+                // Count orders by status
+                final statusMap = <String, int>{};
+                for (var order in orders) {
+                  final status = order.orderStatus?.toLowerCase().trim() ?? 'null';
+                  statusMap[status] = (statusMap[status] ?? 0) + 1;
+                }
+                debugPrint('🔍 getCurrentOrders: Status breakdown of received orders:');
+                statusMap.forEach((status, count) {
+                  debugPrint('   - $status: $count order(s)');
+                });
+
+                // List first few order IDs with their statuses for debugging
+                final sampleOrders = orders.take(5).map((o) => 'ID:${o.id}(${o.orderStatus})').join(', ');
+                debugPrint('🔍 getCurrentOrders: Sample orders: $sampleOrders');
+              } else {
+                debugPrint('⚠️ getCurrentOrders: No orders received from backend!');
+              }
+              debugPrint('═══════════════════════════════════════════════════════════');
+              debugPrint('');
+
+              // If status is 'all', show ALL orders returned by backend (backend already filters out completed statuses)
+              // Otherwise, filter by the specific status
+              if (status == 'all' || status.isEmpty) {
+                // Don't filter - show all orders returned by backend
+                // Backend already excludes completed statuses (delivered, canceled, etc.)
+                debugPrint('🔍 getCurrentOrders: Showing ALL orders from backend (${orders.length} orders) for "all" status');
+              } else {
+                // FILTER: Filter by specific status for individual tab views
+                final statusLower = status.toLowerCase().trim();
+                final statusNormalized = statusLower.replaceAll('-', '_').replaceAll(' ', '_');
+                final beforeStatusFilterCount = orders.length;
+
+                debugPrint('🔍 getCurrentOrders: Filtering by specific status: "$status" (normalized: "$statusNormalized")');
+                debugPrint('🔍 getCurrentOrders: Have $beforeStatusFilterCount orders to filter');
+
+                orders = orders.where((o) {
+                  final orderStatus = o.orderStatus?.toLowerCase().trim();
+                  if (orderStatus == null) {
+                    debugPrint('⚠️ getCurrentOrders: Order ${o.id} has null status - excluding from filter');
+                    return false;
                   }
+                  final orderStatusNormalized = orderStatus.replaceAll('-', '_').replaceAll(' ', '_');
+
+                  // Match exact or normalized
+                  final matches = orderStatus == statusLower ||
+                                 orderStatus == statusNormalized ||
+                                 orderStatusNormalized == statusLower ||
+                                 orderStatusNormalized == statusNormalized;
+
+                  if (matches) {
+                    debugPrint('✅ getCurrentOrders: Order ${o.id} matches status filter: "$orderStatus" = "$status"');
+                  } else {
+                    debugPrint('⚠️ getCurrentOrders: Order ${o.id} status "$orderStatus" does not match "$status"');
+                  }
+
+                  return matches;
+                }).toList();
+
+                debugPrint('🔍 getCurrentOrders: After specific status filter "$status": ${orders.length} orders (was $beforeStatusFilterCount)');
+
+                if (orders.isEmpty && beforeStatusFilterCount > 0) {
+                  debugPrint('⚠️ getCurrentOrders: Status filter "$status" filtered out all $beforeStatusFilterCount orders');
+                  final statuses = allOrdersForCounting.map((o) => o.orderStatus ?? 'unknown').toSet().join(", ");
+                  debugPrint('⚠️ Available statuses in orders: $statuses');
+                  debugPrint('⚠️ MISMATCH: You requested status "$status" but available statuses are: $statuses');
                 }
               }
               
-              // Calculate counts for each status from all orders (before filtering)
+              // For counting, use all orders for 'all' count, but filter for individual status counts
+              // Calculate counts for each status
               paginatedOrderModel = PaginatedOrderModel(
                 orders: orders,
-                totalSize: orders.length,
-                offset: '1',
-                limit: '10',
+                totalSize: orders.length, // Use actual orders count
+                offset: '1', // Backend returns array, not paginated, so use default
+                limit: orders.length.toString(), // Use actual count instead of hardcoded '10'
                 orderCount: OrderCount(
-                  all: allOrdersForCounting.length,
-                  pending: allOrdersForCounting.where((o) => o.orderStatus == 'pending').length,
-                  assigned: allOrdersForCounting.where((o) => o.orderStatus == 'assigned').length,
-                  accepted: allOrdersForCounting.where((o) => o.orderStatus == 'accepted').length,
-                  confirmed: allOrdersForCounting.where((o) => o.orderStatus == 'confirmed').length,
-                  processing: allOrdersForCounting.where((o) => o.orderStatus == 'processing').length,
-                  handover: allOrdersForCounting.where((o) => o.orderStatus == 'handover').length,
-                  pickedUp: allOrdersForCounting.where((o) => o.orderStatus == 'picked_up').length,
-                  inTransit: allOrdersForCounting.where((o) => o.orderStatus == 'in_transit').length,
-                  delivered: 0,  // Not applicable for running orders
-                  canceled: 0,  // Not applicable for running orders
+                  all: allOrdersForCounting.length, // Count of ALL orders from backend
+                  created: _countOrdersByStatus(allOrdersForCounting, 'created'),
+                  pending: _countOrdersByStatus(allOrdersForCounting, 'pending'),
+                  assigned: _countOrdersByStatus(allOrdersForCounting, 'assigned'),
+                  accepted: _countOrdersByStatus(allOrdersForCounting, 'accepted'),
+                  confirmed: _countOrdersByStatus(allOrdersForCounting, 'confirmed'),
+                  processing: _countOrdersByStatus(allOrdersForCounting, 'processing'),
+                  handover: _countOrdersByStatus(allOrdersForCounting, 'handover'),
+                  pickedUp: _countOrdersByStatus(allOrdersForCounting, 'picked_up'),
+                  inTransit: _countOrdersByStatus(allOrdersForCounting, 'in_transit'),
+                  delivered: 0,  // Not applicable for active orders
+                  canceled: 0,  // Not applicable for active orders
                 ),
               );
-              debugPrint('✅ getCurrentOrders: Found ${orders.length} active orders');
+              debugPrint('✅ getCurrentOrders: Found ${orders.length} orders to display');
             } else {
               try {
                 paginatedOrderModel = PaginatedOrderModel.fromJson(response.body);
@@ -491,6 +564,23 @@ class OrderRepository implements OrderRepositoryInterface {
       ignoreList.add(IgnoreModel.fromJson(jsonDecode(ignore)));
     }
     return ignoreList;
+  }
+
+  // Helper function to count orders by status with normalization
+  int _countOrdersByStatus(List<OrderModel> orders, String targetStatus) {
+    final targetLower = targetStatus.toLowerCase().trim();
+    final targetNormalized = targetLower.replaceAll('-', '_').replaceAll(' ', '_');
+    
+    return orders.where((o) {
+      final orderStatus = o.orderStatus?.toLowerCase().trim();
+      if (orderStatus == null) return false;
+      final orderStatusNormalized = orderStatus.replaceAll('-', '_').replaceAll(' ', '_');
+      
+      return orderStatus == targetLower || 
+             orderStatus == targetNormalized ||
+             orderStatusNormalized == targetLower ||
+             orderStatusNormalized == targetNormalized;
+    }).length;
   }
 
   @override

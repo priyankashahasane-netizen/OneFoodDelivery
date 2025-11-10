@@ -21,7 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-class OrderRequestWidget extends StatelessWidget {
+class OrderRequestWidget extends StatefulWidget {
   final OrderModel orderModel;
   final int index;
   final bool fromDetailsPage;
@@ -30,11 +30,26 @@ class OrderRequestWidget extends StatelessWidget {
   const OrderRequestWidget({super.key, required this.orderModel, required this.index, required this.onTap, this.fromDetailsPage = false, this.isAssigned = false});
 
   @override
+  State<OrderRequestWidget> createState() => _OrderRequestWidgetState();
+}
+
+class _OrderRequestWidgetState extends State<OrderRequestWidget> {
+  // Cache distance calculation to avoid recalculating on every rebuild
+  double? _cachedDistance;
+
+  double get _distance {
+    if (_cachedDistance == null) {
+      _cachedDistance = Get.find<AddressController>().getRestaurantDistance(
+        LatLng(double.parse(widget.orderModel.restaurantLat!), double.parse(widget.orderModel.restaurantLng!)),
+      );
+    }
+    return _cachedDistance!;
+  }
+
+  @override
   Widget build(BuildContext context) {
 
-    double distance = Get.find<AddressController>().getRestaurantDistance(
-      LatLng(double.parse(orderModel.restaurantLat!), double.parse(orderModel.restaurantLng!)),
-    );
+    double distance = _distance;
 
     return Container(
       margin: const EdgeInsets.only(bottom: Dimensions.paddingSizeDefault),
@@ -59,7 +74,7 @@ class OrderRequestWidget extends StatelessWidget {
                   ),
                   child: ClipOval(
                     child: CustomImageWidget(
-                      image: orderModel.restaurantLogoFullUrl ?? '',
+                      image: widget.orderModel.restaurantLogoFullUrl ?? '',
                       height: 45, width: 45, fit: BoxFit.cover,
                     ),
                   ),
@@ -69,19 +84,19 @@ class OrderRequestWidget extends StatelessWidget {
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
                   Text(
-                    orderModel.restaurantName ?? 'no_restaurant_data_found'.tr, maxLines: 2, overflow: TextOverflow.ellipsis,
+                    widget.orderModel.restaurantName ?? 'no_restaurant_data_found'.tr, maxLines: 2, overflow: TextOverflow.ellipsis,
                     style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeSmall),
                   ),
                   const SizedBox(height: Dimensions.paddingSizeExtraSmall),
 
                   Text(
-                    '${orderModel.detailsCount} ${orderModel.detailsCount! > 1 ? 'items'.tr : 'item'.tr}',
+                    '${widget.orderModel.detailsCount} ${widget.orderModel.detailsCount! > 1 ? 'items'.tr : 'item'.tr}',
                     style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).primaryColor),
                   ),
                   const SizedBox(height: Dimensions.paddingSizeExtraSmall),
 
                   Text(
-                    orderModel.restaurantAddress ?? '', maxLines: 1, overflow: TextOverflow.ellipsis,
+                    widget.orderModel.restaurantAddress ?? '', maxLines: 1, overflow: TextOverflow.ellipsis,
                     style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor),
                   ),
 
@@ -91,13 +106,13 @@ class OrderRequestWidget extends StatelessWidget {
 
                   Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
                     Text(
-                      DateConverter.getTimeDifference(orderModel.createdAt!).split(' ')[0],
+                      DateConverter.getTimeDifference(widget.orderModel.createdAt!).split(' ')[0],
                       style: robotoMedium.copyWith(color: Theme.of(context).textTheme.bodyLarge?.color?.withValues(alpha: 0.7)),
                     ),
                     const SizedBox(width: Dimensions.paddingSizeExtraSmall),
 
                     Text(
-                      DateConverter.getTimeDifference(orderModel.createdAt!).split(' ').sublist(1).join(' '),
+                      DateConverter.getTimeDifference(widget.orderModel.createdAt!).split(' ').sublist(1).join(' '),
                       style: robotoRegular.copyWith(color: Theme.of(context).hintColor, fontSize: Dimensions.fontSizeSmall),
                     ),
                   ]),
@@ -111,13 +126,13 @@ class OrderRequestWidget extends StatelessWidget {
                     child: Row(children: [
 
                       (Get.find<SplashController>().configModel!.showDmEarning! && Get.find<ProfileController>().profileModel!.earnings == 1) ? Text(
-                        PriceConverter.convertPrice(orderModel.originalDeliveryCharge! + orderModel.dmTips!),
+                        PriceConverter.convertPrice(widget.orderModel.originalDeliveryCharge! + widget.orderModel.dmTips!),
                         style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeSmall),
                       ) : const SizedBox(),
                       const SizedBox(width: Dimensions.paddingSizeExtraSmall),
 
                       Text(
-                        orderModel.paymentMethod == 'cash_on_delivery' ? 'cod'.tr : 'digitally_paid'.tr,
+                        widget.orderModel.paymentMethod == 'cash_on_delivery' ? 'cod'.tr : 'digitally_paid'.tr,
                         style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeSmall),
                       ),
 
@@ -154,7 +169,7 @@ class OrderRequestWidget extends StatelessWidget {
                   ),
                   child: ClipOval(
                     child: CustomImageWidget(
-                      image: orderModel.customer?.imageFullUrl ?? '',
+                      image: widget.orderModel.customer?.imageFullUrl ?? '',
                       height: 45, width: 45, fit: BoxFit.cover,
                     ),
                   ),
@@ -170,14 +185,14 @@ class OrderRequestWidget extends StatelessWidget {
                   const SizedBox(height: Dimensions.paddingSizeExtraSmall),
 
                   Text(
-                    orderModel.deliveryAddress?.address ?? '', maxLines: 1, overflow: TextOverflow.ellipsis,
+                    widget.orderModel.deliveryAddress?.address ?? '', maxLines: 1, overflow: TextOverflow.ellipsis,
                     style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor),
                   ),
 
                 ])),
 
                 InkWell(
-                  onTap: () => Get.to(()=> OrderLocationScreen(orderModel: orderModel, orderController: orderController, index: index, onTap: onTap,)),
+                  onTap: () => Get.to(()=> OrderLocationScreen(orderModel: widget.orderModel, orderController: orderController, index: widget.index, onTap: widget.onTap,)),
                   child: Row(children: [
                     CustomAssetImageWidget(
                       image: Images.locationIcon, height: 12, width: 15,
@@ -207,31 +222,31 @@ class OrderRequestWidget extends StatelessWidget {
             margin: const EdgeInsets.all(0.2),
             child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
 
-              Expanded(
-                flex: 2,
-                child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-                  Text(
-                    'restaurant_is'.tr, maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor),
-                  ),
-                  const SizedBox(height: Dimensions.paddingSizeExtraSmall),
-
-                  Text(
-                   '${distance > 1000 ? '1000+' : distance.toStringAsFixed(2)} ${'km_away_from_you'.tr}', maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeSmall),
-                  ),
-
-                ]),
-              ),
-              const SizedBox(width: Dimensions.paddingSizeSmall),
-
-              Expanded(
-                flex: 3,
-                child: Row(children: [
-                  // For assigned orders, show Reject button; for available orders, show Ignore button
                   Expanded(
-                    child: isAssigned ? TextButton(
+                    flex: 2,
+                    child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+                      Text(
+                        'restaurant_is'.tr, maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor),
+                      ),
+                      const SizedBox(height: Dimensions.paddingSizeExtraSmall),
+
+                      Text(
+                       '${distance > 1000 ? '1000+' : distance.toStringAsFixed(2)} ${'km_away_from_you'.tr}', maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeSmall),
+                      ),
+
+                    ]),
+                  ),
+                  const SizedBox(width: Dimensions.paddingSizeSmall),
+
+                  Expanded(
+                    flex: 3,
+                    child: Row(children: [
+                      // For assigned orders, show Reject button; for available orders, show Ignore button
+                      Expanded(
+                        child: widget.isAssigned ? TextButton(
                       onPressed: () {
                         showCustomBottomSheet(
                           child: CustomConfirmationBottomSheet(
@@ -246,7 +261,7 @@ class OrderRequestWidget extends StatelessWidget {
                                 // Bottom sheet already closed, ignore
                               }
                               
-                              orderController.rejectOrder(orderModel.id, index).then((isSuccess) {
+                              orderController.rejectOrder(widget.orderModel.id, widget.index).then((isSuccess) {
                                 if(isSuccess) {
                                   // Refresh assigned orders list
                                   orderController.getAssignedOrders();
@@ -282,7 +297,7 @@ class OrderRequestWidget extends StatelessWidget {
                                 // Bottom sheet already closed, ignore
                               }
                               
-                              orderController.ignoreOrder(index);
+                              orderController.ignoreOrder(widget.index);
                               showCustomSnackBar('order_ignored'.tr, isError: false);
                             },
                           ),
@@ -321,19 +336,19 @@ class OrderRequestWidget extends StatelessWidget {
                                 // Bottom sheet already closed, ignore
                               }
                               
-                              if (isAssigned) {
+                              if (widget.isAssigned) {
                                 // For assigned orders, update status to "accepted"
                                 try {
                                   // Use UUID if available, otherwise use numeric ID
-                                  String? orderIdToUse = orderModel.uuid ?? orderModel.id?.toString();
-                                  bool isSuccess = await orderController.acceptAssignedOrder(orderModel.id, index, orderIdToUse);
+                                  String? orderIdToUse = widget.orderModel.uuid ?? widget.orderModel.id?.toString();
+                                  bool isSuccess = await orderController.acceptAssignedOrder(widget.orderModel.id, widget.index, orderIdToUse);
                                   if(isSuccess) {
-                                    onTap();
+                                    widget.onTap();
                                     // Navigate to order details
                                     Get.toNamed(
-                                      RouteHelper.getOrderDetailsRoute(orderModel.id),
+                                      RouteHelper.getOrderDetailsRoute(widget.orderModel.id),
                                       arguments: OrderDetailsScreen(
-                                        orderId: orderModel.id, isRunningOrder: true, orderIndex: orderController.currentOrderList?.length ?? 0,
+                                        orderId: widget.orderModel.id, isRunningOrder: true, orderIndex: orderController.currentOrderList?.length ?? 0,
                                       ),
                                     );
                                   }
@@ -343,14 +358,14 @@ class OrderRequestWidget extends StatelessWidget {
                               } else {
                                 // For available orders, use existing flow
                                 try {
-                                  bool isSuccess = await orderController.acceptOrder(orderModel.id, index, orderModel);
+                                  bool isSuccess = await orderController.acceptOrder(widget.orderModel.id, widget.index, widget.orderModel);
                                   if(isSuccess) {
-                                    onTap();
-                                    orderModel.orderStatus = (orderModel.orderStatus == 'pending' || orderModel.orderStatus == 'confirmed') ? 'accepted' : orderModel.orderStatus;
+                                    widget.onTap();
+                                    widget.orderModel.orderStatus = (widget.orderModel.orderStatus == 'pending' || widget.orderModel.orderStatus == 'confirmed') ? 'accepted' : widget.orderModel.orderStatus;
                                     Get.toNamed(
-                                      RouteHelper.getOrderDetailsRoute(orderModel.id),
+                                      RouteHelper.getOrderDetailsRoute(widget.orderModel.id),
                                       arguments: OrderDetailsScreen(
-                                        orderId: orderModel.id, isRunningOrder: true, orderIndex: orderController.currentOrderList!.length-1,
+                                        orderId: widget.orderModel.id, isRunningOrder: true, orderIndex: orderController.currentOrderList!.length-1,
                                       ),
                                     );
                                   } else {

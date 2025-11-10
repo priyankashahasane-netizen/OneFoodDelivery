@@ -311,4 +311,11 @@ class ProfileController extends GetxController implements GetxService {
     });
   }
 
+  @override
+  void onClose() {
+    _timer?.cancel();
+    _timer = null;
+    super.onClose();
+  }
+
 }

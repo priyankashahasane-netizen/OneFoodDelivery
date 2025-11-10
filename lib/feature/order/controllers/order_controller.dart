@@ -8,6 +8,7 @@ import 'package:stackfood_multivendor_driver/feature/order/domain/models/ignore_
 import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_cancellation_body_model.dart';
 import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_details_model.dart';
 import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_model.dart';
+import 'package:stackfood_multivendor_driver/feature/order/domain/models/status_list_model.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_snackbar_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/routes/controllers/route_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/routes/domain/models/route_plan_model.dart';
@@ -186,8 +187,15 @@ class OrderController extends GetxController implements GetxService {
             _completedOrderList = [];
           }
           _completedOrderList!.addAll(paginatedOrderModel.orders!);
+          // Map counts to match status list order: all, accepted, confirmed, processing, handover, picked_up, in_transit, delivered, canceled, refund_requested, refunded, refund_request_canceled
           _completedOrderCountList = [
             paginatedOrderModel.orderCount!.all ?? 0,
+            paginatedOrderModel.orderCount!.accepted ?? 0,
+            paginatedOrderModel.orderCount!.confirmed ?? 0,
+            paginatedOrderModel.orderCount!.processing ?? 0,
+            paginatedOrderModel.orderCount!.handover ?? 0,
+            paginatedOrderModel.orderCount!.pickedUp ?? 0,
+            paginatedOrderModel.orderCount!.inTransit ?? 0,
             paginatedOrderModel.orderCount!.delivered ?? 0,
             paginatedOrderModel.orderCount!.canceled ?? 0,
             paginatedOrderModel.orderCount!.refundRequested ?? 0,
@@ -201,7 +209,8 @@ class OrderController extends GetxController implements GetxService {
           // Use empty list when API returns null
           if (offset == 1) {
             _completedOrderList = [];
-            _completedOrderCountList = [0, 0, 0, 0, 0, 0];
+            // Initialize with 12 zeros to match the 12 status buttons: all, accepted, confirmed, processing, handover, picked_up, in_transit, delivered, canceled, refund_requested, refunded, refund_request_canceled
+            _completedOrderCountList = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
             _pageSize = 0;
           }
           _paginate = false;
@@ -212,7 +221,8 @@ class OrderController extends GetxController implements GetxService {
         // Use empty list on error
         if (offset == 1) {
           _completedOrderList = [];
-          _completedOrderCountList = [0, 0, 0, 0, 0, 0];
+          // Initialize with 12 zeros to match the 12 status buttons: all, accepted, confirmed, processing, handover, picked_up, in_transit, delivered, canceled, refund_requested, refunded, refund_request_canceled
+          _completedOrderCountList = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
           _pageSize = 0;
         }
         _paginate = false;
@@ -246,11 +256,10 @@ class OrderController extends GetxController implements GetxService {
       if(paginatedOrderModel != null && paginatedOrderModel.orders != null) {
         _currentOrderList = [];
         _currentOrderList!.addAll(paginatedOrderModel.orders!);
-        // Map counts to match status list order: all, pending, assigned, accepted, confirmed, processing, handover, picked_up, in_transit
+        // Map counts to match status list order: all, accepted, confirmed, processing, handover, picked_up, in_transit
+        // Note: When 'all' is selected, it shows all active orders, but individual tabs only show these 6 statuses
         _currentOrderCountList = [
           paginatedOrderModel.orderCount?.all ?? 0,
-          paginatedOrderModel.orderCount?.pending ?? 0,
-          paginatedOrderModel.orderCount?.assigned ?? 0,
           paginatedOrderModel.orderCount?.accepted ?? 0,
           paginatedOrderModel.orderCount?.confirmed ?? 0,
           paginatedOrderModel.orderCount?.processing ?? 0,
@@ -267,8 +276,8 @@ class OrderController extends GetxController implements GetxService {
         // For now, set to empty list to show "no orders" state
         // But we should distinguish between error and no orders in the future
         _currentOrderList = [];
-        // Initialize with 9 zeros to match the 9 status buttons
-        _currentOrderCountList = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+        // Initialize with 7 zeros to match the 7 status buttons: all, accepted, confirmed, processing, handover, picked_up, in_transit
+        _currentOrderCountList = [0, 0, 0, 0, 0, 0, 0];
         debugPrint('⚠️ OrderController.getCurrentOrders: Set empty list - check repository logs for actual error');
       }
     } catch (e, stackTrace) {
@@ -339,23 +348,43 @@ class OrderController extends GetxController implements GetxService {
     _isLoadingAssignedOrders = true;
     update();
     try {
-      // Get driver UUID from profile API
+      // Get driver UUID from cached ProfileController first (avoids extra API call)
       String? driverId;
-      final apiClient = Get.find<ApiClient>();
-      Response profileResponse = await apiClient.getData(
-        '/api/drivers/me',
-        handleError: false,
-      );
-      
-      if (profileResponse.statusCode == 200 && profileResponse.body != null) {
-        Map<String, dynamic>? body = profileResponse.body is Map ? profileResponse.body as Map<String, dynamic> : null;
-        if (body != null) {
-          if (body['uuid'] != null && body['uuid'].toString().isNotEmpty) {
-            driverId = body['uuid'].toString();
-          } else if (body['id'] != null) {
-            String idStr = body['id'].toString();
+      try {
+        final profileController = Get.find<ProfileController>();
+        final profileModel = profileController.profileModel;
+        
+        if (profileModel != null) {
+          // Try to get UUID from profileModel's id if it's a UUID format
+          if (profileModel.id != null) {
+            String idStr = profileModel.id.toString();
             if (idStr.contains('-') && idStr.length == 36) {
               driverId = idStr;
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Could not get driver ID from ProfileController: $e');
+      }
+      
+      // Fallback: Get driver UUID from profile API only if not found in cache
+      if (driverId == null || driverId.isEmpty) {
+        final apiClient = Get.find<ApiClient>();
+        Response profileResponse = await apiClient.getData(
+          '/api/drivers/me',
+          handleError: false,
+        );
+        
+        if (profileResponse.statusCode == 200 && profileResponse.body != null) {
+          Map<String, dynamic>? body = profileResponse.body is Map ? profileResponse.body as Map<String, dynamic> : null;
+          if (body != null) {
+            if (body['uuid'] != null && body['uuid'].toString().isNotEmpty) {
+              driverId = body['uuid'].toString();
+            } else if (body['id'] != null) {
+              String idStr = body['id'].toString();
+              if (idStr.contains('-') && idStr.length == 36) {
+                driverId = idStr;
+              }
             }
           }
         }
@@ -624,7 +653,13 @@ class OrderController extends GetxController implements GetxService {
       if (_currentOrderList == null) {
         _currentOrderList = [];
       }
-      _currentOrderList!.add(orderModel);
+      // Only add if order has valid running order status
+      final validStatuses = StatusListModel.getValidRunningOrderStatuses();
+      if (orderModel.orderStatus != null && validStatuses.contains(orderModel.orderStatus)) {
+        _currentOrderList!.add(orderModel);
+      } else {
+        debugPrint('⚠️ acceptOrder: Order ${orderModel.id} has invalid status "${orderModel.orderStatus}" for running orders');
+      }
       
       // Refresh assigned orders list to include the newly accepted order
       await getAssignedOrders();

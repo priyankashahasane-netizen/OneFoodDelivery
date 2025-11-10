@@ -302,6 +302,7 @@ class OrderCount {
   int? failed;
   int? assigned;
   int? inTransit;
+  int? created;
 
   OrderCount({
     this.accepted,
@@ -319,6 +320,7 @@ class OrderCount {
     this.failed,
     this.assigned,
     this.inTransit,
+    this.created,
   });
 
   OrderCount.fromJson(Map<String, dynamic> json) {
@@ -330,13 +332,14 @@ class OrderCount {
     handover = json['handover'];
     all = json['all'];
     delivered = json['delivered'];
-    canceled = json['canceled'];
+    canceled = json['canceled'] ?? json['cancelled']; // Handle both spellings
     refundRequested = json['refund_requested'];
     refunded = json['refunded'];
     refundRequestCanceled = json['refund_request_canceled'];
     failed = json['failed'];
     assigned = json['assigned'];
     inTransit = json['in_transit'] ?? json['inTransit'];
+    created = json['created'];
   }
 
   Map<String, dynamic> toJson() {
@@ -356,6 +359,7 @@ class OrderCount {
     data['failed'] = failed;
     data['assigned'] = assigned;
     data['in_transit'] = inTransit;
+    data['created'] = created;
     return data;
   }
 }

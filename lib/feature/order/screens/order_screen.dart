@@ -13,51 +13,109 @@ import 'package:stackfood_multivendor_driver/util/styles.dart';
 import 'package:intl/intl.dart';
 
 class OrderScreen extends StatefulWidget {
-  const OrderScreen({super.key});
+  final bool isActiveOrders; // true for Currently Active, false for My Orders
+  const OrderScreen({super.key, this.isActiveOrders = false});
 
   @override
   State<OrderScreen> createState() => _OrderScreenState();
 }
 
-class _OrderScreenState extends State<OrderScreen> {
+class _OrderScreenState extends State<OrderScreen> with AutomaticKeepAliveClientMixin {
 
   final ScrollController scrollController = ScrollController();
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   void initState() {
     super.initState();
+    _loadInitialData();
+  }
+
+  void _loadInitialData() {
     // Use WidgetsBinding to defer setState calls until after build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final orderController = Get.find<OrderController>();
-      // Initialize selected status to 'all' (index 0) if not already set
-      if (orderController.selectedMyOrderStatusIndex == null) {
-        orderController.setSelectedMyOrderStatusIndex(0, 'all');
+      
+      if (widget.isActiveOrders) {
+        // Initialize for Currently Active orders
+        if (orderController.selectedRunningOrderStatusIndex == null) {
+          orderController.setSelectedRunningOrderStatusIndex(0, 'all');
+        }
+        // Always refresh orders when screen opens to show all active orders
+        orderController.getCurrentOrders(
+          status: orderController.selectedRunningOrderStatus ?? 'all', 
+          isDataClear: true
+        );
+      } else {
+        // Initialize for My Orders (completed orders)
+        if (orderController.selectedMyOrderStatusIndex == null) {
+          orderController.setSelectedMyOrderStatusIndex(0, 'all');
+        }
+        orderController.getCompletedOrders(offset: 1, status: 'all', isUpdate: false);
       }
-      orderController.getCompletedOrders(offset: 1, status: 'all', isUpdate: false);
     });
 
-    scrollController.addListener(() {
-      if (scrollController.position.pixels == scrollController.position.maxScrollExtent
-          && Get.find<OrderController>().completedOrderList != null && !Get.find<OrderController>().paginate) {
-        int pageSize = (Get.find<OrderController>().pageSize! / 10).ceil();
-        if (Get.find<OrderController>().offset < pageSize) {
-          Get.find<OrderController>().setOffset(Get.find<OrderController>().offset+1);
-          customPrint('end of the page');
-          Get.find<OrderController>().showBottomLoader();
-          Get.find<OrderController>().getCompletedOrders(offset: Get.find<OrderController>().offset, status: Get.find<OrderController>().selectedMyOrderStatus!);
+    // Only enable pagination for completed orders (My Orders)
+    if (!widget.isActiveOrders) {
+      scrollController.addListener(() {
+        if (scrollController.position.pixels == scrollController.position.maxScrollExtent
+            && Get.find<OrderController>().completedOrderList != null 
+            && !Get.find<OrderController>().paginate) {
+          int pageSize = (Get.find<OrderController>().pageSize! / 10).ceil();
+          if (Get.find<OrderController>().offset < pageSize) {
+            Get.find<OrderController>().setOffset(Get.find<OrderController>().offset+1);
+            customPrint('end of the page');
+            Get.find<OrderController>().showBottomLoader();
+            Get.find<OrderController>().getCompletedOrders(
+              offset: Get.find<OrderController>().offset, 
+              status: Get.find<OrderController>().selectedMyOrderStatus!
+            );
+          }
         }
-      }
-    });
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    scrollController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
+    
     return Scaffold(
-      appBar: CustomAppBarWidget(title: 'my_orders'.tr, isBackButtonExist: false),
+      appBar: CustomAppBarWidget(
+        title: widget.isActiveOrders ? 'currently_active'.tr : 'my_orders'.tr, 
+        isBackButtonExist: false
+      ),
 
       body: GetBuilder<OrderController>(builder: (orderController) {
+        // Get appropriate status list based on mode
+        List<StatusListModel> statusList = widget.isActiveOrders
+            ? StatusListModel.getRunningOrderStatusList()
+            : StatusListModel.getMyOrderStatusList();
 
-        List<StatusListModel> statusList = StatusListModel.getMyOrderStatusList();
+        // Get appropriate order list based on mode
+        List<dynamic>? orderList = widget.isActiveOrders
+            ? orderController.currentOrderList
+            : orderController.completedOrderList;
+
+        // Debug logging for active orders
+        if (widget.isActiveOrders) {
+          debugPrint('🔍 OrderScreen.build (Active): currentOrderList is ${orderList == null ? "null" : "not null"}');
+          if (orderList != null) {
+            debugPrint('🔍 OrderScreen.build (Active): currentOrderList.length = ${orderList.length}');
+            if (orderList.isNotEmpty) {
+              debugPrint('🔍 OrderScreen.build (Active): First order ID = ${orderList.first.id}, status = ${orderList.first.orderStatus}');
+            }
+          }
+          debugPrint('🔍 OrderScreen.build (Active): selectedRunningOrderStatus = ${orderController.selectedRunningOrderStatus}');
+        }
 
         return Padding(
           padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
@@ -73,7 +131,7 @@ class _OrderScreenState extends State<OrderScreen> {
                     statusListModel: statusList[index],
                     index: index,
                     orderController: orderController,
-                    fromMyOrder: true,
+                    fromMyOrder: !widget.isActiveOrders,
                   );
                 },
               ),
@@ -81,28 +139,7 @@ class _OrderScreenState extends State<OrderScreen> {
             SizedBox(height: Dimensions.paddingSizeSmall),
 
             Expanded(
-              child: orderController.completedOrderList != null ? orderController.completedOrderList!.isNotEmpty ? RefreshIndicator(
-                onRefresh: () async {
-                  await orderController.getCompletedOrders(
-                    offset: 1,
-                    status: Get.find<OrderController>().selectedMyOrderStatus!,
-                  );
-                },
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    ..._buildGroupedOrderWidgets(orderController.completedOrderList!),
-                    if (orderController.paginate)
-                      const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(Dimensions.paddingSizeSmall),
-                          child: CircularProgressIndicator(),
-                        ),
-                      ),
-                  ]),
-                ),
-              ) : Center(child: Text('no_order_found'.tr)) : OrderListShimmer(),
+              child: _buildOrderListContent(orderController, orderList),
             ),
 
           ]),
@@ -111,7 +148,51 @@ class _OrderScreenState extends State<OrderScreen> {
     );
   }
 
-  List<Widget> _buildGroupedOrderWidgets(List orders) {
+  Widget _buildOrderListContent(OrderController orderController, List<dynamic>? orderList) {
+    if (orderList == null) {
+      return OrderListShimmer();
+    }
+    
+    if (orderList.isEmpty) {
+      return Center(child: Text('no_order_found'.tr));
+    }
+    
+    return RefreshIndicator(
+      onRefresh: () async {
+        if (widget.isActiveOrders) {
+          await orderController.getCurrentOrders(
+            status: orderController.selectedRunningOrderStatus ?? 'all', 
+            isDataClear: false
+          );
+        } else {
+          await orderController.getCompletedOrders(
+            offset: 1,
+            status: Get.find<OrderController>().selectedMyOrderStatus!,
+          );
+        }
+      },
+      child: SingleChildScrollView(
+        controller: widget.isActiveOrders ? null : scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ..._buildGroupedOrderWidgets(orderList),
+            // Only show pagination loader for completed orders
+            if (!widget.isActiveOrders && orderController.paginate)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(Dimensions.paddingSizeSmall),
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildGroupedOrderWidgets(List<dynamic> orders) {
     final List<Widget> widgets = [];
     final now = DateTime.now();
 
@@ -156,7 +237,7 @@ class _OrderScreenState extends State<OrderScreen> {
       for (int i = 0; i < list.length; i++) {
         widgets.add(HistoryOrderWidget(
           orderModel: list[i],
-          isRunning: false,
+          isRunning: widget.isActiveOrders,
           index: i,
         ));
       }

@@ -94,6 +94,12 @@ export class DeliveryManController {
         offset: offset || '1',
         order_count: {
           all: 0,
+          accepted: 0,
+          confirmed: 0,
+          processing: 0,
+          handover: 0,
+          picked_up: 0,
+          in_transit: 0,
           delivered: 0,
           canceled: 0,
           refund_requested: 0,
