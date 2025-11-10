@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_bottom_sheet_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_confirmation_bottom_sheet.dart';
 import 'package:stackfood_multivendor_driver/feature/order/controllers/order_controller.dart';
@@ -29,6 +30,56 @@ class LocationCardWidget extends StatefulWidget {
 
 class _LocationCardWidgetState extends State<LocationCardWidget> {
   bool isExpanded = true;
+  Timer? _progressTimer;
+  DateTime? _inTransitStartTime;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeInTransitTimer();
+  }
+
+  @override
+  void didUpdateWidget(LocationCardWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // If status changed to in_transit, reset the timer
+    if (widget.orderModel.orderStatus?.toLowerCase() == 'in_transit' &&
+        oldWidget.orderModel.orderStatus?.toLowerCase() != 'in_transit') {
+      _initializeInTransitTimer();
+    } else if (widget.orderModel.orderStatus?.toLowerCase() != 'in_transit') {
+      // If status is no longer in_transit, stop the timer
+      _progressTimer?.cancel();
+      _inTransitStartTime = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _progressTimer?.cancel();
+    super.dispose();
+  }
+
+  void _initializeInTransitTimer() {
+    String status = widget.orderModel.orderStatus?.toLowerCase() ?? '';
+    if (status == 'in_transit') {
+      // Set start time to now if not already set
+      _inTransitStartTime ??= DateTime.now();
+      
+      // Cancel existing timer if any
+      _progressTimer?.cancel();
+      
+      // Update progress every 10 seconds for smooth animation
+      _progressTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+        if (mounted) {
+          setState(() {
+            // Trigger rebuild to update progress
+          });
+        } else {
+          timer.cancel();
+        }
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,14 +126,14 @@ class _LocationCardWidgetState extends State<LocationCardWidget> {
           ),
 
           if (isExpanded) ...[
-            // Estimated Arrival Time
+            // Status Title
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeLarge),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Arriving in ${widget.estimatedArrivalMinutes ?? 30} mins',
+                    _getStatusTitle(),
                     style: robotoBold.copyWith(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -299,14 +350,14 @@ class _LocationCardWidgetState extends State<LocationCardWidget> {
             ),
             const SizedBox(height: Dimensions.paddingSizeDefault),
           ] else ...[
-            // Collapsed view - just show arrival time
+            // Collapsed view - just show status title
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeLarge, vertical: Dimensions.paddingSizeDefault),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Arriving in ${widget.estimatedArrivalMinutes ?? 30} mins',
+                    _getStatusTitle(),
                     style: robotoBold.copyWith(
                       fontSize: Dimensions.fontSizeLarge,
                       fontWeight: FontWeight.bold,
@@ -322,30 +373,98 @@ class _LocationCardWidgetState extends State<LocationCardWidget> {
     );
   }
 
+  String _getStatusTitle() {
+    String status = widget.orderModel.orderStatus?.toLowerCase() ?? '';
+    
+    switch (status) {
+      case 'pending':
+        return 'Driver Pending';
+      case 'assigned':
+        return 'Driver Assigned';
+      case 'accepted':
+        return 'Driver Accepted';
+      case 'confirmed':
+        return 'Restaurant Confirmed';
+      case 'processing':
+        return 'Order Preparing';
+      case 'handover':
+        return 'At Pickup';
+      case 'picked_up':
+        return 'Order Picked';
+      case 'in_transit':
+        return 'Arriving in ${widget.estimatedArrivalMinutes ?? 30} mins';
+      case 'delivered':
+        return 'Delivered';
+      case 'cancelled':
+        return 'Order Cancelled';
+      case 'refund_requested':
+        return 'Refund Requested';
+      case 'refunded':
+        return 'Refunded';
+      case 'refund_request_canceled':
+        return 'Request Cancelled';
+      default:
+        return 'Driver Pending';
+    }
+  }
+
   double _calculateProgress() {
     // Calculate progress based on order status
     String status = widget.orderModel.orderStatus?.toLowerCase() ?? '';
     
     switch (status) {
+      // Progress at 0% for these statuses
+      case 'accepted':
+      case 'confirmed':
+      case 'processing':
+      case 'handover':
+      case 'picked_up':
+        return 0.0;
+      
+      // Progress at 100% for these statuses
+      case 'delivered':
+      case 'cancelled':
+      case 'refund_requested':
+      case 'refunded':
+      case 'refund_request_canceled':
+        return 1.0;
+      
+      // Other statuses
       case 'pending':
       case 'assigned':
-        return 0.1;
-      case 'accepted':
-        return 0.2;
-      case 'confirmed':
-        return 0.3;
-      case 'processing':
-        return 0.4;
-      case 'handover':
-        return 0.5;
-      case 'picked_up':
-        return 0.7;
+        return 0.0;
+      
       case 'in_transit':
-        return 0.9;
-      case 'delivered':
-        return 1.0;
+        return _calculateInTransitProgress();
+      
       default:
-        return 0.1;
+        return 0.0;
     }
+  }
+
+  double _calculateInTransitProgress() {
+    // Get estimated arrival time in minutes
+    int estimatedMinutes = widget.estimatedArrivalMinutes ?? 30;
+    
+    // If we don't have a start time, initialize it
+    if (_inTransitStartTime == null) {
+      _inTransitStartTime = DateTime.now();
+      return 0.0;
+    }
+    
+    // Calculate elapsed time in minutes
+    DateTime now = DateTime.now();
+    Duration elapsed = now.difference(_inTransitStartTime!);
+    double elapsedMinutes = elapsed.inSeconds / 60.0; // Convert to minutes with decimals
+    
+    // Calculate progress: elapsed time / estimated time
+    // Progress increases by (100 / estimatedMinutes) % per minute
+    double progress = elapsedMinutes / estimatedMinutes;
+    
+    // Clamp progress between 0.0 and 1.0 (0% to 100%)
+    if (progress < 0.0) return 0.0;
+    if (progress > 1.0) return 1.0;
+    
+    return progress;
   }
 }

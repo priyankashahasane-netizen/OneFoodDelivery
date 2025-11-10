@@ -1,7 +1,7 @@
-import 'package:stackfood_multivendor_driver/feature/order/screens/order_details_screen.dart';
+import 'package:stackfood_multivendor_driver/feature/order/screens/order_location_screen.dart';
+import 'package:stackfood_multivendor_driver/feature/order/controllers/order_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_model.dart';
 import 'package:stackfood_multivendor_driver/helper/date_converter_helper.dart';
-import 'package:stackfood_multivendor_driver/helper/route_helper.dart';
 import 'package:stackfood_multivendor_driver/helper/string_extensions.dart';
 import 'package:stackfood_multivendor_driver/util/color_resources.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
@@ -19,10 +19,15 @@ class HistoryOrderWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () => Get.toNamed(
-        RouteHelper.getOrderDetailsRoute(orderModel.id),
-        arguments: OrderDetailsScreen(orderId: orderModel.id, isRunningOrder: isRunning, orderIndex: index),
-      ),
+      onTap: () {
+        final orderController = Get.find<OrderController>();
+        Get.to(() => OrderLocationScreen(
+          orderModel: orderModel,
+          orderController: orderController,
+          index: index,
+          onTap: () {}, // Empty callback for completed orders
+        ));
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: Dimensions.paddingSizeSmall),
         decoration: BoxDecoration(

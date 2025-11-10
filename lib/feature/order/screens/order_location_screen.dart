@@ -31,6 +31,10 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
   final List<Polyline> _polylines = [];
   int? _estimatedArrivalMinutes;
 
+  // Default coordinates (fallback when location data is missing)
+  static const double _defaultLat = 0.0;
+  static const double _defaultLng = 0.0;
+
   @override
   void initState() {
     super.initState();
@@ -43,16 +47,20 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
   void _calculateEstimatedArrival() {
     // Calculate estimated arrival time based on order status and distance
     // This is a simplified calculation - you can enhance it with actual route data
-    if (widget.orderModel.restaurantLat != null && 
-        widget.orderModel.restaurantLng != null &&
-        widget.orderModel.deliveryAddress?.latitude != null &&
-        widget.orderModel.deliveryAddress?.longitude != null) {
-      
-      double restaurantLat = double.parse(widget.orderModel.restaurantLat!);
-      double restaurantLng = double.parse(widget.orderModel.restaurantLng!);
-      double deliveryLat = double.parse(widget.orderModel.deliveryAddress!.latitude!);
-      double deliveryLng = double.parse(widget.orderModel.deliveryAddress!.longitude!);
-      
+    double restaurantLat = _parseCoordinate(widget.orderModel.restaurantLat, _defaultLat);
+    double restaurantLng = _parseCoordinate(widget.orderModel.restaurantLng, _defaultLng);
+    double deliveryLat = _parseCoordinate(
+      widget.orderModel.deliveryAddress?.latitude,
+      _defaultLat,
+    );
+    double deliveryLng = _parseCoordinate(
+      widget.orderModel.deliveryAddress?.longitude,
+      _defaultLng,
+    );
+    
+    // Only calculate if we have valid coordinates (not default values)
+    if (restaurantLat != _defaultLat && restaurantLng != _defaultLng &&
+        deliveryLat != _defaultLat && deliveryLng != _defaultLng) {
       // Calculate distance using Haversine formula
       const double earthRadius = 6371; // km
       double dLat = (deliveryLat - restaurantLat) * (pi / 180);
@@ -73,6 +81,16 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Safely get coordinates with fallback
+    final deliveryLat = _parseCoordinate(
+      widget.orderModel.deliveryAddress?.latitude,
+      _defaultLat,
+    );
+    final deliveryLng = _parseCoordinate(
+      widget.orderModel.deliveryAddress?.longitude,
+      _defaultLng,
+    );
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(children: [
@@ -80,10 +98,7 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
         FlutterMap(
           mapController: _mapController,
           options: MapOptions(
-            initialCenter: ll.LatLng(
-              double.parse(widget.orderModel.deliveryAddress?.latitude ?? '0'),
-              double.parse(widget.orderModel.deliveryAddress?.longitude ?? '0'),
-            ),
+            initialCenter: ll.LatLng(deliveryLat, deliveryLng),
             initialZoom: 16,
             interactionOptions: const InteractionOptions(
               flags: InteractiveFlag.all,
@@ -91,8 +106,7 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
           ),
           children: [
             TileLayer(
-              urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-              subdomains: const ['a', 'b', 'c'],
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
               userAgentPackageName: 'com.sixamtech.app_retain',
             ),
             PolylineLayer(polylines: _polylines),
@@ -213,33 +227,66 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
     return '$timeStr | $itemsText, $priceText';
   }
 
+  /// Safely parse coordinate string to double with fallback
+  double _parseCoordinate(String? coordinate, double defaultValue) {
+    if (coordinate == null || coordinate.isEmpty || coordinate == '0') {
+      return defaultValue;
+    }
+    return double.tryParse(coordinate) ?? defaultValue;
+  }
+
   void _setMarker(OrderModel orderModel) async {
     try {
-      double deliveryLat = double.parse(orderModel.deliveryAddress?.latitude ?? '0');
-      double deliveryLng = double.parse(orderModel.deliveryAddress?.longitude ?? '0');
-      double restaurantLat = double.parse(orderModel.restaurantLat ?? '0');
-      double restaurantLng = double.parse(orderModel.restaurantLng ?? '0');
+      // Use safe parsing with fallbacks
+      double deliveryLat = _parseCoordinate(
+        orderModel.deliveryAddress?.latitude,
+        _defaultLat,
+      );
+      double deliveryLng = _parseCoordinate(
+        orderModel.deliveryAddress?.longitude,
+        _defaultLng,
+      );
+      double restaurantLat = _parseCoordinate(
+        orderModel.restaurantLat,
+        deliveryLat, // Fallback to delivery location if restaurant location missing
+      );
+      double restaurantLng = _parseCoordinate(
+        orderModel.restaurantLng,
+        deliveryLng, // Fallback to delivery location if restaurant location missing
+      );
+
+      // Only proceed if we have valid delivery coordinates
+      if (deliveryLat == _defaultLat && deliveryLng == _defaultLng) {
+        if (kDebugMode) {
+          print('Warning: No valid delivery coordinates for order ${orderModel.id}');
+        }
+        // Still show the map, just without markers
+        setState(() {});
+        return;
+      }
 
       // Clear previous markers and polylines
       _markers.clear();
       _polylines.clear();
 
-      // Add restaurant marker (Origin)
-      _markers.add(
-        Marker(
-          point: ll.LatLng(restaurantLat, restaurantLng),
-          width: 50,
-          height: 50,
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.grey[800],
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 3),
+      // Only add restaurant marker if we have valid restaurant coordinates
+      if (restaurantLat != _defaultLat || restaurantLng != _defaultLng) {
+        _markers.add(
+          Marker(
+            point: ll.LatLng(restaurantLat, restaurantLng),
+            width: 50,
+            height: 50,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.grey[800],
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 3),
+              ),
+              child: Icon(Icons.restaurant, color: Colors.white, size: 24),
             ),
-            child: Icon(Icons.restaurant, color: Colors.white, size: 24),
           ),
-        ),
-      );
+        );
+      }
 
       // Add destination marker (Home)
       _markers.add(
@@ -258,39 +305,50 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
         ),
       );
 
-      // Add route polyline
-      _polylines.add(
-        Polyline(
-          points: [
-            ll.LatLng(restaurantLat, restaurantLng),
-            ll.LatLng(deliveryLat, deliveryLng),
-          ],
-          strokeWidth: 3.0,
-          color: Colors.black87,
-          borderStrokeWidth: 1.0,
-          borderColor: Colors.white,
-        ),
-      );
+      // Add route polyline only if we have both locations
+      if ((restaurantLat != _defaultLat || restaurantLng != _defaultLng) &&
+          (deliveryLat != _defaultLat || deliveryLng != _defaultLng)) {
+        _polylines.add(
+          Polyline(
+            points: [
+              ll.LatLng(restaurantLat, restaurantLng),
+              ll.LatLng(deliveryLat, deliveryLng),
+            ],
+            strokeWidth: 3.0,
+            color: Colors.black87,
+            borderStrokeWidth: 1.0,
+            borderColor: Colors.white,
+          ),
+        );
+      }
 
-      // Calculate bounds
-      final minLat = min(deliveryLat, restaurantLat);
-      final minLng = min(deliveryLng, restaurantLng);
-      final maxLat = max(deliveryLat, restaurantLat);
-      final maxLng = max(deliveryLng, restaurantLng);
+      // Calculate bounds only if we have valid coordinates
+      if ((restaurantLat != _defaultLat || restaurantLng != _defaultLng) &&
+          (deliveryLat != _defaultLat || deliveryLng != _defaultLng)) {
+        final minLat = min(deliveryLat, restaurantLat);
+        final minLng = min(deliveryLng, restaurantLng);
+        final maxLat = max(deliveryLat, restaurantLat);
+        final maxLng = max(deliveryLng, restaurantLng);
 
-      LatLngBounds bounds = LatLngBounds(
-        ll.LatLng(minLat, minLng),
-        ll.LatLng(maxLat, maxLng),
-      );
+        LatLngBounds bounds = LatLngBounds(
+          ll.LatLng(minLat, minLng),
+          ll.LatLng(maxLat, maxLng),
+        );
 
-      // Zoom to fit bounds with padding
-      _mapController.fitCamera(CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(80)));
+        // Zoom to fit bounds with padding
+        _mapController.fitCamera(CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(80)));
+      } else {
+        // Just center on delivery location if we only have that
+        _mapController.move(ll.LatLng(deliveryLat, deliveryLng), 16);
+      }
 
       setState(() {});
     } catch (e) {
       if (kDebugMode) {
         print('Error setting markers: $e');
       }
+      // Ensure screen still displays even if marker setup fails
+      setState(() {});
     }
   }
 }
