@@ -23,11 +23,10 @@ class OrderRequestScreenState extends State<OrderRequestScreen> {
     super.initState();
 
     final orderController = Get.find<OrderController>();
-    // Run both API calls in parallel for faster initial load
-    Future.wait([
-      orderController.getLatestOrders(),
-      orderController.getAssignedOrders(),
-    ]);
+    // Only load latest orders on initial load
+    orderController.getLatestOrders();
+    
+    // Start timer to fetch both latest and assigned orders every 10 seconds
     _timer = Timer.periodic(const Duration(seconds: 10), (timer) {
       // Run both API calls in parallel
       Future.wait([
