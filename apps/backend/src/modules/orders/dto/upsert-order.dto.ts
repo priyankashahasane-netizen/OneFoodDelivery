@@ -19,6 +19,11 @@ export enum PaymentType {
   Partial = 'partial'
 }
 
+export enum OrderType {
+  Regular = 'regular',
+  Subscription = 'subscription'
+}
+
 export class UpsertOrderDto {
   @IsOptional()
   @IsString()
@@ -63,6 +68,10 @@ export class UpsertOrderDto {
   @IsOptional()
   @IsString()
   cancellationReason?: string;
+
+  @IsOptional()
+  @IsEnum(OrderType)
+  orderType?: OrderType;
 }
 
 

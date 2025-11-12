@@ -80,6 +80,14 @@ export class OrderEntity {
   @Column({ name: 'delivered_at', type: 'timestamptz', nullable: true })
   deliveredAt!: Date | null;
 
+  @Column({ 
+    name: 'order_type', 
+    length: 32, 
+    default: 'regular',
+    type: 'varchar'
+  })
+  orderType!: 'regular' | 'subscription';
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 

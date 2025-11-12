@@ -34,7 +34,7 @@ export class OrdersService {
   ) {}
 
   async listOrders(filters: ListOrdersDto) {
-    const { page = 1, pageSize = 25, status, paymentType, driverId, assigned } = filters;
+    const { page = 1, pageSize = 25, status, paymentType, driverId, assigned, orderType } = filters;
     
     const queryBuilder = this.ordersRepository.createQueryBuilder('order')
       .leftJoinAndSelect('order.driver', 'driver')
@@ -67,6 +67,10 @@ export class OrdersService {
       } else {
         queryBuilder.andWhere('order.driverId IS NULL');
       }
+    }
+
+    if (orderType) {
+      queryBuilder.andWhere('order.orderType = :orderType', { orderType });
     }
 
     // Apply pagination
@@ -295,10 +299,11 @@ export class OrdersService {
   }
 
   async create(payload: UpsertOrderDto) {
-    // Set default status if not provided
+    // Set default status and orderType if not provided
     const orderData: DeepPartial<OrderEntity> = {
       ...payload,
       status: payload.status || 'created',
+      orderType: payload.orderType || 'regular',
     };
     const entity = this.ordersRepository.create(orderData);
     return this.ordersRepository.save(entity);

@@ -1005,6 +1005,12 @@ components:
           type: string
           format: date-time
           nullable: true
+        orderType:
+          type: string
+          enum:
+            - regular
+            - subscription
+          default: regular
 
     OrderInput:
       allOf:

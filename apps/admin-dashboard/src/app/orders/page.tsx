@@ -23,6 +23,7 @@ export default function OrdersPage() {
     paymentType: '',
     driverId: '',
     assigned: '',
+    orderType: '',
   });
 
   // Build query string from filters
@@ -36,6 +37,7 @@ export default function OrdersPage() {
     if (filters.assigned !== '') {
       params.append('assigned', filters.assigned === 'assigned' ? 'true' : 'false');
     }
+    if (filters.orderType) params.append('orderType', filters.orderType);
     return params.toString();
   }, [filters]);
 
@@ -71,6 +73,11 @@ export default function OrdersPage() {
     'partial'
   ];
 
+  const orderTypes = [
+    'regular',
+    'subscription'
+  ];
+
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
@@ -81,6 +88,7 @@ export default function OrdersPage() {
       paymentType: '',
       driverId: '',
       assigned: '',
+      orderType: '',
     });
   };
 
@@ -137,7 +145,7 @@ export default function OrdersPage() {
   // Get total orders count (from unfiltered query) and filtered count
   const totalOrders = totalData?.total ?? data?.total ?? 0;
   const filteredCount = data?.items?.length ?? 0;
-  const hasActiveFilters = filters.status || filters.paymentType || filters.driverId || filters.assigned !== '';
+  const hasActiveFilters = filters.status || filters.paymentType || filters.driverId || filters.assigned !== '' || filters.orderType !== '';
 
   return (
     <RequireAuth>
@@ -270,6 +278,27 @@ export default function OrdersPage() {
               </select>
             </div>
 
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 500, color: '#374151' }}>Order Type</label>
+              <select
+                value={filters.orderType}
+                onChange={(e) => handleFilterChange('orderType', e.target.value)}
+                style={{ 
+                  padding: '8px 12px', 
+                  borderRadius: 6, 
+                  border: '1px solid #d1d5db', 
+                  fontSize: 14,
+                  width: '100%',
+                  background: '#fff'
+                }}
+              >
+                <option value="">All Order Types</option>
+                {orderTypes.map((type: string) => (
+                  <option key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</option>
+                ))}
+              </select>
+            </div>
+
             <button
               onClick={clearFilters}
               style={{
@@ -315,6 +344,7 @@ export default function OrdersPage() {
                   <tr style={{ background: '#f9fafb' }}>
                     <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Ref</th>
                     <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Status</th>
+                    <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Order Type</th>
                     <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Payment</th>
                     <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Pickup</th>
                     <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Dropoff</th>
@@ -352,6 +382,38 @@ export default function OrdersPage() {
                       }}>
                         {o.status}
                       </span>
+                    </td>
+                    <td style={{ padding: '12px 8px', verticalAlign: 'middle' }}>
+                      <select
+                        value={o.orderType || 'regular'}
+                        onChange={async (e) => {
+                          const newOrderType = e.target.value;
+                          try {
+                            await authedFetch(`/api/orders/${o.id}`, {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ orderType: newOrderType })
+                            });
+                            mutate();
+                          } catch (error) {
+                            alert('Failed to update order type. Please try again.');
+                            console.error('Update order type error:', error);
+                            e.target.value = o.orderType || 'regular'; // Revert on error
+                          }
+                        }}
+                        style={{ 
+                          padding: '4px 8px', 
+                          borderRadius: 4, 
+                          border: '1px solid #d1d5db', 
+                          fontSize: 12,
+                          background: '#fff',
+                          cursor: 'pointer',
+                          minWidth: 100
+                        }}
+                      >
+                        <option value="regular">Regular</option>
+                        <option value="subscription">Subscription</option>
+                      </select>
                     </td>
                     <td style={{ padding: '12px 8px', verticalAlign: 'middle' }}>
                       <span style={{ fontSize: 14, color: '#111827' }}>

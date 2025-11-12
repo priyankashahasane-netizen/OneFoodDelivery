@@ -34,5 +34,9 @@ export class ListOrdersDto {
     return undefined;
   })
   assigned?: boolean; // true for assigned, false for unassigned, undefined for all
+
+  @IsOptional()
+  @IsString()
+  orderType?: string; // 'regular' or 'subscription'
 }
 
