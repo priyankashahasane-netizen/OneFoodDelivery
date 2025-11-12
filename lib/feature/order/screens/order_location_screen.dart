@@ -1,14 +1,17 @@
 import 'dart:math';
 import 'package:flutter/foundation.dart';
+import 'package:stackfood_multivendor_driver/api/api_client.dart';
 import 'package:stackfood_multivendor_driver/feature/order/controllers/order_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_model.dart';
 import 'package:stackfood_multivendor_driver/feature/order/widgets/location_card_widget.dart';
+import 'package:stackfood_multivendor_driver/feature/profile/controllers/profile_controller.dart';
 import 'package:stackfood_multivendor_driver/helper/date_converter_helper.dart';
 import 'package:stackfood_multivendor_driver/helper/price_converter_helper.dart';
 import 'package:stackfood_multivendor_driver/helper/directions_helper.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
 import 'package:stackfood_multivendor_driver/util/images.dart';
+import 'package:stackfood_multivendor_driver/util/app_constants.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:flutter/material.dart';
@@ -287,6 +290,195 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
       _markers.clear();
       _polylines.clear();
 
+      // Fetch driver's latest location
+      double? driverLat;
+      double? driverLng;
+      try {
+        final apiClient = Get.find<ApiClient>();
+        String? orderUuid = orderModel.uuid ?? orderModel.id?.toString();
+        
+        if (kDebugMode) {
+          print('🔵 OrderLocationScreen: Attempting to fetch driver location');
+          print('   Order UUID: $orderUuid');
+          print('   Order ID: ${orderModel.id}');
+        }
+        
+        if (orderUuid != null) {
+          final response = await apiClient.getData(
+            '${AppConstants.latestTrackingUri}/$orderUuid/latest',
+            handleError: false,
+          );
+          
+          if (kDebugMode) {
+            print('🔵 OrderLocationScreen: API Response status: ${response.statusCode}');
+            print('   Response body: ${response.body}');
+          }
+          
+          if (response.statusCode == 200 && response.body != null) {
+            final data = response.body;
+            if (data is Map) {
+              if (kDebugMode) {
+                print('🔵 OrderLocationScreen: Response data keys: ${data.keys.toList()}');
+              }
+              
+              if (data['latitude'] != null && data['longitude'] != null) {
+                driverLat = (data['latitude'] is num) 
+                    ? data['latitude'].toDouble() 
+                    : double.tryParse(data['latitude'].toString());
+                driverLng = (data['longitude'] is num) 
+                    ? data['longitude'].toDouble() 
+                    : double.tryParse(data['longitude'].toString());
+                
+                if (driverLat != null && driverLng != null) {
+                  if (kDebugMode) {
+                    print('✅ OrderLocationScreen: Successfully fetched driver location: $driverLat, $driverLng');
+                  }
+                } else {
+                  if (kDebugMode) {
+                    print('⚠️ OrderLocationScreen: Failed to parse driver coordinates');
+                  }
+                }
+              } else {
+                if (kDebugMode) {
+                  print('⚠️ OrderLocationScreen: No latitude/longitude in response');
+                }
+              }
+            } else {
+              if (kDebugMode) {
+                print('⚠️ OrderLocationScreen: Response body is not a Map: ${data.runtimeType}');
+              }
+            }
+          } else if (response.statusCode == 404) {
+            if (kDebugMode) {
+              print('⚠️ OrderLocationScreen: No tracking data found for order (404)');
+            }
+          } else {
+            if (kDebugMode) {
+              print('⚠️ OrderLocationScreen: Unexpected response status: ${response.statusCode}');
+            }
+          }
+        } else {
+          if (kDebugMode) {
+            print('⚠️ OrderLocationScreen: No order UUID available');
+          }
+        }
+        
+        // Fallback: Try to get driver location from driver profile if tracking failed
+        if (driverLat == null || driverLng == null) {
+          if (kDebugMode) {
+            print('🔵 OrderLocationScreen: Attempting fallback - getting driver location from profile');
+          }
+          try {
+            // First try to get from ProfileController cache (faster)
+            try {
+              final profileController = Get.find<ProfileController>();
+              final profileModel = profileController.profileModel;
+              
+              if (profileModel != null) {
+                // Try current location first (latitude/longitude from driver entity)
+                // Note: ProfileModel doesn't have these fields, so we'll need to fetch from API
+                if (kDebugMode) {
+                  print('🔵 OrderLocationScreen: ProfileModel found, but need to fetch from API for current location');
+                }
+              }
+            } catch (e) {
+              if (kDebugMode) {
+                print('🔵 OrderLocationScreen: ProfileController not available, fetching from API');
+              }
+            }
+            
+            // Fetch from API
+            final profileResponse = await apiClient.getData(
+              AppConstants.driverProfileUri,
+              handleError: false,
+            );
+            
+            if (profileResponse.statusCode == 200 && profileResponse.body != null) {
+              final profileData = profileResponse.body;
+              if (profileData is Map) {
+                // Try current location first (latitude/longitude from driver entity)
+                if (profileData['latitude'] != null && profileData['longitude'] != null) {
+                  driverLat = (profileData['latitude'] is num) 
+                      ? profileData['latitude'].toDouble() 
+                      : double.tryParse(profileData['latitude'].toString());
+                  driverLng = (profileData['longitude'] is num) 
+                      ? profileData['longitude'].toDouble() 
+                      : double.tryParse(profileData['longitude'].toString());
+                  if (driverLat != null && driverLng != null && kDebugMode) {
+                    print('✅ OrderLocationScreen: Got driver current location from profile: $driverLat, $driverLng');
+                  }
+                }
+                
+                // Fallback to home address if current location not available
+                if ((driverLat == null || driverLng == null) && 
+                    profileData['home_address_latitude'] != null && 
+                    profileData['home_address_longitude'] != null) {
+                  driverLat = (profileData['home_address_latitude'] is num) 
+                      ? profileData['home_address_latitude'].toDouble() 
+                      : double.tryParse(profileData['home_address_latitude'].toString());
+                  driverLng = (profileData['home_address_longitude'] is num) 
+                      ? profileData['home_address_longitude'].toDouble() 
+                      : double.tryParse(profileData['home_address_longitude'].toString());
+                  if (driverLat != null && driverLng != null && kDebugMode) {
+                    print('✅ OrderLocationScreen: Got driver home address location from profile: $driverLat, $driverLng');
+                  }
+                }
+              }
+            } else {
+              if (kDebugMode) {
+                print('⚠️ OrderLocationScreen: Profile API returned status ${profileResponse.statusCode}');
+              }
+            }
+          } catch (e, stackTrace) {
+            if (kDebugMode) {
+              print('⚠️ OrderLocationScreen: Fallback to profile failed: $e');
+              print('   Stack trace: $stackTrace');
+            }
+          }
+        }
+      } catch (e, stackTrace) {
+        if (kDebugMode) {
+          print('❌ OrderLocationScreen: Exception fetching driver location: $e');
+          print('   Stack trace: $stackTrace');
+        }
+      }
+
+      // Add driver marker if we have driver location
+      if (driverLat != null && driverLng != null) {
+        if (kDebugMode) {
+          print('✅ OrderLocationScreen: Adding driver marker at $driverLat, $driverLng');
+        }
+        _markers.add(
+          Marker(
+            point: ll.LatLng(driverLat, driverLng),
+            width: 60,
+            height: 60,
+            child: Image.asset(
+              Images.deliveryBikeIcon,
+              width: 60,
+              height: 60,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                // Fallback to icon if image is not found
+                return Container(
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade700,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 3),
+                  ),
+                  child: Icon(Icons.directions_car, color: Colors.white, size: 30),
+                );
+              },
+            ),
+          ),
+        );
+      } else {
+        if (kDebugMode) {
+          print('⚠️ OrderLocationScreen: Driver location not available - cannot show driver marker');
+          print('   driverLat: $driverLat, driverLng: $driverLng');
+        }
+      }
+
       // Only add restaurant marker if we have valid restaurant coordinates
       if (restaurantLat != _defaultLat || restaurantLng != _defaultLng) {
         _markers.add(
@@ -341,22 +533,15 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
         ),
       );
 
-      // Fetch actual route for all statuses
-      List<ll.LatLng> routePoints = [];
-
-      if (kDebugMode) {
-        print('🔵 OrderLocationScreen: Order status: ${orderModel.orderStatus}');
-        print('   Restaurant: $restaurantLat, $restaurantLng');
-        print('   Delivery: $deliveryLat, $deliveryLng');
-      }
-
+      // Always show restaurant to delivery route as BLACK LINE
+      List<ll.LatLng> restaurantToDeliveryRoute = [];
       if (restaurantLat != _defaultLat && restaurantLng != _defaultLng &&
           deliveryLat != _defaultLat && deliveryLng != _defaultLng) {
         if (kDebugMode) {
-          print('🔵 OrderLocationScreen: Fetching route from OSRM...');
+          print('🔵 OrderLocationScreen: Fetching restaurant to delivery route...');
         }
         
-        routePoints = await DirectionsHelper.getRoute(
+        restaurantToDeliveryRoute = await DirectionsHelper.getRoute(
           restaurantLat,
           restaurantLng,
           deliveryLat,
@@ -364,25 +549,14 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
         );
         
         if (kDebugMode) {
-          print('🔵 OrderLocationScreen: Received ${routePoints.length} route points');
+          print('🔵 OrderLocationScreen: Restaurant to delivery route has ${restaurantToDeliveryRoute.length} points');
         }
-      } else {
-        if (kDebugMode) {
-          print('⚠️ OrderLocationScreen: Missing coordinates, using straight line');
-        }
-      }
-
-      // Add route polyline
-      if ((restaurantLat != _defaultLat || restaurantLng != _defaultLng) &&
-          (deliveryLat != _defaultLat || deliveryLng != _defaultLng)) {
-        if (routePoints.length > 2) {
-          // Use actual route - BLACK LINE
-          if (kDebugMode) {
-            print('✅ OrderLocationScreen: Drawing route with ${routePoints.length} points');
-          }
+        
+        // Add restaurant to delivery route as BLACK LINE
+        if (restaurantToDeliveryRoute.length > 2) {
           _polylines.add(
             Polyline(
-              points: routePoints,
+              points: restaurantToDeliveryRoute,
               strokeWidth: 3.0,
               color: Colors.black,
               borderStrokeWidth: 1.0,
@@ -391,9 +565,6 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
           );
         } else {
           // Use straight line if route fetch failed
-          if (kDebugMode) {
-            print('⚠️ OrderLocationScreen: Drawing straight line (route fetch failed or insufficient points)');
-          }
           _polylines.add(
             Polyline(
               points: [
@@ -409,23 +580,117 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
         }
       }
 
-      // Calculate bounds
-      if ((restaurantLat != _defaultLat || restaurantLng != _defaultLng) &&
-          (deliveryLat != _defaultLat || deliveryLng != _defaultLng)) {
+      // If driver location is available, also show driver route as BLUE LINE
+      if (driverLat != null && driverLng != null) {
+        double driverRouteEndLat = deliveryLat;
+        double driverRouteEndLng = deliveryLng;
+        
+        // If order is not picked up, route driver to restaurant; otherwise route to delivery address
+        if (orderModel.orderStatus != 'picked_up' && restaurantLat != _defaultLat && restaurantLng != _defaultLng) {
+          driverRouteEndLat = restaurantLat;
+          driverRouteEndLng = restaurantLng;
+        }
+
+        if (kDebugMode) {
+          print('🔵 OrderLocationScreen: Order status: ${orderModel.orderStatus}');
+          print('   Driver: $driverLat, $driverLng');
+          print('   Restaurant: $restaurantLat, $restaurantLng');
+          print('   Delivery: $deliveryLat, $deliveryLng');
+          print('   Driver route: ($driverLat, $driverLng) -> ($driverRouteEndLat, $driverRouteEndLng)');
+        }
+
+        // Fetch driver route
+        if (driverRouteEndLat != _defaultLat && driverRouteEndLng != _defaultLng) {
+          if (kDebugMode) {
+            print('🔵 OrderLocationScreen: Fetching driver route from OSRM...');
+          }
+          
+          List<ll.LatLng> driverRoutePoints = await DirectionsHelper.getRoute(
+            driverLat,
+            driverLng,
+            driverRouteEndLat,
+            driverRouteEndLng,
+          );
+          
+          if (kDebugMode) {
+            print('🔵 OrderLocationScreen: Driver route has ${driverRoutePoints.length} points');
+          }
+          
+          // Add driver route as BLUE LINE
+          if (driverRoutePoints.length > 2) {
+            _polylines.add(
+              Polyline(
+                points: driverRoutePoints,
+                strokeWidth: 4.0,
+                color: Colors.blue,
+                borderStrokeWidth: 1.0,
+                borderColor: Colors.white,
+              ),
+            );
+          } else {
+            // Use straight line if route fetch failed
+            _polylines.add(
+              Polyline(
+                points: [
+                  ll.LatLng(driverLat, driverLng),
+                  ll.LatLng(driverRouteEndLat, driverRouteEndLng),
+                ],
+                strokeWidth: 4.0,
+                color: Colors.blue,
+                borderStrokeWidth: 1.0,
+                borderColor: Colors.white,
+              ),
+            );
+          }
+        }
+      }
+
+      // Calculate bounds including driver location if available
+      List<double> lats = [];
+      List<double> lngs = [];
+      
+      if (driverLat != null && driverLng != null) {
+        lats.add(driverLat);
+        lngs.add(driverLng);
+      }
+      if (restaurantLat != _defaultLat && restaurantLng != _defaultLng) {
+        lats.add(restaurantLat);
+        lngs.add(restaurantLng);
+      }
+      if (deliveryLat != _defaultLat && deliveryLng != _defaultLng) {
+        lats.add(deliveryLat);
+        lngs.add(deliveryLng);
+      }
+      
+      if (lats.isNotEmpty && lngs.isNotEmpty) {
         LatLngBounds bounds;
         
-        if (routePoints.length > 2) {
+        // Collect all route points for bounds calculation
+        List<ll.LatLng> allRoutePoints = [];
+        if (restaurantToDeliveryRoute.length > 2) {
+          allRoutePoints.addAll(restaurantToDeliveryRoute);
+        }
+        
+        if (allRoutePoints.length > 2) {
           // Calculate bounds from route points
-          double minLat = routePoints.first.latitude;
-          double maxLat = routePoints.first.latitude;
-          double minLng = routePoints.first.longitude;
-          double maxLng = routePoints.first.longitude;
+          double minLat = allRoutePoints.first.latitude;
+          double maxLat = allRoutePoints.first.latitude;
+          double minLng = allRoutePoints.first.longitude;
+          double maxLng = allRoutePoints.first.longitude;
           
-          for (var point in routePoints) {
+          for (var point in allRoutePoints) {
             minLat = min(minLat, point.latitude);
             maxLat = max(maxLat, point.latitude);
             minLng = min(minLng, point.longitude);
             maxLng = max(maxLng, point.longitude);
+          }
+          
+          // Also include driver location in bounds if available
+          if (driverLat != null && driverLng != null) {
+            minLat = min(minLat, driverLat);
+            maxLat = max(maxLat, driverLat);
+            minLng = min(minLng, driverLng);
+            maxLng = max(maxLng, driverLng);
           }
           
           bounds = LatLngBounds(
@@ -433,11 +698,11 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
             ll.LatLng(maxLat, maxLng),
           );
         } else {
-          // Use restaurant and delivery bounds
-          final minLat = min(deliveryLat, restaurantLat);
-          final minLng = min(deliveryLng, restaurantLng);
-          final maxLat = max(deliveryLat, restaurantLat);
-          final maxLng = max(deliveryLng, restaurantLng);
+          // Use all available locations for bounds
+          final minLat = lats.reduce(min);
+          final minLng = lngs.reduce(min);
+          final maxLat = lats.reduce(max);
+          final maxLng = lngs.reduce(max);
 
           bounds = LatLngBounds(
             ll.LatLng(minLat, minLng),

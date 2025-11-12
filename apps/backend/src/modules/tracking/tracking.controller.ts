@@ -23,6 +23,31 @@ export class TrackingController {
     });
   }
 
+  // GET /api/track/:orderId/latest - Get latest tracking point for an order
+  @Public()
+  @Get(':orderId/latest')
+  async getLatest(@Param('orderId') orderId: string) {
+    try {
+      const recent = await this.trackingService.listRecent(orderId, 1);
+      if (recent[0]) {
+        return {
+          id: recent[0].id,
+          orderId: recent[0].orderId,
+          driverId: recent[0].driverId,
+          latitude: recent[0].latitude,
+          longitude: recent[0].longitude,
+          speed: recent[0].speed,
+          heading: recent[0].heading,
+          recordedAt: recent[0].recordedAt,
+        };
+      }
+      return null;
+    } catch (error: any) {
+      this.logger.warn(`Failed to get latest tracking point for order ${orderId}:`, error?.message || error);
+      return null;
+    }
+  }
+
   // PRD: GET /api/track/:orderId/sse
   @Public()
   @Get(':orderId/sse')

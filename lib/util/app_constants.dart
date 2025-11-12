@@ -32,6 +32,7 @@ class AppConstants {
   
   // Tracking
   static const String recordLocationUri = '/api/track'; // /:orderId
+  static const String latestTrackingUri = '/api/track'; // /:orderId/latest
   
   // Legacy endpoints (keep for backward compatibility during migration)
   @Deprecated('Use availableOrdersUri instead')

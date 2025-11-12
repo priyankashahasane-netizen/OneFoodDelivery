@@ -45,6 +45,10 @@ export class DriverProfileResponseDto {
   identity_type?: string | null;
   identity_image?: string | null;
 
+  // Current location (from DriverEntity)
+  latitude?: number | null;
+  longitude?: number | null;
+
   // Home address
   home_address?: string | null;
   home_address_latitude?: number | null;
@@ -142,6 +146,10 @@ export class DriverProfileResponseDto {
       identity_number: metadata.identityNumber ?? '',
       identity_type: metadata.identityType ?? '',
       identity_image: metadata.identityImage ?? '',
+
+      // Current location (from DriverEntity)
+      latitude: driver.latitude ?? null,
+      longitude: driver.longitude ?? null,
 
       // Home address
       home_address: driver.homeAddress ?? null,
