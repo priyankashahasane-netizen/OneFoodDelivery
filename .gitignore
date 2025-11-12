@@ -3,6 +3,7 @@
 *.log
 *.pyc
 *.swp
+*.stackdump
 .DS_Store
 .atom/
 .buildlog/
@@ -30,9 +31,15 @@
 .pub-cache/
 .pub/
 /build/
+**/build/
 changes.zip
 /get_changed_files.sh
 /changed_files.zip
+
+# CocoaPods
+**/Pods/
+ios/Pods/
+macos/Pods/
 
 # Web related
 lib/generated_plugin_registrant.dart

@@ -5,6 +5,7 @@ import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_m
 import 'package:stackfood_multivendor_driver/feature/order/widgets/location_card_widget.dart';
 import 'package:stackfood_multivendor_driver/helper/date_converter_helper.dart';
 import 'package:stackfood_multivendor_driver/helper/price_converter_helper.dart';
+import 'package:stackfood_multivendor_driver/helper/directions_helper.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -42,6 +43,22 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _setMarker(widget.orderModel);
     });
+  }
+
+  @override
+  void didUpdateWidget(OrderLocationScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Update map if order status changed or location data changed
+    if (widget.orderModel.orderStatus != oldWidget.orderModel.orderStatus ||
+        widget.orderModel.restaurantLat != oldWidget.orderModel.restaurantLat ||
+        widget.orderModel.restaurantLng != oldWidget.orderModel.restaurantLng ||
+        widget.orderModel.deliveryAddress?.latitude != oldWidget.orderModel.deliveryAddress?.latitude ||
+        widget.orderModel.deliveryAddress?.longitude != oldWidget.orderModel.deliveryAddress?.longitude) {
+      if (kDebugMode) {
+        print('🔵 OrderLocationScreen: Order data changed, refreshing map');
+      }
+      _setMarker(widget.orderModel);
+    }
   }
 
   void _calculateEstimatedArrival() {
@@ -305,35 +322,109 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
         ),
       );
 
-      // Add route polyline only if we have both locations
-      if ((restaurantLat != _defaultLat || restaurantLng != _defaultLng) &&
-          (deliveryLat != _defaultLat || deliveryLng != _defaultLng)) {
-        _polylines.add(
-          Polyline(
-            points: [
-              ll.LatLng(restaurantLat, restaurantLng),
-              ll.LatLng(deliveryLat, deliveryLng),
-            ],
-            strokeWidth: 3.0,
-            color: Colors.black87,
-            borderStrokeWidth: 1.0,
-            borderColor: Colors.white,
-          ),
-        );
+      // Fetch actual route for all statuses
+      List<ll.LatLng> routePoints = [];
+
+      if (kDebugMode) {
+        print('🔵 OrderLocationScreen: Order status: ${orderModel.orderStatus}');
+        print('   Restaurant: $restaurantLat, $restaurantLng');
+        print('   Delivery: $deliveryLat, $deliveryLng');
       }
 
-      // Calculate bounds only if we have valid coordinates
+      if (restaurantLat != _defaultLat && restaurantLng != _defaultLng &&
+          deliveryLat != _defaultLat && deliveryLng != _defaultLng) {
+        if (kDebugMode) {
+          print('🔵 OrderLocationScreen: Fetching route from OSRM...');
+        }
+        
+        routePoints = await DirectionsHelper.getRoute(
+          restaurantLat,
+          restaurantLng,
+          deliveryLat,
+          deliveryLng,
+        );
+        
+        if (kDebugMode) {
+          print('🔵 OrderLocationScreen: Received ${routePoints.length} route points');
+        }
+      } else {
+        if (kDebugMode) {
+          print('⚠️ OrderLocationScreen: Missing coordinates, using straight line');
+        }
+      }
+
+      // Add route polyline
       if ((restaurantLat != _defaultLat || restaurantLng != _defaultLng) &&
           (deliveryLat != _defaultLat || deliveryLng != _defaultLng)) {
-        final minLat = min(deliveryLat, restaurantLat);
-        final minLng = min(deliveryLng, restaurantLng);
-        final maxLat = max(deliveryLat, restaurantLat);
-        final maxLng = max(deliveryLng, restaurantLng);
+        if (routePoints.length > 2) {
+          // Use actual route - BLACK LINE
+          if (kDebugMode) {
+            print('✅ OrderLocationScreen: Drawing route with ${routePoints.length} points');
+          }
+          _polylines.add(
+            Polyline(
+              points: routePoints,
+              strokeWidth: 3.0,
+              color: Colors.black,
+              borderStrokeWidth: 1.0,
+              borderColor: Colors.white,
+            ),
+          );
+        } else {
+          // Use straight line if route fetch failed
+          if (kDebugMode) {
+            print('⚠️ OrderLocationScreen: Drawing straight line (route fetch failed or insufficient points)');
+          }
+          _polylines.add(
+            Polyline(
+              points: [
+                ll.LatLng(restaurantLat, restaurantLng),
+                ll.LatLng(deliveryLat, deliveryLng),
+              ],
+              strokeWidth: 3.0,
+              color: Colors.black,
+              borderStrokeWidth: 1.0,
+              borderColor: Colors.white,
+            ),
+          );
+        }
+      }
 
-        LatLngBounds bounds = LatLngBounds(
-          ll.LatLng(minLat, minLng),
-          ll.LatLng(maxLat, maxLng),
-        );
+      // Calculate bounds
+      if ((restaurantLat != _defaultLat || restaurantLng != _defaultLng) &&
+          (deliveryLat != _defaultLat || deliveryLng != _defaultLng)) {
+        LatLngBounds bounds;
+        
+        if (routePoints.length > 2) {
+          // Calculate bounds from route points
+          double minLat = routePoints.first.latitude;
+          double maxLat = routePoints.first.latitude;
+          double minLng = routePoints.first.longitude;
+          double maxLng = routePoints.first.longitude;
+          
+          for (var point in routePoints) {
+            minLat = min(minLat, point.latitude);
+            maxLat = max(maxLat, point.latitude);
+            minLng = min(minLng, point.longitude);
+            maxLng = max(maxLng, point.longitude);
+          }
+          
+          bounds = LatLngBounds(
+            ll.LatLng(minLat, minLng),
+            ll.LatLng(maxLat, maxLng),
+          );
+        } else {
+          // Use restaurant and delivery bounds
+          final minLat = min(deliveryLat, restaurantLat);
+          final minLng = min(deliveryLng, restaurantLng);
+          final maxLat = max(deliveryLat, restaurantLat);
+          final maxLng = max(deliveryLng, restaurantLng);
+
+          bounds = LatLngBounds(
+            ll.LatLng(minLat, minLng),
+            ll.LatLng(maxLat, maxLng),
+          );
+        }
 
         // Zoom to fit bounds with padding
         _mapController.fitCamera(CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(80)));
