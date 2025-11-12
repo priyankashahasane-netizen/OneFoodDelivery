@@ -26,6 +26,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_switch/flutter_switch.dart';
 import 'package:get/get.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' as ll;
+import 'package:geolocator/geolocator.dart';
+import 'dart:async';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -39,6 +43,10 @@ class _HomeScreenState extends State<HomeScreen> {
   late final AppLifecycleListener _listener;
   bool _isNotificationPermissionGranted = true;
   bool _isBatteryOptimizationGranted = true;
+  final MapController _mapController = MapController();
+  ll.LatLng? _currentLocation;
+  bool _isLoadingLocation = false;
+  StreamSubscription<Position>? _locationStreamSubscription;
 
   @override
   void initState() {
@@ -49,10 +57,107 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     _loadData();
+    _getCurrentLocation();
+    _startLocationTrackingIfOnline();
 
     Future.delayed(const Duration(milliseconds: 200), () {
       checkPermission();
     });
+  }
+
+  Future<void> _getCurrentLocation({bool forceGPS = false}) async {
+    try {
+      setState(() {
+        _isLoadingLocation = true;
+      });
+
+      // Check if driver is offline - if so, use home address coordinates
+      // Skip this check if forceGPS is true (e.g., when going online)
+      if (!forceGPS) {
+        final profileController = Get.find<ProfileController>();
+        final profileModel = profileController.profileModel;
+        
+        if (profileModel != null) {
+          final isOffline = (profileModel.active ?? 0) == 0;
+          
+          if (isOffline && profileModel.homeAddressLatitude != null && profileModel.homeAddressLongitude != null) {
+            // Driver is offline - use home address coordinates
+            if (kDebugMode) {
+              debugPrint('Driver is offline - using home address location');
+            }
+            setState(() {
+              _currentLocation = ll.LatLng(
+                profileModel.homeAddressLatitude!,
+                profileModel.homeAddressLongitude!,
+              );
+              _isLoadingLocation = false;
+            });
+            // Move map to home address location
+            _mapController.move(_currentLocation!, 15.0);
+            return;
+          }
+        }
+      }
+
+      // Driver is online - get current GPS location
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (kDebugMode) {
+          debugPrint('Location services are disabled');
+        }
+        setState(() {
+          _isLoadingLocation = false;
+          _currentLocation = const ll.LatLng(0.0, 0.0); // Default location
+        });
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          if (kDebugMode) {
+            debugPrint('Location permissions are denied');
+          }
+          setState(() {
+            _isLoadingLocation = false;
+            _currentLocation = const ll.LatLng(0.0, 0.0); // Default location
+          });
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        if (kDebugMode) {
+          debugPrint('Location permissions are permanently denied');
+        }
+        setState(() {
+          _isLoadingLocation = false;
+          _currentLocation = const ll.LatLng(0.0, 0.0); // Default location
+        });
+        return;
+      }
+
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      setState(() {
+        _currentLocation = ll.LatLng(position.latitude, position.longitude);
+        _isLoadingLocation = false;
+      });
+
+      // Move map to current location
+      _mapController.move(_currentLocation!, 15.0);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error getting location: $e');
+      }
+      setState(() {
+        _isLoadingLocation = false;
+        _currentLocation = const ll.LatLng(0.0, 0.0); // Default location
+      });
+    }
   }
 
   // Listen to the app lifecycle state changes
@@ -62,12 +167,16 @@ class _HomeScreenState extends State<HomeScreen> {
         break;
       case AppLifecycleState.resumed:
         checkPermission();
+        _getCurrentLocation(); // Refresh location when app resumes (will use home address if offline)
+        _startLocationTrackingIfOnline(); // Restart tracking if online
+        break;
+      case AppLifecycleState.paused:
+        // Pause tracking when app is in background to save battery
+        _stopLiveLocationTracking();
         break;
       case AppLifecycleState.inactive:
         break;
       case AppLifecycleState.hidden:
-        break;
-      case AppLifecycleState.paused:
         break;
     }
   }
@@ -82,6 +191,10 @@ class _HomeScreenState extends State<HomeScreen> {
     await Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus ?? 'all', isDataClear: true);
     await Get.find<OrderController>().getCompletedOrders(offset: 1, status: 'all', isUpdate: false);
     await Get.find<NotificationController>().getNotificationList();
+    // Refresh location when data is refreshed
+    _getCurrentLocation();
+    // Update location tracking based on current online/offline status
+    _startLocationTrackingIfOnline();
     debugPrint('✅ HomeScreen._loadData: Data load complete');
   }
 
@@ -159,10 +272,100 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
 
+  void _startLocationTrackingIfOnline() {
+    final profileController = Get.find<ProfileController>();
+    final profileModel = profileController.profileModel;
+    
+    if (profileModel != null && (profileModel.active ?? 0) == 1) {
+      // Driver is online - start live location tracking
+      _startLiveLocationTracking();
+    } else {
+      // Driver is offline - stop tracking
+      _stopLiveLocationTracking();
+    }
+  }
+
+  void _startLiveLocationTracking() async {
+    // Stop any existing stream
+    await _stopLiveLocationTracking();
+
+    try {
+      // Check location permissions
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (kDebugMode) {
+          debugPrint('Location services are disabled - cannot start live tracking');
+        }
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          if (kDebugMode) {
+            debugPrint('Location permissions are denied - cannot start live tracking');
+          }
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        if (kDebugMode) {
+          debugPrint('Location permissions are permanently denied - cannot start live tracking');
+        }
+        return;
+      }
+
+      // Start listening to location updates
+      _locationStreamSubscription = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 10, // Update every 10 meters
+        ),
+      ).listen(
+        (Position position) {
+          if (mounted) {
+            setState(() {
+              _currentLocation = ll.LatLng(position.latitude, position.longitude);
+            });
+            // Smoothly move map to new location
+            _mapController.move(_currentLocation!, _mapController.camera.zoom);
+            
+            if (kDebugMode) {
+              debugPrint('📍 Live location update: ${position.latitude}, ${position.longitude}');
+            }
+          }
+        },
+        onError: (error) {
+          if (kDebugMode) {
+            debugPrint('Error in location stream: $error');
+          }
+        },
+      );
+
+      if (kDebugMode) {
+        debugPrint('✅ Started live location tracking');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error starting live location tracking: $e');
+      }
+    }
+  }
+
+  Future<void> _stopLiveLocationTracking() async {
+    await _locationStreamSubscription?.cancel();
+    _locationStreamSubscription = null;
+    if (kDebugMode) {
+      debugPrint('🛑 Stopped live location tracking');
+    }
+  }
+
   @override
   void dispose() {
     _listener.dispose();
-
+    _stopLiveLocationTracking();
     super.dispose();
   }
 
@@ -245,17 +448,38 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: CustomConfirmationBottomSheet(
                           title: 'offline'.tr,
                           description: 'are_you_sure_to_offline'.tr,
-                          onConfirm: () {
-                            profileController.updateActiveStatus(isUpdate: true);
+                          onConfirm: () async {
+                            Get.back(); // Close the bottom sheet
+                            await profileController.updateActiveStatus(isUpdate: true);
+                            // Stop live tracking and show home address when going offline
+                            await _stopLiveLocationTracking();
+                            _getCurrentLocation();
                           },
                         ),
                       );
                     }else {
                       // Go online - check for shifts first
                       if(profileController.shifts != null && profileController.shifts!.isNotEmpty) {
-                        Get.dialog(const ShiftDialogueWidget());
+                        Get.dialog(const ShiftDialogueWidget()).then((_) {
+                          // After shift dialog closes, check if profile is now online and update location
+                          WidgetsBinding.instance.addPostFrameCallback((_) async {
+                            await Future.delayed(const Duration(milliseconds: 500));
+                            final profileController = Get.find<ProfileController>();
+                            if (profileController.profileModel != null && 
+                                (profileController.profileModel!.active ?? 0) == 1) {
+                              await profileController.getProfile();
+                              await _getCurrentLocation(forceGPS: true);
+                              _startLocationTrackingIfOnline();
+                            }
+                          });
+                        });
                       } else {
-                        profileController.updateActiveStatus();
+                        await profileController.updateActiveStatus();
+                        // Refresh profile to ensure status is updated
+                        await profileController.getProfile();
+                        // Start live tracking when going online and force GPS location update
+                        await _getCurrentLocation(forceGPS: true);
+                        _startLocationTrackingIfOnline();
                       }
                     }
                   }
@@ -322,19 +546,70 @@ class _HomeScreenState extends State<HomeScreen> {
                           )
                         else if (isEmpty)
                           Container(
-                            padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
+                            height: 300,
                             decoration: BoxDecoration(
                               color: Theme.of(context).cardColor,
                               borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
                             ),
-                            child: Center(
-                              child: Text(
-                                'no_active_orders'.tr,
-                                style: robotoRegular.copyWith(
-                                  color: Theme.of(context).hintColor,
-                                  fontSize: Dimensions.fontSizeDefault,
-                                ),
-                              ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+                              child: _isLoadingLocation
+                                  ? Center(
+                                      child: CircularProgressIndicator(
+                                        color: Theme.of(context).primaryColor,
+                                      ),
+                                    )
+                                  : FlutterMap(
+                                      mapController: _mapController,
+                                      options: MapOptions(
+                                        initialCenter: _currentLocation ?? const ll.LatLng(0.0, 0.0),
+                                        initialZoom: 15.0,
+                                        interactionOptions: const InteractionOptions(
+                                          flags: InteractiveFlag.all,
+                                        ),
+                                      ),
+                                      children: [
+                                        TileLayer(
+                                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                          userAgentPackageName: 'com.sixamtech.app_retain',
+                                        ),
+                                        if (_currentLocation != null && _currentLocation!.latitude != 0.0 && _currentLocation!.longitude != 0.0)
+                                          MarkerLayer(
+                                            markers: [
+                                              Marker(
+                                                point: _currentLocation!,
+                                                width: 60,
+                                                height: 60,
+                                                child: Image.asset(
+                                                  // Show HappyMan icon when offline, DeliveryBike icon when online
+                                                  (profileModel != null && (profileModel.active ?? 0) == 0)
+                                                      ? Images.happyManIcon
+                                                      : Images.deliveryBikeIcon,
+                                                  width: 60,
+                                                  height: 60,
+                                                  fit: BoxFit.contain,
+                                                  errorBuilder: (context, error, stackTrace) {
+                                                    // Fallback icons based on online/offline status
+                                                    if (profileModel != null && (profileModel.active ?? 0) == 0) {
+                                                      return Icon(
+                                                        Icons.home,
+                                                        color: Theme.of(context).primaryColor,
+                                                        size: 40,
+                                                      );
+                                                    } else {
+                                                      return Icon(
+                                                        Icons.directions_bike,
+                                                        color: Theme.of(context).primaryColor,
+                                                        size: 40,
+                                                      );
+                                                    }
+                                                  },
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                      ],
+                                    ),
                             ),
                           ),
                         const SizedBox(height: Dimensions.paddingSizeDefault),

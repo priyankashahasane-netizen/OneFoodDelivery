@@ -50,6 +50,15 @@ export class DriverEntity {
   @Column({ type: 'float', nullable: true })
   longitude!: number | null;
 
+  @Column({ name: 'home_address', type: 'text', nullable: true })
+  homeAddress!: string | null;
+
+  @Column({ name: 'home_address_latitude', type: 'float', nullable: true })
+  homeAddressLatitude!: number | null;
+
+  @Column({ name: 'home_address_longitude', type: 'float', nullable: true })
+  homeAddressLongitude!: number | null;
+
   @Column({ name: 'last_seen_at', type: 'timestamptz', nullable: true })
   lastSeenAt!: Date | null;
 

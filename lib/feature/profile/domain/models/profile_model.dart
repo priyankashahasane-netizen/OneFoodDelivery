@@ -38,6 +38,9 @@ class ProfileModel {
   double? withDrawableBalance;
   double? totalWithdrawn;
   bool? showPayNowButton;
+  String? homeAddress;
+  double? homeAddressLatitude;
+  double? homeAddressLongitude;
 
   ProfileModel({
     this.id,
@@ -79,6 +82,9 @@ class ProfileModel {
     this.withDrawableBalance,
     this.totalWithdrawn,
     this.showPayNowButton,
+    this.homeAddress,
+    this.homeAddressLatitude,
+    this.homeAddressLongitude,
   });
 
   ProfileModel.fromJson(Map<String, dynamic> json) {
@@ -163,6 +169,9 @@ class ProfileModel {
     withDrawableBalance = json['withdraw_able_balance']?.toDouble() ?? 0.0;
     totalWithdrawn = json['total_withdrawn']?.toDouble() ?? 0.0;
     showPayNowButton = json['show_pay_now_button'] ?? false;
+    homeAddress = json['home_address'];
+    homeAddressLatitude = json['home_address_latitude']?.toDouble();
+    homeAddressLongitude = json['home_address_longitude']?.toDouble();
   }
 
   Map<String, dynamic> toJson() {
@@ -206,6 +215,9 @@ class ProfileModel {
     data['withdraw_able_balance'] = withDrawableBalance;
     data['total_withdrawn'] = totalWithdrawn;
     data['show_pay_now_button'] = showPayNowButton;
+    data['home_address'] = homeAddress;
+    data['home_address_latitude'] = homeAddressLatitude;
+    data['home_address_longitude'] = homeAddressLongitude;
     return data;
   }
 }

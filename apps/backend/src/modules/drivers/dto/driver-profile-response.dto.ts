@@ -45,6 +45,11 @@ export class DriverProfileResponseDto {
   identity_type?: string | null;
   identity_image?: string | null;
 
+  // Home address
+  home_address?: string | null;
+  home_address_latitude?: number | null;
+  home_address_longitude?: number | null;
+
   // Ratings
   avg_rating?: number;
   rating_count?: number;
@@ -137,6 +142,11 @@ export class DriverProfileResponseDto {
       identity_number: metadata.identityNumber ?? '',
       identity_type: metadata.identityType ?? '',
       identity_image: metadata.identityImage ?? '',
+
+      // Home address
+      home_address: driver.homeAddress ?? null,
+      home_address_latitude: driver.homeAddressLatitude ?? null,
+      home_address_longitude: driver.homeAddressLongitude ?? null,
 
       // Ratings - ensure no nulls
       avg_rating: metadata.avgRating != null ? Number(metadata.avgRating) : 4.8,

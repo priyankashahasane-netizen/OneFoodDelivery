@@ -33,6 +33,18 @@ export class UpdateDriverDto {
 
   @IsOptional()
   @IsString()
+  homeAddress?: string;
+
+  @IsOptional()
+  @IsNumber()
+  homeAddressLatitude?: number;
+
+  @IsOptional()
+  @IsNumber()
+  homeAddressLongitude?: number;
+
+  @IsOptional()
+  @IsString()
   zoneId?: string;
 }
 

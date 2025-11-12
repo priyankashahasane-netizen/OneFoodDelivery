@@ -8,6 +8,7 @@ import 'package:stackfood_multivendor_driver/helper/price_converter_helper.dart'
 import 'package:stackfood_multivendor_driver/helper/directions_helper.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
+import 'package:stackfood_multivendor_driver/util/images.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:flutter/material.dart';
@@ -291,15 +292,24 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
         _markers.add(
           Marker(
             point: ll.LatLng(restaurantLat, restaurantLng),
-            width: 50,
-            height: 50,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.grey[800],
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 3),
-              ),
-              child: Icon(Icons.restaurant, color: Colors.white, size: 24),
+            width: 60,
+            height: 60,
+            child: Image.asset(
+              Images.restaurantIconMarker,
+              width: 60,
+              height: 60,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                // Fallback to icon if image is not found
+                return Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey[800],
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 3),
+                  ),
+                  child: Icon(Icons.restaurant, color: Colors.white, size: 24),
+                );
+              },
             ),
           ),
         );
@@ -309,15 +319,24 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
       _markers.add(
         Marker(
           point: ll.LatLng(deliveryLat, deliveryLng),
-          width: 50,
-          height: 50,
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.orange,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 3),
-            ),
-            child: Icon(Icons.home, color: Colors.white, size: 24),
+          width: 60,
+          height: 60,
+          child: Image.asset(
+            Images.homeIconMarker,
+            width: 60,
+            height: 60,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              // Fallback to icon if image is not found
+              return Container(
+                decoration: BoxDecoration(
+                  color: Colors.orange,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 3),
+                ),
+                child: Icon(Icons.home, color: Colors.white, size: 24),
+              );
+            },
           ),
         ),
       );

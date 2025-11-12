@@ -49,6 +49,10 @@ class Images {
   static const String runningOrderIcon = 'assets/image/running_order.png';
   static const String locationIcon = 'assets/image/location_icon.png';
   static const String cooking = 'assets/image/cooking.png';
+  static const String deliveryBikeIcon = 'assets/image/DeliveryBike.png';
+  static const String happyManIcon = 'assets/image/HappyMan.png';
+  static const String homeIconMarker = 'assets/image/Homeicon.png';
+  static const String restaurantIconMarker = 'assets/image/RESTAURANT.png';
 
   ///Svg Images
   static const String changePasswordBgImage = 'assets/image/change_password_bg_image.svg';
