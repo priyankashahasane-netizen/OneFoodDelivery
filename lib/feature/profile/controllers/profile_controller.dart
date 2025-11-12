@@ -273,19 +273,51 @@ class ProfileController extends GetxController implements GetxService {
 
   Future<void> recordLocation() async {
     try {
-      final Position locationResult = await Geolocator.getCurrentPosition();
+      // Check if location services are enabled (same as home screen)
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        debugPrint('⚠️ Location services are disabled - skipping location update');
+        _scheduleNextRecord(const Duration(minutes: 5));
+        return;
+      }
+
+      // Check location permissions (same as home screen)
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          debugPrint('⚠️ Location permissions are denied - skipping location update');
+          _scheduleNextRecord(const Duration(minutes: 5));
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        debugPrint('⚠️ Location permissions are permanently denied - skipping location update');
+        _scheduleNextRecord(const Duration(minutes: 5));
+        return;
+      }
+
+      // Get current GPS position from device with high accuracy (same as home screen)
+      final Position locationResult = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      
       String address = await profileServiceInterface.addressPlaceMark(locationResult);
 
       _recordLocation = RecordLocationBody(
-        location: address, latitude: locationResult.latitude, longitude: locationResult.longitude,
+        location: address, 
+        latitude: locationResult.latitude, 
+        longitude: locationResult.longitude,
       );
 
       if (_recordLocation != null) {
+        // PATCH the location to driver entity via /api/drivers/:id
         bool isSuccess = await profileServiceInterface.recordLocation(_recordLocation!);
         if(isSuccess) {
-          debugPrint('----Added record Lat: ${_recordLocation!.latitude} Lng: ${_recordLocation!.longitude} Loc: ${_recordLocation!.location}');
+          debugPrint('✅ Location updated: Lat: ${_recordLocation!.latitude}, Lng: ${_recordLocation!.longitude}');
         } else {
-          debugPrint('----Failed record');
+          debugPrint('❌ Failed to update location');
         }
       }
 
@@ -297,7 +329,7 @@ class ProfileController extends GetxController implements GetxService {
         _scheduleNextRecord(const Duration(minutes: 5));
       }
     } catch (e) {
-      debugPrint('Error recording location: $e');
+      debugPrint('❌ Error recording location: $e');
       // Don't throw - just log the error and continue
       // Schedule next record even on error to keep trying
       _scheduleNextRecord(const Duration(minutes: 5));

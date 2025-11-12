@@ -42,32 +42,50 @@ class ProfileRepository implements ProfileRepositoryInterface {
 
   @override
   Future<bool> recordLocation(RecordLocationBody recordLocationBody) async {
-    // The tracking endpoint expects: POST /api/track/:orderId with body { driverId, lat, lng, speed?, heading? }
-    // Since we don't have an orderId here, we'll skip tracking for now
-    // Location updates without an active order are not critical
-    // The backend tracking endpoint requires an orderId, so we'll handle errors gracefully
+    // Update driver's last location using PATCH /api/drivers/:id
+    // This updates the driver entity with current GPS coordinates from device
     try {
-      // Use handleError: false to get actual status codes (not converted to empty Response)
-      Response response = await apiClient.postData(
-        AppConstants.recordLocationUri, 
-        recordLocationBody.toJson(),
-        handleError: false,
-      );
-      // Accept 200, 201 (successful tracking)
-      // Handle 400 (BadRequest - missing orderId) and 404 (Not Found) gracefully
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return true;
-      } else if (response.statusCode == 400 || response.statusCode == 404) {
-        // 400 BadRequest: Missing orderId (expected when no active orders)
-        // 404 Not Found: Endpoint doesn't exist (shouldn't happen but handle gracefully)
-        // Silently return false - location tracking without active order is not critical
+      // Get driver UUID
+      String? driverUuid = await _getDriverUuid();
+      
+      if (driverUuid == null || driverUuid.isEmpty) {
+        debugPrint('❌ Could not determine driver UUID for location update');
         return false;
       }
-      return false;
+      
+      // Validate that we have location data
+      if (recordLocationBody.latitude == null || recordLocationBody.longitude == null) {
+        debugPrint('❌ Missing latitude or longitude in location data');
+        return false;
+      }
+      
+      // Prepare body with only latitude and longitude (as per UpdateDriverDto)
+      Map<String, dynamic> body = {
+        'latitude': recordLocationBody.latitude,
+        'longitude': recordLocationBody.longitude,
+      };
+      
+      // Use PATCH to update driver location
+      Response response = await apiClient.patchData(
+        '${AppConstants.driverUpdateUri}/$driverUuid',
+        body,
+        handleError: false,
+      );
+      
+      // Accept 200, 204 (successful update)
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        debugPrint('✅ Driver location updated: Lat: ${recordLocationBody.latitude}, Lng: ${recordLocationBody.longitude}');
+        return true;
+      } else {
+        debugPrint('❌ Failed to update driver location: Status ${response.statusCode}');
+        if (response.body != null) {
+          debugPrint('Response body: ${response.body}');
+        }
+        return false;
+      }
     } catch (e) {
-      // Silently fail for location tracking - it's not critical if it fails
-      // Location is tracked when driver has an active order
-      // This catches network errors, timeouts, etc.
+      debugPrint('❌ Error updating driver location: $e');
+      // Don't throw - location updates should fail gracefully
       return false;
     }
   }
