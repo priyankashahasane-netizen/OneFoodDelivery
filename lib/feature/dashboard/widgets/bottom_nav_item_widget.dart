@@ -6,11 +6,13 @@ import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
 
 class BottomNavItemWidget extends StatelessWidget {
-  final String icon;
+  final String? icon;
+  final IconData? iconData;
   final Function? onTap;
   final bool isSelected;
   final int? pageIndex;
-  const BottomNavItemWidget({super.key, required this.icon, this.onTap, this.isSelected = false, this.pageIndex});
+  final double? iconSize;
+  const BottomNavItemWidget({super.key, this.icon, this.iconData, this.onTap, this.isSelected = false, this.pageIndex, this.iconSize});
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +21,13 @@ class BottomNavItemWidget extends StatelessWidget {
         icon: Stack(
           clipBehavior: Clip.none,
           children: [
-            CustomAssetImageWidget(image: icon, color: isSelected ? Theme.of(context).primaryColor : Colors.grey, height: 25, width: 25),
+            iconData != null
+                ? Icon(
+                    iconData,
+                    size: iconSize ?? 25,
+                    color: isSelected ? Theme.of(context).primaryColor : Colors.grey,
+                  )
+                : CustomAssetImageWidget(image: icon!, color: isSelected ? Theme.of(context).primaryColor : Colors.grey, height: iconSize ?? 25, width: iconSize ?? 25),
 
             pageIndex == 1 ? Positioned(
               top: -8, right: 0,

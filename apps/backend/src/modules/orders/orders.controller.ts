@@ -165,6 +165,16 @@ export class OrdersController {
     return this.ordersService.unassignDriver(id);
   }
 
+  @Put(':id/order-type')
+  @UseGuards(JwtAuthGuard)
+  @Roles('admin', 'dispatcher')
+  async updateOrderType(@Param('id') id: string, @Body() body: { orderType: 'regular' | 'subscription' }) {
+    if (!body.orderType || !['regular', 'subscription'].includes(body.orderType)) {
+      throw new HttpException('Invalid orderType. Must be "regular" or "subscription"', HttpStatus.BAD_REQUEST);
+    }
+    return this.ordersService.updateOrderType(id, body.orderType);
+  }
+
   @Put(':id/status')
   @UseGuards(JwtAuthGuard)
   async updateStatus(@Param('id') id: string, @Body() body: { status: string }, @Request() req: any) {

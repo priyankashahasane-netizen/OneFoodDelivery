@@ -25,6 +25,7 @@ export default function OrdersPage() {
     assigned: '',
     orderType: '',
   });
+  const [pendingOrderTypes, setPendingOrderTypes] = useState<Record<string, 'regular' | 'subscription'>>({});
 
   // Build query string from filters
   const queryString = useMemo(() => {
@@ -385,20 +386,34 @@ export default function OrdersPage() {
                     </td>
                     <td style={{ padding: '12px 8px', verticalAlign: 'middle' }}>
                       <select
-                        value={o.orderType || 'regular'}
+                        value={pendingOrderTypes[o.id] || o.orderType || 'regular'}
                         onChange={async (e) => {
-                          const newOrderType = e.target.value;
+                          const newOrderType = e.target.value as 'regular' | 'subscription';
+                          const previousValue = o.orderType || 'regular';
+                          // Optimistically update UI
+                          setPendingOrderTypes(prev => ({ ...prev, [o.id]: newOrderType }));
                           try {
-                            await authedFetch(`/api/orders/${o.id}`, {
+                            await authedFetch(`/api/orders/${o.id}/order-type`, {
                               method: 'PUT',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({ orderType: newOrderType })
                             });
+                            // Clear pending state and refetch
+                            setPendingOrderTypes(prev => {
+                              const updated = { ...prev };
+                              delete updated[o.id];
+                              return updated;
+                            });
                             mutate();
                           } catch (error) {
+                            // Revert on error
+                            setPendingOrderTypes(prev => {
+                              const updated = { ...prev };
+                              delete updated[o.id];
+                              return updated;
+                            });
                             alert('Failed to update order type. Please try again.');
                             console.error('Update order type error:', error);
-                            e.target.value = o.orderType || 'regular'; // Revert on error
                           }
                         }}
                         style={{ 

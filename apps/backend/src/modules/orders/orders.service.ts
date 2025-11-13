@@ -316,6 +316,12 @@ export class OrdersService {
     return this.ordersRepository.save(entity);
   }
 
+  async updateOrderType(orderId: string, orderType: 'regular' | 'subscription') {
+    const order = await this.findById(orderId);
+    order.orderType = orderType;
+    return this.ordersRepository.save(order);
+  }
+
   async assignDriver(orderId: string, driverId: string) {
     const order = await this.findById(orderId);
     
