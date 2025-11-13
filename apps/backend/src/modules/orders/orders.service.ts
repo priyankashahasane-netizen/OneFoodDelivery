@@ -361,10 +361,8 @@ export class OrdersService {
     order.driverId = null;
     order.assignedAt = null;
     
-    // Reset status to 'created' if it was 'assigned', otherwise keep current status
-    if (order.status === 'assigned') {
-      order.status = 'created';
-    }
+    // Reset status to 'pending' when unassigned from admin side
+    order.status = 'pending';
 
     await this.ordersRepository.save(order);
 

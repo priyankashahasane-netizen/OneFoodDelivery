@@ -26,6 +26,7 @@ export default function OrdersPage() {
     orderType: '',
   });
   const [pendingOrderTypes, setPendingOrderTypes] = useState<Record<string, 'regular' | 'subscription'>>({});
+  const [pendingStatuses, setPendingStatuses] = useState<Record<string, string>>({});
 
   // Build query string from filters
   const queryString = useMemo(() => {
@@ -120,6 +121,35 @@ export default function OrdersPage() {
     } catch (error) {
       alert('Failed to unassign order. Please try again.');
       console.error('Unassign error:', error);
+    }
+  }
+
+  async function updateStatus(orderId: string, newStatus: string) {
+    const previousStatus = data?.items?.find((o: any) => o.id === orderId)?.status;
+    // Optimistically update UI
+    setPendingStatuses(prev => ({ ...prev, [orderId]: newStatus }));
+    try {
+      await authedFetch(`/api/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      // Clear pending state and refetch
+      setPendingStatuses(prev => {
+        const updated = { ...prev };
+        delete updated[orderId];
+        return updated;
+      });
+      mutate();
+    } catch (error) {
+      // Revert on error
+      setPendingStatuses(prev => {
+        const updated = { ...prev };
+        delete updated[orderId];
+        return updated;
+      });
+      alert('Failed to update order status. Please try again.');
+      console.error('Update status error:', error);
     }
   }
 
@@ -350,6 +380,7 @@ export default function OrdersPage() {
                     <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Pickup</th>
                     <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Dropoff</th>
                     <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Driver</th>
+                    <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Assigned At</th>
                     <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151', minWidth: 300 }}>Actions</th>
                   </tr>
                 </thead>
@@ -362,27 +393,35 @@ export default function OrdersPage() {
                       </span>
                     </td>
                     <td style={{ padding: '12px 8px', verticalAlign: 'middle' }}>
-                      <span style={{
-                        padding: '4px 10px',
-                        borderRadius: 4,
-                        fontSize: 12,
-                        fontWeight: 500,
-                        display: 'inline-block',
-                        background: o.status === 'delivered' ? '#d1fae5' : 
-                                    o.status === 'cancelled' || o.status === 'canceled' ? '#fee2e2' :
-                                    o.status === 'assigned' ? '#dbeafe' :
-                                    o.status === 'accepted' ? '#dcfce7' :
-                                    o.status === 'picked_up' ? '#fef3c7' :
-                                    '#f3f4f6',
-                        color: o.status === 'delivered' ? '#065f46' :
-                               o.status === 'cancelled' || o.status === 'canceled' ? '#991b1b' :
-                               o.status === 'assigned' ? '#1e40af' :
-                               o.status === 'accepted' ? '#166534' :
-                               o.status === 'picked_up' ? '#92400e' :
-                               '#374151'
-                      }}>
-                        {o.status}
-                      </span>
+                      <select
+                        value={pendingStatuses[o.id] || o.status || 'pending'}
+                        onChange={async (e) => {
+                          const newStatus = e.target.value;
+                          await updateStatus(o.id, newStatus);
+                        }}
+                        style={{ 
+                          padding: '4px 8px', 
+                          borderRadius: 4, 
+                          border: '1px solid #d1d5db', 
+                          fontSize: 12,
+                          background: '#fff',
+                          cursor: 'pointer',
+                          minWidth: 120,
+                          fontWeight: 500,
+                          color: (pendingStatuses[o.id] || o.status) === 'delivered' ? '#065f46' :
+                                 (pendingStatuses[o.id] || o.status) === 'cancelled' || (pendingStatuses[o.id] || o.status) === 'canceled' ? '#991b1b' :
+                                 (pendingStatuses[o.id] || o.status) === 'assigned' ? '#1e40af' :
+                                 (pendingStatuses[o.id] || o.status) === 'accepted' ? '#166534' :
+                                 (pendingStatuses[o.id] || o.status) === 'picked_up' ? '#92400e' :
+                                 '#374151'
+                        }}
+                      >
+                        {orderStatuses.map((status: string) => (
+                          <option key={status} value={status}>
+                            {status.replace(/_/g, ' ')}
+                          </option>
+                        ))}
+                      </select>
                     </td>
                     <td style={{ padding: '12px 8px', verticalAlign: 'middle' }}>
                       <select
@@ -452,6 +491,15 @@ export default function OrdersPage() {
                         </span>
                       ) : (
                         <span style={{ color: '#9ca3af', fontSize: 13 }}>Unassigned</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '12px 8px', verticalAlign: 'middle' }}>
+                      {o.assignedAt ? (
+                        <span style={{ fontSize: 13, color: '#111827' }}>
+                          {new Date(o.assignedAt).toLocaleString()}
+                        </span>
+                      ) : (
+                        <span style={{ color: '#9ca3af', fontSize: 13 }}>—</span>
                       )}
                     </td>
                     <td style={{ padding: '12px 8px', verticalAlign: 'middle' }}>
