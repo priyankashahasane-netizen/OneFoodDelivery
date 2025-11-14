@@ -17,6 +17,7 @@ import 'package:stackfood_multivendor_driver/helper/date_converter_helper.dart';
 import 'package:stackfood_multivendor_driver/helper/route_helper.dart';
 import 'package:stackfood_multivendor_driver/util/app_constants.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
+import 'package:stackfood_multivendor_driver/util/images.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -87,10 +88,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
-            child: ClipOval(child: CustomImageWidget(
-              image: profileController.profileModel?.imageFullUrl ?? '',
-              height: 100, width: 100, fit: BoxFit.cover,
-            )),
+            child: ClipOval(child: (profileController.profileModel?.imageFullUrl != null && profileController.profileModel!.imageFullUrl!.isNotEmpty)
+              ? CustomImageWidget(
+                  image: profileController.profileModel!.imageFullUrl!,
+                  height: 100, width: 100, fit: BoxFit.cover,
+                )
+              : Image.asset(
+                  Images.demoProfilePic,
+                  height: 100, width: 100, fit: BoxFit.cover,
+                )),
           ),
           mainWidget: SingleChildScrollView(physics: const BouncingScrollPhysics(), child: Center(child: Container(
             width: 1170,

@@ -96,7 +96,7 @@ class RouteHelper {
     }),
     GetPage(name: main, page: () => DashboardScreen(
       pageIndex: Get.parameters['page'] == 'home' ? 0 : Get.parameters['page'] == 'order-request' ? 1
-          : Get.parameters['page'] == 'order' ? 2 : Get.parameters['page'] == 'profile' ? 3 : 0,
+          : Get.parameters['page'] == 'order' ? 2 : Get.parameters['page'] == 'map' ? 3 : Get.parameters['page'] == 'profile' ? 4 : 0,
     )),
     GetPage(name: orderDetails, page: () {
       OrderDetailsScreen? orderDetails = Get.arguments;

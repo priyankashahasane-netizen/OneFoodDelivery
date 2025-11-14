@@ -12,6 +12,7 @@ import { ShiftEntity } from '../modules/shifts/entities/shift.entity.js';
 import { SubscriptionEntity } from '../modules/subscriptions/entities/subscription.entity.js';
 import { SubscriptionExecutionEntity } from '../modules/subscriptions/entities/subscription-execution.entity.js';
 import { NotificationEntity } from '../modules/notifications/entities/notification.entity.js';
+import { SmartPathEntity } from '../modules/smart-path/entities/smart-path.entity.js';
 import { DriverWalletEntity } from '../modules/wallet/entities/driver-wallet.entity.js';
 import { WalletTransactionEntity } from '../modules/wallet/entities/wallet-transaction.entity.js';
 import { WithdrawalRequestEntity } from '../modules/wallet/entities/withdrawal-request.entity.js';
@@ -35,6 +36,7 @@ export const typeOrmDataSource = new DataSource({
     SubscriptionEntity,
     SubscriptionExecutionEntity,
     NotificationEntity,
+    SmartPathEntity,
     DriverWalletEntity,
     WalletTransactionEntity,
     WithdrawalRequestEntity,

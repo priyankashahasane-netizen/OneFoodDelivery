@@ -404,7 +404,13 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Image.asset(Images.logo, height: 30, width: 30),
             ),
             const SizedBox(width: Dimensions.paddingSizeSmall),
-            Image.asset(Images.logoName, width: 120),
+            Text(
+              'ONE FOOD DELIVERY',
+              style: robotoBold.copyWith(
+                fontSize: Dimensions.fontSizeLarge,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+              ),
+            ),
           ],
         ),
         actions: [

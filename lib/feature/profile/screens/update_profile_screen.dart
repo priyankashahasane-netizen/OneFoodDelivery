@@ -8,6 +8,7 @@ import 'package:stackfood_multivendor_driver/feature/profile/controllers/profile
 import 'package:stackfood_multivendor_driver/feature/profile/domain/models/profile_model.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/widgets/profile_bg_widget.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
+import 'package:stackfood_multivendor_driver/util/images.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_button_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_text_form_field.dart';
 import 'package:flutter/material.dart';
@@ -112,10 +113,15 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
 
             ClipOval(child: profileController.pickedFile != null ? GetPlatform.isWeb ? Image.network(
                 profileController.pickedFile!.path, width: 100, height: 100, fit: BoxFit.cover) : Image.file(
-              File(profileController.pickedFile!.path), width: 100, height: 100, fit: BoxFit.cover) : CustomImageWidget(
-              image: profileController.profileModel?.imageFullUrl ?? '',
-              height: 100, width: 100, fit: BoxFit.cover,
-            )),
+              File(profileController.pickedFile!.path), width: 100, height: 100, fit: BoxFit.cover) : (profileController.profileModel?.imageFullUrl != null && profileController.profileModel!.imageFullUrl!.isNotEmpty)
+              ? CustomImageWidget(
+                  image: profileController.profileModel!.imageFullUrl!,
+                  height: 100, width: 100, fit: BoxFit.cover,
+                )
+              : Image.asset(
+                  Images.demoProfilePic,
+                  height: 100, width: 100, fit: BoxFit.cover,
+                )),
 
             Positioned(
               bottom: 0, right: 0, top: 0, left: 0,

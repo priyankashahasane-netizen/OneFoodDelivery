@@ -4,14 +4,12 @@ import 'package:stackfood_multivendor_driver/common/widgets/custom_confirmation_
 import 'package:stackfood_multivendor_driver/common/widgets/custom_image_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/auth/controllers/address_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/order/controllers/order_controller.dart';
-import 'package:stackfood_multivendor_driver/feature/order/screens/order_details_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/order/screens/order_location_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/splash/controllers/splash_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_model.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/controllers/profile_controller.dart';
 import 'package:stackfood_multivendor_driver/helper/date_converter_helper.dart';
 import 'package:stackfood_multivendor_driver/helper/price_converter_helper.dart';
-import 'package:stackfood_multivendor_driver/helper/route_helper.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/util/images.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
@@ -344,13 +342,15 @@ class _OrderRequestWidgetState extends State<OrderRequestWidget> {
                                   bool isSuccess = await orderController.acceptAssignedOrder(widget.orderModel.id, widget.index, orderIdToUse);
                                   if(isSuccess) {
                                     widget.onTap();
-                                    // Navigate to order details
-                                    Get.toNamed(
-                                      RouteHelper.getOrderDetailsRoute(widget.orderModel.id),
-                                      arguments: OrderDetailsScreen(
-                                        orderId: widget.orderModel.id, isRunningOrder: true, orderIndex: orderController.currentOrderList?.length ?? 0,
-                                      ),
-                                    );
+                                    // Update order status locally
+                                    widget.orderModel.orderStatus = 'accepted';
+                                    // Navigate to order map page
+                                    Get.to(() => OrderLocationScreen(
+                                      orderModel: widget.orderModel,
+                                      orderController: orderController,
+                                      index: orderController.currentOrderList?.length ?? 0,
+                                      onTap: widget.onTap,
+                                    ));
                                   }
                                 } catch (e) {
                                   debugPrint('Error accepting assigned order: $e');
@@ -362,12 +362,13 @@ class _OrderRequestWidgetState extends State<OrderRequestWidget> {
                                   if(isSuccess) {
                                     widget.onTap();
                                     widget.orderModel.orderStatus = (widget.orderModel.orderStatus == 'pending' || widget.orderModel.orderStatus == 'confirmed') ? 'accepted' : widget.orderModel.orderStatus;
-                                    Get.toNamed(
-                                      RouteHelper.getOrderDetailsRoute(widget.orderModel.id),
-                                      arguments: OrderDetailsScreen(
-                                        orderId: widget.orderModel.id, isRunningOrder: true, orderIndex: orderController.currentOrderList!.length-1,
-                                      ),
-                                    );
+                                    // Navigate to order map page
+                                    Get.to(() => OrderLocationScreen(
+                                      orderModel: widget.orderModel,
+                                      orderController: orderController,
+                                      index: orderController.currentOrderList?.length ?? 0,
+                                      onTap: widget.onTap,
+                                    ));
                                   } else {
                                     orderController.getLatestOrders();
                                   }

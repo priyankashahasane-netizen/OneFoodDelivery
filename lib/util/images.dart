@@ -12,7 +12,8 @@ class Images {
   static const String warning = 'assets/image/warning.png';
   static const String placeholder = 'assets/image/placeholder.jpg';
   static const String money = 'assets/image/money.png';
-  static const String profileBg = 'assets/image/profile_bg.png';
+  static const String profileBg = 'assets/image/profilebackground.jpg';
+  static const String demoProfilePic = 'assets/image/Demoprofilepic.png';
   static const String support = 'assets/image/support.png';
   static const String notificationIn = 'assets/image/notification_in.png';
   static const String house = 'assets/image/house.png';
