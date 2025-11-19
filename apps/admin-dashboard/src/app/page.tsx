@@ -20,6 +20,7 @@ export default function Home() {
         <nav style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <Link href="/live-ops">Live Ops</Link>
           <Link href="/orders">Orders</Link>
+          <Link href="/restaurants">Restaurants</Link>
           <Link href="/drivers">Drivers</Link>
           <span style={{ flex: 1 }} />
           <button onClick={handleLogout}>Logout</button>
