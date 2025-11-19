@@ -242,44 +242,43 @@ class _LocationCardWidgetState extends State<LocationCardWidget> {
             ),
             const SizedBox(height: Dimensions.paddingSizeLarge),
 
-            // Address Check Section
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeLarge),
-              padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
-              decoration: BoxDecoration(
-                color: Colors.blue[50],
-                borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.person, color: Colors.blue[700], size: 20),
-                  const SizedBox(width: Dimensions.paddingSizeSmall),
-                  Expanded(
-                    child: Text(
-                      'To ensure the rider locates you with ease, double check your address and edit if needed',
-                      style: robotoRegular.copyWith(
-                        fontSize: Dimensions.fontSizeSmall,
-                        color: Colors.blue[900],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: Dimensions.paddingSizeSmall),
-                  TextButton(
+            // Mark Order Picked Button (only show for handover status)
+            if (widget.orderModel.orderStatus?.toLowerCase() == 'handover') ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeLarge),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
                     onPressed: () {
-                      // Edit address functionality
+                      // Implement mark order picked functionality
+                      widget.orderController.updateOrderStatus(
+                        widget.orderModel.id,
+                        'picked_up',
+                      ).then((success) {
+                        if (success) {
+                          showCustomSnackBar('Order marked as picked', isError: false);
+                        }
+                      });
                     },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeDefault),
+                      backgroundColor: Colors.orange,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+                      ),
+                    ),
                     child: Text(
-                      'Edit',
+                      'Mark Order Picked',
                       style: robotoBold.copyWith(
-                        color: Colors.blue[700],
-                        fontSize: Dimensions.fontSizeDefault,
+                        fontSize: Dimensions.fontSizeLarge,
+                        color: Colors.white,
                       ),
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
-            const SizedBox(height: Dimensions.paddingSizeLarge),
+              const SizedBox(height: Dimensions.paddingSizeDefault),
+            ],
 
             // Cancel Order Button
             Padding(
@@ -388,7 +387,7 @@ class _LocationCardWidgetState extends State<LocationCardWidget> {
       case 'processing':
         return 'Order Preparing';
       case 'handover':
-        return 'At Pickup';
+        return 'Ready to pickup';
       case 'picked_up':
         return 'Order Picked';
       case 'in_transit':
