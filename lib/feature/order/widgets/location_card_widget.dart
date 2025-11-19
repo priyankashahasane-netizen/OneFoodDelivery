@@ -280,6 +280,44 @@ class _LocationCardWidgetState extends State<LocationCardWidget> {
               const SizedBox(height: Dimensions.paddingSizeDefault),
             ],
 
+            // Ready to Transit Button (only show for picked_up status)
+            if (widget.orderModel.orderStatus?.toLowerCase() == 'picked_up') ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeLarge),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      // Update order status to in_transit
+                      widget.orderController.updateOrderStatus(
+                        widget.orderModel.id,
+                        'in_transit',
+                      ).then((success) {
+                        if (success) {
+                          showCustomSnackBar('Order ready to transit', isError: false);
+                        }
+                      });
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeDefault),
+                      backgroundColor: Colors.orange,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+                      ),
+                    ),
+                    child: Text(
+                      'Ready to Transit',
+                      style: robotoBold.copyWith(
+                        fontSize: Dimensions.fontSizeLarge,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: Dimensions.paddingSizeDefault),
+            ],
+
             // Cancel Order Button
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeLarge),
