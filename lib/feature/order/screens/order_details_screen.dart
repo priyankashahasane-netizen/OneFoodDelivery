@@ -129,7 +129,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   @override
   Widget build(BuildContext context) {
 
-    bool? cancelPermission = Get.find<SplashController>().configModel!.canceledByDeliveryman;
+    bool? cancelPermission = Get.find<SplashController>().configModel!.cancelledByDeliveryman;
     bool selfDelivery = Get.find<ProfileController>().profileModel!.type != 'zone_wise';
 
     return PopScope(
@@ -313,8 +313,8 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   child: Column(children: [
 
                     DateConverter.isBeforeTime(controllerOrderModel.scheduleAt) ? (controllerOrderModel.orderStatus != 'handover' && controllerOrderModel.orderStatus != 'delivered'
-                    && controllerOrderModel.orderStatus != 'failed' && controllerOrderModel.orderStatus != 'canceled' && controllerOrderModel.orderStatus != 'refund_requested' && controllerOrderModel.orderStatus != 'our_for_delivery'
-                    && controllerOrderModel.orderStatus != 'refunded' && controllerOrderModel.orderStatus != 'refund_request_canceled') ? Column(children: [
+                    && controllerOrderModel.orderStatus != 'failed' && controllerOrderModel.orderStatus != 'cancelled' && controllerOrderModel.orderStatus != 'refund_requested' && controllerOrderModel.orderStatus != 'our_for_delivery'
+                    && controllerOrderModel.orderStatus != 'refunded' && controllerOrderModel.orderStatus != 'refund_request_cancelled') ? Column(children: [
 
                       const SizedBox(height: Dimensions.paddingSizeDefault),
                       CustomAssetImageWidget(
@@ -367,7 +367,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                       image: controllerOrderModel.customer != null ? '${controllerOrderModel.customer!.imageFullUrl}' : '',
                       name: controllerOrderModel.deliveryAddress!.contactPersonName, phone: controllerOrderModel.deliveryAddress!.contactPersonNumber,
                       latitude: controllerOrderModel.deliveryAddress!.latitude, longitude: controllerOrderModel.deliveryAddress!.longitude,
-                      showButton: (controllerOrderModel.orderStatus != 'delivered' && controllerOrderModel.orderStatus != 'failed' && controllerOrderModel.orderStatus != 'canceled'),
+                      showButton: (controllerOrderModel.orderStatus != 'delivered' && controllerOrderModel.orderStatus != 'failed' && controllerOrderModel.orderStatus != 'cancelled'),
                       orderModel: controllerOrderModel,
                       messageOnTap: () async {
                         if(controllerOrderModel.customer != null){
@@ -395,7 +395,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                       image: '${controllerOrderModel.restaurantLogoFullUrl}',
                       name: controllerOrderModel.restaurantName, phone: controllerOrderModel.restaurantPhone,
                       latitude: controllerOrderModel.restaurantLat, longitude: controllerOrderModel.restaurantLng,
-                      showButton: (controllerOrderModel.orderStatus != 'delivered' && controllerOrderModel.orderStatus != 'failed' && controllerOrderModel.orderStatus != 'canceled'),
+                      showButton: (controllerOrderModel.orderStatus != 'delivered' && controllerOrderModel.orderStatus != 'failed' && controllerOrderModel.orderStatus != 'cancelled'),
                       orderModel: controllerOrderModel,
                       messageOnTap: () async {
                         if(controllerOrderModel.restaurantModel != 'commission' && controllerOrderModel.chatPermission == 0){
@@ -845,6 +845,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                                 if(success) {
                                   Get.find<ProfileController>().getProfile();
                                   Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus ?? 'all');
+                                  Get.find<OrderController>().getCompletedOrders(offset: 1, status: Get.find<OrderController>().selectedMyOrderStatus ?? 'all', isUpdate: true);
                                 }
                               });
                             },
@@ -933,6 +934,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                                 if(success) {
                                   Get.find<ProfileController>().getProfile();
                                   Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus ?? 'all');
+                                  Get.find<OrderController>().getCompletedOrders(offset: 1, status: Get.find<OrderController>().selectedMyOrderStatus ?? 'all', isUpdate: true);
                                 }
                               });
                             }
@@ -942,6 +944,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                                 if(success) {
                                   Get.find<ProfileController>().getProfile();
                                   Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus ?? 'all');
+                                  Get.find<OrderController>().getCompletedOrders(offset: 1, status: Get.find<OrderController>().selectedMyOrderStatus ?? 'all', isUpdate: true);
                                 }
                               });
                             }else {

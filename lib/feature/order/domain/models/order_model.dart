@@ -295,10 +295,10 @@ class OrderCount {
   int? handover;
   int? all;
   int? delivered;
-  int? canceled;
+  int? cancelled;
   int? refundRequested;
   int? refunded;
-  int? refundRequestCanceled;
+  int? refundRequestcancelled;
   int? failed;
   int? assigned;
   int? inTransit;
@@ -313,10 +313,10 @@ class OrderCount {
     this.handover,
     this.all,
     this.delivered,
-    this.canceled,
+    this.cancelled,
     this.refundRequested,
     this.refunded,
-    this.refundRequestCanceled,
+    this.refundRequestcancelled,
     this.failed,
     this.assigned,
     this.inTransit,
@@ -332,10 +332,10 @@ class OrderCount {
     handover = json['handover'];
     all = json['all'];
     delivered = json['delivered'];
-    canceled = json['canceled'] ?? json['cancelled']; // Handle both spellings
+    cancelled = json['cancelled'] ?? json['cancelled']; // Handle both spellings
     refundRequested = json['refund_requested'];
     refunded = json['refunded'];
-    refundRequestCanceled = json['refund_request_canceled'];
+    refundRequestcancelled = json['refund_request_cancelled'];
     failed = json['failed'];
     assigned = json['assigned'];
     inTransit = json['in_transit'] ?? json['inTransit'];
@@ -352,10 +352,10 @@ class OrderCount {
     data['handover'] = handover;
     data['all'] = all;
     data['delivered'] = delivered;
-    data['canceled'] = canceled;
+    data['cancelled'] = cancelled;
     data['refund_requested'] = refundRequested;
     data['refunded'] = refunded;
-    data['refund_request_canceled'] = refundRequestCanceled;
+    data['refund_request_cancelled'] = refundRequestcancelled;
     data['failed'] = failed;
     data['assigned'] = assigned;
     data['in_transit'] = inTransit;

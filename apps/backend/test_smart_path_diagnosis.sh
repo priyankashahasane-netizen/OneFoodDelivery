@@ -75,7 +75,7 @@ if [ "$TOTAL_ORDERS" -gt 0 ]; then
     echo "Possible reasons:"
     echo "  1. No subscription orders created today"
     echo "  2. Orders don't have valid pickup locations"
-    echo "  3. Orders are not active (delivered/canceled)"
+    echo "  3. Orders are not active (delivered/cancelled)"
     echo "  4. Orders are not assigned to this driver"
   fi
 else

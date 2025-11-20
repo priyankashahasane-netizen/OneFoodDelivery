@@ -151,10 +151,19 @@ class OrderController extends GetxController implements GetxService {
   }
 
   Future<void> getOrderCancelReasons()async {
-    List<CancellationData>? orderCancelReasons = await orderServiceInterface.getCancelReasons();
-    if (orderCancelReasons != null) {
+    try {
+      List<CancellationData>? orderCancelReasons = await orderServiceInterface.getCancelReasons();
+      if (orderCancelReasons != null && orderCancelReasons.isNotEmpty) {
+        _orderCancelReasons = [];
+        _orderCancelReasons!.addAll(orderCancelReasons);
+      } else {
+        // If null or empty, initialize with empty list to show "no reasons" message
+        _orderCancelReasons = [];
+      }
+    } catch (e) {
+      debugPrint('Error getting cancellation reasons: $e');
+      // On error, set to empty list so UI can show appropriate message
       _orderCancelReasons = [];
-      _orderCancelReasons!.addAll(orderCancelReasons);
     }
     update();
   }
@@ -187,7 +196,7 @@ class OrderController extends GetxController implements GetxService {
             _completedOrderList = [];
           }
           _completedOrderList!.addAll(paginatedOrderModel.orders!);
-          // Map counts to match status list order: all, accepted, confirmed, processing, handover, picked_up, in_transit, delivered, canceled, refund_requested, refunded, refund_request_canceled
+          // Map counts to match status list order: all, accepted, confirmed, processing, handover, picked_up, in_transit, delivered, cancelled, refund_requested, refunded, refund_request_cancelled
           _completedOrderCountList = [
             paginatedOrderModel.orderCount!.all ?? 0,
             paginatedOrderModel.orderCount!.accepted ?? 0,
@@ -197,10 +206,10 @@ class OrderController extends GetxController implements GetxService {
             paginatedOrderModel.orderCount!.pickedUp ?? 0,
             paginatedOrderModel.orderCount!.inTransit ?? 0,
             paginatedOrderModel.orderCount!.delivered ?? 0,
-            paginatedOrderModel.orderCount!.canceled ?? 0,
+            paginatedOrderModel.orderCount!.cancelled ?? 0,
             paginatedOrderModel.orderCount!.refundRequested ?? 0,
             paginatedOrderModel.orderCount!.refunded ?? 0,
-            paginatedOrderModel.orderCount!.refundRequestCanceled ?? 0,
+            paginatedOrderModel.orderCount!.refundRequestcancelled ?? 0,
           ];
           _pageSize = paginatedOrderModel.totalSize;
           _paginate = false;
@@ -209,7 +218,7 @@ class OrderController extends GetxController implements GetxService {
           // Use empty list when API returns null
           if (offset == 1) {
             _completedOrderList = [];
-            // Initialize with 12 zeros to match the 12 status buttons: all, accepted, confirmed, processing, handover, picked_up, in_transit, delivered, canceled, refund_requested, refunded, refund_request_canceled
+            // Initialize with 12 zeros to match the 12 status buttons: all, accepted, confirmed, processing, handover, picked_up, in_transit, delivered, cancelled, refund_requested, refunded, refund_request_cancelled
             _completedOrderCountList = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
             _pageSize = 0;
           }
@@ -221,7 +230,7 @@ class OrderController extends GetxController implements GetxService {
         // Use empty list on error
         if (offset == 1) {
           _completedOrderList = [];
-          // Initialize with 12 zeros to match the 12 status buttons: all, accepted, confirmed, processing, handover, picked_up, in_transit, delivered, canceled, refund_requested, refunded, refund_request_canceled
+          // Initialize with 12 zeros to match the 12 status buttons: all, accepted, confirmed, processing, handover, picked_up, in_transit, delivered, cancelled, refund_requested, refunded, refund_request_cancelled
           _completedOrderCountList = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
           _pageSize = 0;
         }
@@ -438,6 +447,8 @@ class OrderController extends GetxController implements GetxService {
         }
         // Refresh assigned orders list to get updated data
         await getAssignedOrders();
+        // Refresh completed orders to reflect status changes in My Orders page
+        await getCompletedOrders(offset: 1, status: selectedMyOrderStatus ?? 'all', isUpdate: true);
         showCustomSnackBar('Order rejected successfully', isError: false);
       } else {
         debugPrint('====> Failed to reject order: ${responseModel.message}');
@@ -459,18 +470,39 @@ class OrderController extends GetxController implements GetxService {
   Future<bool> updateOrderStatus(int? orderId, String status, {bool back = false,  String? reason}) async {
     _isLoading = true;
     update();
+    
+    // Try to get UUID from orderModel or currentOrderList
+    String? orderUuid;
+    if (orderId != null) {
+      // First check _orderModel
+      if (_orderModel != null && _orderModel!.id == orderId && _orderModel!.uuid != null) {
+        orderUuid = _orderModel!.uuid;
+      } 
+      // If not found, check currentOrderList
+      else if (_currentOrderList != null) {
+        for (var order in _currentOrderList!) {
+          if (order.id == orderId && order.uuid != null) {
+            orderUuid = order.uuid;
+            break;
+          }
+        }
+      }
+    }
+    
     List<MultipartBody> multiParts = orderServiceInterface.prepareOrderProofImages(_pickedPrescriptions);
     UpdateStatusBody updateStatusBody = UpdateStatusBody(
       orderId: orderId, status: status,
       otp: status == 'delivered' ? _otp : null, reason: reason,
     );
-    ResponseModel responseModel = await orderServiceInterface.updateOrderStatus(updateStatusBody, multiParts);
+    ResponseModel responseModel = await orderServiceInterface.updateOrderStatus(updateStatusBody, multiParts, orderUuid: orderUuid);
     Get.back(result: responseModel.isSuccess);
     if(responseModel.isSuccess) {
       if(back) {
         Get.back();
       }
+      // Refresh both current orders and completed orders after status update
       getCurrentOrders(status: selectedRunningOrderStatus ?? 'all');
+      getCompletedOrders(offset: 1, status: selectedMyOrderStatus ?? 'all', isUpdate: true);
       showCustomSnackBar(responseModel.message, isError: false);
     }else {
       showCustomSnackBar(responseModel.message, isError: true);
@@ -510,6 +542,8 @@ class OrderController extends GetxController implements GetxService {
         await getAssignedOrders();
         // Refresh running orders to show the accepted order in Running Order page
         await getCurrentOrders(status: selectedRunningOrderStatus ?? 'all');
+        // Refresh completed orders to reflect status changes in My Orders page
+        await getCompletedOrders(offset: 1, status: selectedMyOrderStatus ?? 'all', isUpdate: true);
         showCustomSnackBar(responseModel.message, isError: false);
       } else {
         debugPrint('====> Failed to accept order: ${responseModel.message}');
@@ -663,6 +697,9 @@ class OrderController extends GetxController implements GetxService {
       
       // Refresh assigned orders list to include the newly accepted order
       await getAssignedOrders();
+      
+      // Refresh completed orders to reflect status changes in My Orders page
+      await getCompletedOrders(offset: 1, status: selectedMyOrderStatus ?? 'all', isUpdate: true);
       
       // Trigger route optimization after accepting order
       _optimizeRouteForActiveOrders();

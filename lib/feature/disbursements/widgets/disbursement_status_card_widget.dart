@@ -10,8 +10,8 @@ class DisbursementStatusCardWidget extends StatelessWidget {
   final String text;
   final bool isPending;
   final bool isCompleted;
-  final bool isCanceled;
-  const DisbursementStatusCardWidget({super.key, required this.amount, this.isPending = false, this.isCompleted = false, this.isCanceled = false, required this.text});
+  final bool iscancelled;
+  const DisbursementStatusCardWidget({super.key, required this.amount, this.isPending = false, this.isCompleted = false, this.iscancelled = false, required this.text});
 
   @override
   Widget build(BuildContext context) {

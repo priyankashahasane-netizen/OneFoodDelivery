@@ -9,7 +9,7 @@ abstract class OrderRepositoryInterface implements RepositoryInterface {
   Future<dynamic> getCompletedOrderList(int offset, {required String status});
   Future<dynamic> getCurrentOrders({required String status});
   Future<dynamic> getLatestOrders();
-  Future<dynamic> updateOrderStatus(UpdateStatusBody updateStatusBody, List<MultipartBody> proofAttachment);
+  Future<dynamic> updateOrderStatus(UpdateStatusBody updateStatusBody, List<MultipartBody> proofAttachment, {String? orderUuid});
   Future<dynamic> getOrderDetails(dynamic orderID); // Accept int or String (UUID)
   Future<dynamic> acceptOrder(int? orderID, {String? orderUuid});
   void setIgnoreList(List<IgnoreModel> ignoreList);

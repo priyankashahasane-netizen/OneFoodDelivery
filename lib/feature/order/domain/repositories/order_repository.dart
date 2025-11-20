@@ -41,7 +41,9 @@ class OrderRepository implements OrderRepositoryInterface {
     PaginatedOrderModel? paginatedOrderModel;
     // JWT token is sent via Authorization header by ApiClient, no need for token query param
     // Use handleError: false to preserve actual status codes and error information
-    Response response = await apiClient.getData('${AppConstants.allOrdersUri}?offset=$offset&limit=10&status=$status', handleError: false);
+    final uri = '${AppConstants.allOrdersUri}?offset=$offset&limit=10&status=$status';
+    debugPrint('====> getCompletedOrderList: Requesting orders with status="$status" from $uri');
+    Response response = await apiClient.getData(uri, handleError: false);
     if (response.statusCode == 200 && response.body != null) {
       try {
         paginatedOrderModel = PaginatedOrderModel.fromJson(response.body);
@@ -158,7 +160,7 @@ class OrderRepository implements OrderRepositoryInterface {
               // Otherwise, filter by the specific status
               if (status == 'all' || status.isEmpty) {
                 // Don't filter - show all orders returned by backend
-                // Backend already excludes completed statuses (delivered, canceled, etc.)
+                // Backend already excludes completed statuses (delivered, cancelled, etc.)
                 debugPrint('🔍 getCurrentOrders: Showing ALL orders from backend (${orders.length} orders) for "all" status');
               } else {
                 // FILTER: Filter by specific status for individual tab views
@@ -221,7 +223,7 @@ class OrderRepository implements OrderRepositoryInterface {
                   pickedUp: _countOrdersByStatus(allOrdersForCounting, 'picked_up'),
                   inTransit: _countOrdersByStatus(allOrdersForCounting, 'in_transit'),
                   delivered: 0,  // Not applicable for active orders
-                  canceled: 0,  // Not applicable for active orders
+                  cancelled: 0,  // Not applicable for active orders
                 ),
               );
               debugPrint('✅ getCurrentOrders: Found ${orders.length} orders to display');
@@ -289,15 +291,25 @@ class OrderRepository implements OrderRepositoryInterface {
   }
 
   @override
-  Future<ResponseModel> updateOrderStatus(UpdateStatusBody updateStatusBody, List<MultipartBody> proofAttachment) async {
+  Future<ResponseModel> updateOrderStatus(UpdateStatusBody updateStatusBody, List<MultipartBody> proofAttachment, {String? orderUuid}) async {
     ResponseModel responseModel;
     // Use new endpoint: PUT /api/orders/:id/status
-    // Note: Multipart data for proof images may need special handling
-    // For now, use the new status update endpoint
-    String orderId = updateStatusBody.orderId?.toString() ?? '';
-    Map<String, dynamic> body = {'status': updateStatusBody.status};
+    // Use UUID if available, otherwise fall back to numeric ID
+    String orderId = orderUuid ?? updateStatusBody.orderId?.toString() ?? '';
+    
+    // Normalize status: backend accepts both 'cancelled' and 'cancelled', but we'll use 'cancelled'
+    String status = updateStatusBody.status ?? '';
+    if (status.toLowerCase() == 'cancelled') {
+      status = 'cancelled';
+    }
+    
+    Map<String, dynamic> body = {'status': status};
     if (updateStatusBody.reason != null && updateStatusBody.reason!.isNotEmpty) {
       body['reason'] = updateStatusBody.reason;
+      // Also set cancellationSource for cancelled orders
+      if (status.toLowerCase() == 'cancelled') {
+        body['cancellationSource'] = 'deliveryman';
+      }
     }
     
     // If we have proof attachments, we may need a different endpoint or handle separately
@@ -308,10 +320,38 @@ class OrderRepository implements OrderRepositoryInterface {
       handleError: false
     );
     
-    if (response.statusCode == 200) {
-      responseModel = ResponseModel(true, response.body['message'] ?? 'Status updated successfully');
+    debugPrint('====> updateOrderStatus Response: [${response.statusCode}] ${response.body}');
+    
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      String message = 'Status updated successfully';
+      if (response.body != null) {
+        if (response.body is Map) {
+          message = response.body['message'] ?? message;
+        } else if (response.body is String) {
+          try {
+            final parsed = jsonDecode(response.body);
+            if (parsed is Map) {
+              message = parsed['message'] ?? message;
+            }
+          } catch (e) {
+            message = response.body;
+          }
+        }
+      }
+      responseModel = ResponseModel(true, message);
     } else {
-      responseModel = ResponseModel(false, response.body['message'] ?? response.statusText ?? 'Failed to update status');
+      String errorMessage = 'Failed to update status';
+      if (response.body != null) {
+        if (response.body is Map) {
+          errorMessage = response.body['message'] ?? response.body['error'] ?? response.statusText ?? errorMessage;
+        } else if (response.body is String) {
+          errorMessage = response.body;
+        }
+      } else {
+        errorMessage = response.statusText ?? errorMessage;
+      }
+      responseModel = ResponseModel(false, errorMessage);
+      debugPrint('====> updateOrderStatus Error: $errorMessage');
     }
     return responseModel;
   }
@@ -610,15 +650,90 @@ class OrderRepository implements OrderRepositoryInterface {
   @override
   Future<List<CancellationData>?> getCancelReasons() async {
     List<CancellationData>? orderCancelReasons;
-    Response response = await apiClient.getData('${AppConstants.orderCancellationUri}?offset=1&limit=30&type=deliveryman');
-    if (response.statusCode == 200) {
-      OrderCancellationBodyModel orderCancellationBody = OrderCancellationBodyModel.fromJson(response.body);
-      orderCancelReasons = [];
-      for (var element in orderCancellationBody.reasons!) {
-        orderCancelReasons.add(element);
+    
+    // Try to fetch from API, but use defaults if it fails quickly
+    try {
+      Response response = await apiClient.getData('${AppConstants.orderCancellationUri}?offset=1&limit=30&type=deliveryman', handleError: false);
+      debugPrint('====> getCancelReasons Response: [${response.statusCode}]');
+      
+      if (response.statusCode == 200 && response.body != null) {
+        try {
+          OrderCancellationBodyModel orderCancellationBody = OrderCancellationBodyModel.fromJson(response.body);
+          orderCancelReasons = [];
+          if (orderCancellationBody.reasons != null && orderCancellationBody.reasons!.isNotEmpty) {
+            for (var element in orderCancellationBody.reasons!) {
+              orderCancelReasons.add(element);
+            }
+            debugPrint('====> getCancelReasons: Successfully loaded ${orderCancelReasons.length} reasons from API');
+            return orderCancelReasons;
+          } else {
+            debugPrint('====> getCancelReasons: API returned empty reasons list, using defaults');
+          }
+        } catch (e) {
+          debugPrint('====> getCancelReasons: Error parsing response: $e, using defaults');
+        }
+      } else {
+        // API endpoint doesn't exist or returned error - use defaults
+        debugPrint('====> getCancelReasons: API returned status ${response.statusCode}, using defaults');
+        if (response.statusText != null) {
+          debugPrint('====> getCancelReasons: Response: ${response.statusText}');
+        }
       }
+    } catch (e) {
+      debugPrint('====> getCancelReasons: Exception occurred: $e, using defaults');
     }
-    return orderCancelReasons;
+    
+    // Always return default cancellation reasons if API failed or returned empty
+    debugPrint('====> getCancelReasons: Returning default cancellation reasons');
+    return _getDefaultCancellationReasons();
+  }
+
+  // Default cancellation reasons if API is unavailable
+  List<CancellationData> _getDefaultCancellationReasons() {
+    return [
+      CancellationData(
+        id: 1,
+        reason: 'Customer not available',
+        userType: 'deliveryman',
+        status: 1,
+      ),
+      CancellationData(
+        id: 2,
+        reason: 'Wrong address provided',
+        userType: 'deliveryman',
+        status: 1,
+      ),
+      CancellationData(
+        id: 3,
+        reason: 'Customer refused to accept order',
+        userType: 'deliveryman',
+        status: 1,
+      ),
+      CancellationData(
+        id: 4,
+        reason: 'Restaurant closed',
+        userType: 'deliveryman',
+        status: 1,
+      ),
+      CancellationData(
+        id: 5,
+        reason: 'Unable to locate customer',
+        userType: 'deliveryman',
+        status: 1,
+      ),
+      CancellationData(
+        id: 6,
+        reason: 'Order damaged during delivery',
+        userType: 'deliveryman',
+        status: 1,
+      ),
+      CancellationData(
+        id: 7,
+        reason: 'Other',
+        userType: 'deliveryman',
+        status: 1,
+      ),
+    ];
   }
 
   String _getUserToken() {

@@ -80,10 +80,13 @@ export class DeliveryManController {
         throw new UnauthorizedException('Driver ID not found in token');
       }
 
+      const statusParam = status || 'all';
+      console.log(`[getAllOrders] Driver: ${driverId}, Status: ${statusParam}, Offset: ${offset}, Limit: ${limit}`);
+      
       return await this.ordersService.getCompletedOrdersByDriver(driverId, {
         offset: offset ? parseInt(offset, 10) : 1,
         limit: limit ? parseInt(limit, 10) : 10,
-        status: status || 'all'
+        status: statusParam
       });
     } catch (error) {
       // Return empty orders list on error instead of throwing
@@ -101,10 +104,10 @@ export class DeliveryManController {
           picked_up: 0,
           in_transit: 0,
           delivered: 0,
-          canceled: 0,
+          cancelled: 0,
           refund_requested: 0,
           refunded: 0,
-          refund_request_canceled: 0
+          refund_request_cancelled: 0
         }
       };
     }

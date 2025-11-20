@@ -33,10 +33,10 @@ class StatusListModel{
       StatusListModel(statusTitle: 'picked_up', status: 'picked_up'),
       StatusListModel(statusTitle: 'in_transit', status: 'in_transit'),
       StatusListModel(statusTitle: 'delivered', status: 'delivered'),
-      StatusListModel(statusTitle: 'canceled', status: 'canceled'),
+      StatusListModel(statusTitle: 'cancelled', status: 'cancelled'),
       StatusListModel(statusTitle: 'refund_requested', status: 'refund_requested'),
       StatusListModel(statusTitle: 'refunded', status: 'refunded'),
-      StatusListModel(statusTitle: 'refund_request_canceled', status: 'refund_request_canceled'),
+      StatusListModel(statusTitle: 'refund_request_cancelled', status: 'refund_request_cancelled'),
     ];
   }
 

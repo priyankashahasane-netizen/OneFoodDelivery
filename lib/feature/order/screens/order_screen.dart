@@ -20,9 +20,9 @@ class OrderScreen extends StatefulWidget {
   State<OrderScreen> createState() => _OrderScreenState();
 }
 
-class _OrderScreenState extends State<OrderScreen> with AutomaticKeepAliveClientMixin {
-
+class _OrderScreenState extends State<OrderScreen> with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
   final ScrollController scrollController = ScrollController();
+  DateTime? _lastRefreshTime;
 
   @override
   bool get wantKeepAlive => true;
@@ -30,7 +30,42 @@ class _OrderScreenState extends State<OrderScreen> with AutomaticKeepAliveClient
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadInitialData();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Refresh when app comes back to foreground
+    if (state == AppLifecycleState.resumed && !widget.isActiveOrders) {
+      _refreshMyOrders();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh My Orders when screen becomes visible (e.g., after navigating back)
+    if (!widget.isActiveOrders) {
+      final now = DateTime.now();
+      // Only refresh if it's been more than 2 seconds since last refresh to avoid excessive calls
+      if (_lastRefreshTime == null || now.difference(_lastRefreshTime!).inSeconds > 2) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _refreshMyOrders();
+        });
+      }
+    }
+  }
+
+  void _refreshMyOrders() {
+    final orderController = Get.find<OrderController>();
+    orderController.getCompletedOrders(
+      offset: 1,
+      status: orderController.selectedMyOrderStatus ?? 'all',
+      isUpdate: true,
+    );
+    _lastRefreshTime = DateTime.now();
   }
 
   void _loadInitialData() {
@@ -80,6 +115,7 @@ class _OrderScreenState extends State<OrderScreen> with AutomaticKeepAliveClient
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     scrollController.dispose();
     super.dispose();
   }

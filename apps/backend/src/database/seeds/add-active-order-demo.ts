@@ -60,7 +60,7 @@ async function addActiveOrderForDemo() {
       .createQueryBuilder('order')
       .where('order.driverId = :driverId', { driverId: demoDriver.id })
       .andWhere('order.status NOT IN (:...statuses)', { 
-        statuses: ['delivered', 'canceled', 'failed', 'refunded', 'refund_requested', 'refund_request_canceled'] 
+        statuses: ['delivered', 'cancelled', 'failed', 'refunded', 'refund_requested', 'refund_request_cancelled'] 
       })
       .getMany();
 

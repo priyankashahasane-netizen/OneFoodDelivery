@@ -32,7 +32,7 @@ if [ "$SMART_PATH_COUNT" -eq 0 ]; then
   echo "   1. No subscription orders for today"
   echo "   2. No orders assigned to this driver"
   echo "   3. Orders don't have valid pickup locations"
-  echo "   4. Orders are not active (delivered/canceled)"
+  echo "   4. Orders are not active (delivered/cancelled)"
   echo ""
   echo "3. Checking active orders for this driver..."
   echo ""

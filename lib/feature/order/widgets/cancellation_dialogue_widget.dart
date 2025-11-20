@@ -7,15 +7,31 @@ import 'package:stackfood_multivendor_driver/common/widgets/custom_snackbar_widg
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-class CancellationDialogueWidget extends StatelessWidget {
+class CancellationDialogueWidget extends StatefulWidget {
   final int? orderId;
   const CancellationDialogueWidget({super.key, required this.orderId});
 
   @override
+  State<CancellationDialogueWidget> createState() => _CancellationDialogueWidgetState();
+}
+
+class _CancellationDialogueWidgetState extends State<CancellationDialogueWidget> {
+  @override
+  void initState() {
+    super.initState();
+    // Initialize cancel reason and fetch cancellation reasons after build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final orderController = Get.find<OrderController>();
+      orderController.setOrderCancelReason('');
+      // Only fetch if not already loaded
+      if (orderController.orderCancelReasons == null) {
+        orderController.getOrderCancelReasons();
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-
-    Get.find<OrderController>().getOrderCancelReasons();
-
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusSmall)),
       insetPadding: const EdgeInsets.all(30),
@@ -79,10 +95,11 @@ class CancellationDialogueWidget extends StatelessWidget {
                   onPressed: (){
                     if(orderController.cancelReason != '' && orderController.cancelReason != null){
 
-                      orderController.updateOrderStatus(orderId, 'canceled', back: true, reason: orderController.cancelReason).then((success) {
+                      orderController.updateOrderStatus(widget.orderId, 'cancelled', back: true, reason: orderController.cancelReason).then((success) {
                         if(success) {
                           Get.find<ProfileController>().getProfile();
                           Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus ?? 'all');
+                          Get.find<OrderController>().getCompletedOrders(offset: 1, status: Get.find<OrderController>().selectedMyOrderStatus ?? 'all', isUpdate: true);
                         }
                       });
 

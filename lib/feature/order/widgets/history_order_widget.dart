@@ -183,14 +183,14 @@ class HistoryOrderWidget extends StatelessWidget {
       case 'confirmed':
       case 'delivered':
         return ColorResources.green;
-      case 'canceled':
+      case 'cancelled':
       case 'cancelled':
         return ColorResources.red; // Red background for cancelled
       case 'refund_requested':
         return ColorResources.orange;
       case 'refunded':
         return ColorResources.yellow;
-      case 'refund_request_canceled':
+      case 'refund_request_cancelled':
         return ColorResources.blue;
       case 'processing':
       case 'handover':
@@ -212,9 +212,9 @@ class HistoryOrderWidget extends StatelessWidget {
   String _formatStatusText(String status) {
     if (status.isEmpty) return '';
     
-    // Handle both "canceled" and "cancelled" spellings
+    // Handle both "cancelled" and "cancelled" spellings
     String normalizedStatus = status.toLowerCase();
-    if (normalizedStatus == 'canceled' || normalizedStatus == 'cancelled') {
+    if (normalizedStatus == 'cancelled' || normalizedStatus == 'cancelled') {
       return 'Cancelled';
     }
     

@@ -51,7 +51,7 @@ export default function OrdersPage() {
   const { data: drivers } = useSWR('/api/drivers?page=1&pageSize=100', fetcher);
 
   // Predefined lists for filters - all possible order statuses
-  // Note: Backend handles both 'cancelled' and 'canceled' spellings automatically
+  // Note: Backend handles both 'cancelled' and 'cancelled' spellings automatically
   const orderStatuses = [
     'created',
     'pending',
@@ -63,10 +63,10 @@ export default function OrdersPage() {
     'picked_up',
     'in_transit',
     'delivered',
-    'cancelled', // Backend will match both 'cancelled' and 'canceled'
+    'cancelled', // Backend will match both 'cancelled' and 'cancelled'
     'refund_requested',
     'refunded',
-    'refund_request_canceled'
+    'refund_request_cancelled'
   ];
 
   const paymentTypes = [
@@ -409,7 +409,7 @@ export default function OrdersPage() {
                           minWidth: 120,
                           fontWeight: 500,
                           color: (pendingStatuses[o.id] || o.status) === 'delivered' ? '#065f46' :
-                                 (pendingStatuses[o.id] || o.status) === 'cancelled' || (pendingStatuses[o.id] || o.status) === 'canceled' ? '#991b1b' :
+                                 (pendingStatuses[o.id] || o.status) === 'cancelled' || (pendingStatuses[o.id] || o.status) === 'cancelled' ? '#991b1b' :
                                  (pendingStatuses[o.id] || o.status) === 'assigned' ? '#1e40af' :
                                  (pendingStatuses[o.id] || o.status) === 'accepted' ? '#166534' :
                                  (pendingStatuses[o.id] || o.status) === 'picked_up' ? '#92400e' :

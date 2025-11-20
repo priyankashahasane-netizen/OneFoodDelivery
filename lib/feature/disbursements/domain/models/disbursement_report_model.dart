@@ -4,7 +4,7 @@ class DisbursementReportModel {
   String? offset;
   double? pending;
   double? completed;
-  double? canceled;
+  double? cancelled;
   int? completeDay;
   List<Disbursements>? disbursements;
 
@@ -14,7 +14,7 @@ class DisbursementReportModel {
     this.offset,
     this.pending,
     this.completed,
-    this.canceled,
+    this.cancelled,
     this.completeDay,
     this.disbursements,
   });
@@ -25,7 +25,7 @@ class DisbursementReportModel {
     offset = json['offset'];
     pending = json['pending']?.toDouble();
     completed = json['completed']?.toDouble();
-    canceled = json['canceled']?.toDouble();
+    cancelled = json['cancelled']?.toDouble();
     completeDay = json['complete_day'];
     if (json['disbursements'] != null) {
       disbursements = <Disbursements>[];
@@ -42,7 +42,7 @@ class DisbursementReportModel {
     data['offset'] = offset;
     data['pending'] = pending;
     data['completed'] = completed;
-    data['canceled'] = canceled;
+    data['cancelled'] = cancelled;
     data['complete_day'] = completeDay;
     if (disbursements != null) {
       data['disbursements'] = disbursements!.map((v) => v.toJson()).toList();

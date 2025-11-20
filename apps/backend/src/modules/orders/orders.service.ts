@@ -42,15 +42,9 @@ export class OrdersService {
 
     // Apply filters
     if (status) {
-      // Handle both "cancelled" and "canceled" spellings
-      if (status === 'cancelled' || status === 'canceled') {
-        queryBuilder.andWhere('(order.status = :status OR order.status = :altStatus)', { 
-          status: status,
-          altStatus: status === 'cancelled' ? 'canceled' : 'cancelled'
-        });
-      } else {
-        queryBuilder.andWhere('order.status = :status', { status });
-      }
+      // Normalize 'canceled' to 'cancelled' (standard spelling)
+      const normalizedStatus = status === 'canceled' ? 'cancelled' : status;
+      queryBuilder.andWhere('order.status = :status', { status: normalizedStatus });
     }
 
     if (paymentType) {
@@ -389,7 +383,7 @@ export class OrdersService {
     return { success: true, message: 'Order deleted successfully' };
   }
 
-  async updateStatus(orderId: string, status: string, payload?: Partial<Pick<OrderEntity, 'trackingUrl'>>, driverId?: string) {
+  async updateStatus(orderId: string, status: string, payload?: Partial<Pick<OrderEntity, 'trackingUrl'>>, driverId?: string, cancellationSource?: string, cancellationReason?: string) {
     let order: OrderEntity | null = null;
     
     // Check if orderId is a valid UUID format
@@ -440,7 +434,28 @@ export class OrdersService {
     }
 
     const oldStatus = order.status;
-    order.status = status;
+    
+    // Normalize status: accept both 'cancelled' and 'canceled' but store as 'cancelled'
+    const normalizedStatus = status.toLowerCase() === 'canceled' ? 'cancelled' : status;
+    order.status = normalizedStatus;
+    
+    // Handle cancellation fields if status is being changed to cancelled
+    if (normalizedStatus === 'cancelled' || status.toLowerCase() === 'canceled') {
+      if (cancellationSource) {
+        order.cancellationSource = cancellationSource;
+      }
+      if (cancellationReason) {
+        order.cancellationReason = cancellationReason;
+      }
+      // Ensure driverId is preserved when cancelling (don't unassign driver on cancellation)
+      // This allows cancelled orders to appear in driver's "My Orders" list
+      if (!order.driverId && driverId) {
+        // If order doesn't have a driver but we have driverId from token, assign it
+        // This handles cases where order was cancelled before being accepted
+        order.driverId = driverId;
+        console.log(`Order ${orderId} assigned to driver ${driverId} during cancellation`);
+      }
+    }
     
     // If status is being changed to "accepted" and order doesn't have a driver, assign the authenticated driver
     if (status === 'accepted' && order.driverId == null && driverId) {
@@ -483,7 +498,7 @@ export class OrdersService {
     }
     
     const savedOrder = await this.ordersRepository.save(order);
-    console.log(`Order status updated: ${orderId} from "${oldStatus}" to "${status}"${driverId && status === 'accepted' && savedOrder.driverId ? ` (driver assigned: ${savedOrder.driverId})` : ''}`);
+    console.log(`Order status updated: ${orderId} from "${oldStatus}" to "${normalizedStatus}"${driverId && normalizedStatus === 'accepted' && savedOrder.driverId ? ` (driver assigned: ${savedOrder.driverId})` : ''}${normalizedStatus === 'cancelled' && savedOrder.cancellationReason ? ` (cancellation reason: ${savedOrder.cancellationReason})` : ''}`);
     
     return savedOrder;
   }
@@ -492,8 +507,8 @@ export class OrdersService {
    * Get raw active orders (OrderEntity) for internal use (e.g., route optimization)
    */
   async getActiveOrdersByDriverRaw(driverId: string): Promise<OrderEntity[]> {
-    // Exclude completed statuses - handle both 'canceled' and 'cancelled' spellings
-    const excludedStatuses = ['delivered', 'canceled', 'cancelled', 'failed', 'refunded', 'refund_requested', 'refund_request_canceled'];
+    // Exclude completed statuses - handle both 'cancelled' and 'cancelled' spellings
+    const excludedStatuses = ['delivered', 'cancelled', 'cancelled', 'failed', 'refunded', 'refund_requested', 'refund_request_cancelled'];
     
     // First, let's check what orders exist for this driver (for debugging)
     const allDriverOrders = await this.ordersRepository
@@ -767,7 +782,7 @@ export class OrdersService {
     // Includes both active statuses and completed statuses
     const allMyOrderStatuses = [
       'accepted', 'confirmed', 'processing', 'handover', 'picked_up', 'in_transit',
-      'delivered', 'canceled', 'refund_requested', 'refunded', 'refund_request_canceled'
+      'delivered', 'cancelled', 'refund_requested', 'refunded', 'refund_request_cancelled'
     ];
 
     const qb = this.ordersRepository
@@ -777,7 +792,12 @@ export class OrdersService {
 
     // Filter by status if not 'all'
     if (status !== 'all') {
-      qb.andWhere('order.status = :status', { status });
+      // Normalize 'canceled' to 'cancelled' if frontend sends old spelling
+      const normalizedStatus = status === 'canceled' ? 'cancelled' : status;
+      qb.andWhere('order.status = :status', { status: normalizedStatus });
+      if (normalizedStatus === 'cancelled') {
+        console.log(`Querying cancelled orders for driver ${driverId}`);
+      }
     } else {
       // For 'all', show all statuses (both active and completed)
       qb.andWhere('order.status IN (:...statuses)', { statuses: allMyOrderStatuses });
@@ -791,11 +811,16 @@ export class OrdersService {
     qb.skip(skip).take(limit);
 
     const orders = await qb.getMany();
+    console.log(`Found ${orders.length} orders with status filter '${status}' for driver ${driverId}`);
+    if (orders.length > 0 && (status === 'cancelled' || status === 'canceled')) {
+      console.log(`Cancelled order statuses: ${orders.map(o => o.status).join(', ')}`);
+    }
 
     // Get counts for each status in the order they appear in the UI
+    // All statuses use 'cancelled' spelling
     const statusesForCount = [
       'accepted', 'confirmed', 'processing', 'handover', 'picked_up', 'in_transit',
-      'delivered', 'canceled', 'refund_requested', 'refunded', 'refund_request_canceled'
+      'delivered', 'cancelled', 'refund_requested', 'refunded', 'refund_request_cancelled'
     ];
     const countPromises = statusesForCount.map(async (s) => {
       const count = await this.ordersRepository.count({
@@ -803,7 +828,6 @@ export class OrdersService {
       });
       return { status: s, count };
     });
-
     const allCount = await this.ordersRepository
       .createQueryBuilder('order')
       .where('order.driverId = :driverId', { driverId })
@@ -825,13 +849,16 @@ export class OrdersService {
       // Create a numeric ID from UUID hash (for compatibility)
       const numericId = Math.abs(o.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % 1000000;
       
+      // Status is already 'cancelled' in database, return as-is
+      const normalizedStatus = o.status;
+      
       return {
         id: numericId,
         user_id: null,
         order_amount: orderAmount,
         coupon_discount_amount: 0,
         payment_status: 'unpaid',
-        order_status: o.status,
+        order_status: normalizedStatus,
         total_tax_amount: 0,
         payment_method: o.paymentType,
         transaction_reference: null,
@@ -908,12 +935,12 @@ export class OrdersService {
         processing: statusCounts.find((c) => c.status === 'processing')?.count || 0,
         handover: statusCounts.find((c) => c.status === 'handover')?.count || 0,
         picked_up: statusCounts.find((c) => c.status === 'picked_up')?.count || 0,
-        in_transit: statusCounts.find((c) => c.status === 'in_transit')?.count || 0,
-        delivered: statusCounts.find((c) => c.status === 'delivered')?.count || 0,
-        canceled: statusCounts.find((c) => c.status === 'canceled')?.count || 0,
-        refund_requested: statusCounts.find((c) => c.status === 'refund_requested')?.count || 0,
-        refunded: statusCounts.find((c) => c.status === 'refunded')?.count || 0,
-        refund_request_canceled: statusCounts.find((c) => c.status === 'refund_request_canceled')?.count || 0
+          in_transit: statusCounts.find((c) => c.status === 'in_transit')?.count || 0,
+          delivered: statusCounts.find((c) => c.status === 'delivered')?.count || 0,
+          cancelled: statusCounts.find((c) => c.status === 'cancelled')?.count || 0,
+          refund_requested: statusCounts.find((c) => c.status === 'refund_requested')?.count || 0,
+          refunded: statusCounts.find((c) => c.status === 'refunded')?.count || 0,
+          refund_request_cancelled: statusCounts.find((c) => c.status === 'refund_request_cancelled')?.count || 0
       }
     };
   }

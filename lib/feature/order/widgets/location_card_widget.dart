@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'package:stackfood_multivendor_driver/common/widgets/custom_bottom_sheet_widget.dart';
-import 'package:stackfood_multivendor_driver/common/widgets/custom_confirmation_bottom_sheet.dart';
 import 'package:stackfood_multivendor_driver/feature/order/controllers/order_controller.dart';
+import 'package:stackfood_multivendor_driver/feature/profile/controllers/profile_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_model.dart';
+import 'package:stackfood_multivendor_driver/feature/order/widgets/cancellation_dialogue_widget.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_snackbar_widget.dart';
@@ -318,6 +318,83 @@ class _LocationCardWidgetState extends State<LocationCardWidget> {
               const SizedBox(height: Dimensions.paddingSizeDefault),
             ],
 
+            // Ready to Deliver Button (only show for in_transit status)
+            if (widget.orderModel.orderStatus?.toLowerCase() == 'in_transit') ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeLarge),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      // This button can be used for additional actions before delivery
+                      // For now, it's just a placeholder
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeDefault),
+                      backgroundColor: Colors.grey[300],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+                      ),
+                    ),
+                    child: Text(
+                      'Ready to Deliver',
+                      style: robotoBold.copyWith(
+                        fontSize: Dimensions.fontSizeLarge,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: Dimensions.paddingSizeDefault),
+            ],
+
+            // Deliver Button (only show for in_transit status)
+            if (widget.orderModel.orderStatus?.toLowerCase() == 'in_transit') ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeLarge),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      // Update order status to delivered
+                      widget.orderController.updateOrderStatus(
+                        widget.orderModel.id,
+                        'delivered',
+                      ).then((success) {
+                        if (success) {
+                          showCustomSnackBar('Order delivered successfully', isError: false);
+                          // Refresh the profile to update earnings
+                          Get.find<ProfileController>().getProfile();
+                          // Refresh the order list
+                          widget.orderController.getCurrentOrders(
+                            status: widget.orderController.selectedRunningOrderStatus ?? 'all'
+                          );
+                        } else {
+                          showCustomSnackBar('Failed to deliver order', isError: true);
+                        }
+                      });
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeDefault),
+                      backgroundColor: Colors.orange,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+                      ),
+                    ),
+                    child: Text(
+                      'Deliver',
+                      style: robotoBold.copyWith(
+                        fontSize: Dimensions.fontSizeLarge,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: Dimensions.paddingSizeDefault),
+            ],
+
             // Cancel Order Button
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeLarge),
@@ -325,18 +402,8 @@ class _LocationCardWidgetState extends State<LocationCardWidget> {
                 width: double.infinity,
                 child: OutlinedButton(
                   onPressed: () {
-                    showCustomBottomSheet(
-                      child: CustomConfirmationBottomSheet(
-                        title: 'cancel_order'.tr,
-                        description: 'are_you_sure_want_to_cancel_this_order'.tr,
-                        confirmButtonText: 'cancel_order'.tr,
-                        onConfirm: () {
-                          Get.back();
-                          // Implement cancel order functionality
-                          showCustomSnackBar('Order cancellation requested', isError: false);
-                        },
-                      ),
-                    );
+                    widget.orderController.setOrderCancelReason('');
+                    Get.dialog(CancellationDialogueWidget(orderId: widget.orderModel.id));
                   },
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeDefault),
@@ -438,7 +505,7 @@ class _LocationCardWidgetState extends State<LocationCardWidget> {
         return 'Refund Requested';
       case 'refunded':
         return 'Refunded';
-      case 'refund_request_canceled':
+      case 'refund_request_cancelled':
         return 'Request Cancelled';
       default:
         return 'Driver Pending';
@@ -463,7 +530,7 @@ class _LocationCardWidgetState extends State<LocationCardWidget> {
       case 'cancelled':
       case 'refund_requested':
       case 'refunded':
-      case 'refund_request_canceled':
+      case 'refund_request_cancelled':
         return 1.0;
       
       // Other statuses

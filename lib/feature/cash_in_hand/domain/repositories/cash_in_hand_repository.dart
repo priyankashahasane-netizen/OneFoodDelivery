@@ -41,9 +41,25 @@ class CashInHandRepository implements CashInHandRepositoryInterface {
     ResponseModel responseModel;
     Response response = await apiClient.postData(AppConstants.makeWalletAdjustmentUri, {'token': _getUserToken()}, handleError: false);
     if(response.statusCode == 200) {
-      responseModel = ResponseModel(true, 'wallet_adjustment_successfully'.tr);
+      // Extract message from response body if available, otherwise use translation
+      String message = 'wallet_adjustment_successfully'.tr;
+      if(response.body != null && response.body is Map) {
+        final body = response.body as Map<String, dynamic>;
+        if(body.containsKey('message') && body['message'] != null) {
+          message = body['message'].toString();
+        }
+      }
+      responseModel = ResponseModel(true, message);
     }else {
-      responseModel = ResponseModel(false, response.statusText);
+      // Extract error message from response body
+      String errorMessage = response.statusText ?? 'Failed to adjust payment';
+      if(response.body != null && response.body is Map) {
+        final body = response.body as Map<String, dynamic>;
+        if(body.containsKey('message') && body['message'] != null) {
+          errorMessage = body['message'].toString();
+        }
+      }
+      responseModel = ResponseModel(false, errorMessage);
     }
     return responseModel;
   }

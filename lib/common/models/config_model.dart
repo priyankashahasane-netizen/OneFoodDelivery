@@ -28,8 +28,8 @@ class ConfigModel {
   int? newRestaurant;
   String? orderConfirmationModel;
   bool? showDmEarning;
-  bool? canceledByDeliveryman;
-  bool? canceledByRestaurant;
+  bool? cancelledByDeliveryman;
+  bool? cancelledByRestaurant;
   String? timeformat;
   bool? toggleVegNonVeg;
   bool? toggleDmRegistration;
@@ -75,8 +75,8 @@ class ConfigModel {
     this.newRestaurant,
     this.orderConfirmationModel,
     this.showDmEarning,
-    this.canceledByDeliveryman,
-    this.canceledByRestaurant,
+    this.cancelledByDeliveryman,
+    this.cancelledByRestaurant,
     this.timeformat,
     this.toggleVegNonVeg,
     this.toggleDmRegistration,
@@ -124,8 +124,8 @@ class ConfigModel {
     newRestaurant = json['new_restaurant'];
     orderConfirmationModel = json['order_confirmation_model'];
     showDmEarning = json['show_dm_earning'];
-    canceledByDeliveryman = json['canceled_by_deliveryman'];
-    canceledByRestaurant = json['canceled_by_restaurant'];
+    cancelledByDeliveryman = json['cancelled_by_deliveryman'];
+    cancelledByRestaurant = json['cancelled_by_restaurant'];
     timeformat = json['timeformat'];
     toggleVegNonVeg = json['toggle_veg_non_veg'];
     toggleDmRegistration = json['toggle_dm_registration'];
@@ -182,8 +182,8 @@ class ConfigModel {
     data['new_restaurant'] = newRestaurant;
     data['order_confirmation_model'] = orderConfirmationModel;
     data['show_dm_earning'] = showDmEarning;
-    data['canceled_by_deliveryman'] = canceledByDeliveryman;
-    data['canceled_by_restaurant'] = canceledByRestaurant;
+    data['cancelled_by_deliveryman'] = cancelledByDeliveryman;
+    data['cancelled_by_restaurant'] = cancelledByRestaurant;
     data['timeformat'] = timeformat;
     data['toggle_veg_non_veg'] = toggleVegNonVeg;
     data['toggle_dm_registration'] = toggleDmRegistration;

@@ -84,10 +84,10 @@ void main() {
         final orderCount = OrderCount(
           all: 2,
           delivered: 2,
-          canceled: 0,
+          cancelled: 0,
           refundRequested: 0,
           refunded: 0,
-          refundRequestCanceled: 0,
+          refundRequestcancelled: 0,
         );
         final paginatedModel = PaginatedOrderModel(
           orders: mockOrders,
@@ -123,7 +123,7 @@ void main() {
           handover: 0,
           pickedUp: 0,
           delivered: 0,
-          canceled: 0,
+          cancelled: 0,
         );
         final paginatedModel = PaginatedOrderModel(
           orders: mockOrders,
@@ -153,7 +153,7 @@ void main() {
           handover: 0,
           pickedUp: 0,
           delivered: 0,
-          canceled: 0,
+          cancelled: 0,
         );
         final paginatedModel = PaginatedOrderModel(
           orders: <OrderModel>[],

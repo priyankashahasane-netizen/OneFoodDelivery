@@ -168,7 +168,7 @@ export class SmartPathService {
     console.log(`[SmartPath] Found ${activeOrders.length} total active orders for driver`);
 
     // Filter for subscription orders created today
-    const excludedStatuses = ['delivered', 'canceled', 'cancelled', 'failed', 'refunded', 'refund_requested', 'refund_request_canceled'];
+    const excludedStatuses = ['delivered', 'cancelled', 'cancelled', 'failed', 'refunded', 'refund_requested', 'refund_request_cancelled'];
     
     const filtered = activeOrders.filter(order => {
       const isSubscription = order.orderType === 'subscription';

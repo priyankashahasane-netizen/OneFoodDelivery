@@ -84,9 +84,9 @@ class _DisbursementScreenState extends State<DisbursementScreen> {
                   ),
 
                   DisbursementStatusCardWidget(
-                    amount: disbursementController.disbursementReportModel!.canceled!,
-                    text: 'canceled_transactions'.tr,
-                    isCanceled: true,
+                    amount: disbursementController.disbursementReportModel!.cancelled!,
+                    text: 'cancelled_transactions'.tr,
+                    iscancelled: true,
                   ),
 
                 ]),

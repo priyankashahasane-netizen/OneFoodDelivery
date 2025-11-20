@@ -177,12 +177,17 @@ export class OrdersController {
 
   @Put(':id/status')
   @UseGuards(JwtAuthGuard)
-  async updateStatus(@Param('id') id: string, @Body() body: { status: string }, @Request() req: any) {
+  async updateStatus(@Param('id') id: string, @Body() body: { status: string; cancellationSource?: string; cancellationReason?: string; reason?: string }, @Request() req: any) {
     try {
       // Extract driver ID from JWT token for automatic assignment when status is "accepted"
       const driverId = req?.user?.sub || req?.user?.driverId;
       
-      const order = await this.ordersService.updateStatus(id, body.status, undefined, driverId);
+      // Handle both 'reason' (from frontend) and 'cancellationReason' (from API spec)
+      const cancellationReason = body.cancellationReason || body.reason;
+      // Set cancellationSource to 'deliveryman' if status is cancelled/cancelled and source not provided
+      const cancellationSource = body.cancellationSource || (body.status?.toLowerCase() === 'cancelled' || body.status?.toLowerCase() === 'cancelled' ? 'deliveryman' : undefined);
+      
+      const order = await this.ordersService.updateStatus(id, body.status, undefined, driverId, cancellationSource, cancellationReason);
       return {
         success: true,
         message: `Order status updated to ${body.status}`,

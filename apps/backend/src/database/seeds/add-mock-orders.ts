@@ -289,7 +289,7 @@ async function addMockOrders() {
         zoneId: null,
       },
 
-      // Canceled orders
+      // cancelled orders
       {
         externalRef: 'UBER-MOCK-010',
         pickup: {
@@ -302,7 +302,7 @@ async function addMockOrders() {
           lng: 77.5946,
           address: 'Hebbal Main Road, Bengaluru',
         },
-        status: 'canceled',
+        status: 'cancelled',
         paymentType: 'online',
         items: [
           { name: 'Crunchwrap Supreme', quantity: 2, price: 340 },
@@ -325,7 +325,7 @@ async function addMockOrders() {
           lng: 77.6469,
           address: 'Malleshwaram Metro Station, Bengaluru',
         },
-        status: 'canceled',
+        status: 'cancelled',
         paymentType: 'cash',
         items: [
           { name: 'Whopper Burger', quantity: 1, price: 199 },
@@ -438,7 +438,7 @@ async function addMockOrders() {
         zoneId: null,
       },
 
-      // Refund request canceled orders
+      // Refund request cancelled orders
       {
         externalRef: 'ZOMATO-MOCK-016',
         pickup: {
@@ -451,7 +451,7 @@ async function addMockOrders() {
           lng: 77.6411,
           address: 'HSR Layout Sector 1, Bengaluru',
         },
-        status: 'refund_request_canceled',
+        status: 'refund_request_cancelled',
         paymentType: 'online',
         items: [
           { name: 'Farmhouse Pizza', quantity: 1, price: 399 },
@@ -475,7 +475,7 @@ async function addMockOrders() {
           lng: 77.6077,
           address: 'Whitefield Main Road, Bengaluru',
         },
-        status: 'refund_request_canceled',
+        status: 'refund_request_cancelled',
         paymentType: 'cash',
         items: [
           { name: 'Whopper Meal', quantity: 1, price: 299 },

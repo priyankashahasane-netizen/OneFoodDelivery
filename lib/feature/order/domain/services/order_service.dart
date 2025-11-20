@@ -34,8 +34,8 @@ class OrderService implements OrderServiceInterface {
   }
 
   @override
-  Future<ResponseModel> updateOrderStatus(UpdateStatusBody updateStatusBody, List<MultipartBody> proofAttachment) async {
-    return await orderRepositoryInterface.updateOrderStatus(updateStatusBody, proofAttachment);
+  Future<ResponseModel> updateOrderStatus(UpdateStatusBody updateStatusBody, List<MultipartBody> proofAttachment, {String? orderUuid}) async {
+    return await orderRepositoryInterface.updateOrderStatus(updateStatusBody, proofAttachment, orderUuid: orderUuid);
   }
 
   @override

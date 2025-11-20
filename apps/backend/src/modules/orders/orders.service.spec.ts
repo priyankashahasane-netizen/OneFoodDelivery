@@ -231,7 +231,7 @@ describe('OrdersService', () => {
   });
 
   describe('getActiveOrdersByDriver', () => {
-    it('should return active orders excluding delivered/canceled', async () => {
+    it('should return active orders excluding delivered/cancelled', async () => {
       // Arrange
       const driverId = 'driver-1';
       const mockActiveOrders = [
