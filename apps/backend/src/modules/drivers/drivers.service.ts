@@ -1,12 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, MoreThanOrEqual } from 'typeorm';
 
 import { PaginationQueryDto } from '../../common/dto/pagination.dto.js';
 import { UpdateDriverDto } from './dto/update-driver.dto.js';
 import { DriverEntity } from './entities/driver.entity.js';
 import { DriverProfileResponseDto } from './dto/driver-profile-response.dto.js';
 import { DriverBankAccountEntity } from './entities/driver-bank-account.entity.js';
+import { DriverWalletEntity } from '../wallet/entities/driver-wallet.entity.js';
+import { OrderEntity } from '../orders/entities/order.entity.js';
 
 @Injectable()
 export class DriversService {
@@ -14,7 +16,11 @@ export class DriversService {
     @InjectRepository(DriverEntity)
     private readonly driversRepository: Repository<DriverEntity>,
     @InjectRepository(DriverBankAccountEntity)
-    private readonly bankAccountRepository: Repository<DriverBankAccountEntity>
+    private readonly bankAccountRepository: Repository<DriverBankAccountEntity>,
+    @InjectRepository(DriverWalletEntity)
+    private readonly walletRepository: Repository<DriverWalletEntity>,
+    @InjectRepository(OrderEntity)
+    private readonly ordersRepository: Repository<OrderEntity>
   ) {}
 
   async listDrivers(pagination: PaginationQueryDto) {
@@ -45,7 +51,69 @@ export class DriversService {
    */
   async getProfile(driverId: string): Promise<DriverProfileResponseDto> {
     const driver = await this.findById(driverId);
-    return DriverProfileResponseDto.fromDriverEntity(driver);
+    
+    // Debug: Log createdAt to verify it's loaded
+    console.log(`[getProfile] Driver ${driverId} - createdAt:`, driver.createdAt, typeof driver.createdAt);
+    
+    // Fetch wallet balance from database
+    let walletBalance: number | null = null;
+    try {
+      const wallet = await this.walletRepository.findOne({ where: { driverId } });
+      if (wallet) {
+        walletBalance = parseFloat(wallet.balance.toString());
+      }
+    } catch (error) {
+      console.error('Error fetching wallet balance:', error);
+      // Continue with null balance, will use default in DTO
+    }
+    
+    // Calculate order counts from database
+    let orderCounts: { total: number; today: number; thisWeek: number } | null = null;
+    try {
+      const now = new Date();
+      
+      // Start of today (00:00:00)
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      // Start of this week (Monday 00:00:00)
+      const startOfWeek = new Date(now);
+      const dayOfWeek = now.getDay();
+      const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust to Monday
+      startOfWeek.setDate(diff);
+      startOfWeek.setHours(0, 0, 0, 0);
+      
+      // Count total orders for this driver
+      const totalCount = await this.ordersRepository.count({
+        where: { driverId }
+      });
+      
+      // Count today's orders
+      const todayCount = await this.ordersRepository.count({
+        where: {
+          driverId,
+          createdAt: MoreThanOrEqual(startOfToday)
+        }
+      });
+      
+      // Count this week's orders
+      const thisWeekCount = await this.ordersRepository.count({
+        where: {
+          driverId,
+          createdAt: MoreThanOrEqual(startOfWeek)
+        }
+      });
+      
+      orderCounts = {
+        total: totalCount,
+        today: todayCount,
+        thisWeek: thisWeekCount
+      };
+    } catch (error) {
+      console.error('Error calculating order counts:', error);
+      // Continue with null order counts, will use defaults in DTO
+    }
+    
+    return DriverProfileResponseDto.fromDriverEntity(driver, walletBalance, orderCounts);
   }
 
   async update(driverId: string, payload: UpdateDriverDto) {

@@ -75,12 +75,46 @@ export class DriverProfileResponseDto {
   /**
    * Enriches a DriverEntity with mock profile data
    * Ensures ALL fields have non-null values to prevent frontend null errors
+   * @param driver - The driver entity
+   * @param walletBalance - The balance from driver_wallets table (optional, falls back to metadata or default)
+   * @param orderCounts - The order counts from orders table (optional, falls back to metadata or default)
    */
-  static fromDriverEntity(driver: any): DriverProfileResponseDto {
-    // Calculate days since creation
-    const memberSinceDays = driver.createdAt
-      ? Math.floor((Date.now() - new Date(driver.createdAt).getTime()) / (1000 * 60 * 60 * 24))
-      : 180;
+  static fromDriverEntity(
+    driver: any, 
+    walletBalance?: number | null,
+    orderCounts?: { total: number; today: number; thisWeek: number } | null
+  ): DriverProfileResponseDto {
+    // Calculate days since creation from created_at field
+    // Try both camelCase (TypeORM default) and snake_case (raw DB) property names
+    const createdAtValue = driver.createdAt || driver.created_at || (driver as any)['created_at'];
+    
+    let memberSinceDays = 0;
+    if (createdAtValue) {
+      try {
+        const createdAt = new Date(createdAtValue);
+        // Check if date is valid
+        if (isNaN(createdAt.getTime())) {
+          console.warn(`Driver ${driver.id} has invalid created_at date: ${createdAtValue}`);
+          memberSinceDays = 0;
+        } else {
+          const now = new Date();
+          const diffTime = now.getTime() - createdAt.getTime();
+          memberSinceDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+          // Ensure non-negative value
+          if (memberSinceDays < 0) {
+            memberSinceDays = 0;
+          }
+          console.log(`Driver ${driver.id} - created_at: ${createdAt.toISOString()}, days since: ${memberSinceDays}`);
+        }
+      } catch (error) {
+        console.error(`Error calculating days since creation for driver ${driver.id}:`, error);
+        memberSinceDays = 0;
+      }
+    } else {
+      // Fallback only if created_at is truly missing
+      console.warn(`Driver ${driver.id} missing created_at field. Available properties: ${Object.keys(driver).join(', ')}`);
+      memberSinceDays = 0;
+    }
 
     // Split name into first and last
     const nameParts = (driver.name || 'Demo Driver').split(' ');
@@ -123,7 +157,8 @@ export class DriverProfileResponseDto {
       updated_at: updatedAt,
 
       // Financial fields - ensure no nulls
-      balance: metadata.balance ?? 1250.75,
+      // Use wallet balance from database if available, otherwise fall back to metadata or default
+      balance: walletBalance !== null && walletBalance !== undefined ? walletBalance : (metadata.balance ?? 0.0),
       cash_in_hands: metadata.cashInHands ?? 125.50,
       todays_earning: metadata.todaysEarning ?? 125.50,
       this_week_earning: metadata.thisWeekEarning ?? 875.25,
@@ -135,10 +170,10 @@ export class DriverProfileResponseDto {
       total_incentive_earning: metadata.totalIncentiveEarning ?? 150.00,
       earning: metadata.earnings ?? 1, // Enable earnings feature
 
-      // Order statistics - ensure no nulls
-      order_count: metadata.orderCount ?? 342,
-      todays_order_count: metadata.todaysOrderCount ?? 8,
-      this_week_order_count: metadata.thisWeekOrderCount ?? 45,
+      // Order statistics - use database counts if available, otherwise fall back to metadata or defaults
+      order_count: orderCounts?.total ?? (metadata.orderCount ?? 0),
+      todays_order_count: orderCounts?.today ?? (metadata.todaysOrderCount ?? 0),
+      this_week_order_count: orderCounts?.thisWeek ?? (metadata.thisWeekOrderCount ?? 0),
 
       // Profile information - use empty strings instead of null
       image_full_url: metadata.imageFullUrl ?? '',
@@ -159,7 +194,8 @@ export class DriverProfileResponseDto {
       // Ratings - ensure no nulls
       avg_rating: metadata.avgRating != null ? Number(metadata.avgRating) : 4.8,
       rating_count: metadata.ratingCount != null ? Number(metadata.ratingCount) : 125,
-      member_since_days: metadata.memberSinceDays != null ? Number(metadata.memberSinceDays) : memberSinceDays,
+      // Always use calculated value from created_at field, not metadata
+      member_since_days: memberSinceDays,
 
       // Shifts - ensure no nulls
       shift_name: metadata.shiftName ?? 'Morning Shift',

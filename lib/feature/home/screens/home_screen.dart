@@ -7,7 +7,6 @@ import 'package:stackfood_multivendor_driver/feature/home/widgets/order_count_ca
 import 'package:stackfood_multivendor_driver/feature/notification/controllers/notification_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/order/controllers/order_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/home/widgets/count_card_widget.dart';
-import 'package:stackfood_multivendor_driver/feature/home/widgets/earning_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/home/widgets/shift_dialogue_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/controllers/profile_controller.dart';
 import 'package:stackfood_multivendor_driver/helper/price_converter_helper.dart';
@@ -658,28 +657,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
 
                             ]),
-                          ]),
-                          const SizedBox(height: 30),
-
-                          Row(children: [
-
-                            EarningWidget(
-                              title: 'today'.tr,
-                              amount: profileModel.todaysEarning,
-                            ),
-                            Container(height: 30, width: 1, color: Theme.of(context).cardColor),
-
-                            EarningWidget(
-                              title: 'this_week'.tr,
-                              amount: profileModel.thisWeekEarning,
-                            ),
-                            Container(height: 30, width: 1, color: Theme.of(context).cardColor),
-
-                            EarningWidget(
-                              title: 'this_month'.tr,
-                              amount: profileModel.thisMonthEarning,
-                            ),
-
                           ]),
 
                         ]),
