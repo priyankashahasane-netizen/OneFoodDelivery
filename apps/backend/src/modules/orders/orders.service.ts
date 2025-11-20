@@ -7,6 +7,7 @@ import { DriverEntity } from '../drivers/entities/driver.entity.js';
 import { DriversService } from '../drivers/drivers.service.js';
 import type { RoutesService } from '../routes/routes.service.js';
 import type { NotificationsService } from '../notifications/notifications.service.js';
+import type { WalletService } from '../wallet/wallet.service.js';
 import { OrderEntity } from './entities/order.entity.js';
 import { UpsertOrderDto } from './dto/upsert-order.dto.js';
 import { ListOrdersDto } from './dto/list-orders.dto.js';
@@ -20,6 +21,9 @@ const getRoutesService = () => {
 const getNotificationsService = () => {
   return require('../notifications/notifications.service.js').NotificationsService;
 };
+const getWalletService = () => {
+  return require('../wallet/wallet.service.js').WalletService;
+};
 
 @Injectable()
 export class OrdersService {
@@ -30,7 +34,9 @@ export class OrdersService {
     @Inject(forwardRef(() => getRoutesService()))
     private readonly routesService: RoutesService,
     @Inject(forwardRef(() => getNotificationsService()))
-    private readonly notificationsService: NotificationsService
+    private readonly notificationsService: NotificationsService,
+    @Inject(forwardRef(() => getWalletService()))
+    private readonly walletService: WalletService
   ) {}
 
   async listOrders(filters: ListOrdersDto) {
@@ -495,6 +501,56 @@ export class OrdersService {
     
     if (payload?.trackingUrl) {
       order.trackingUrl = payload.trackingUrl;
+    }
+    
+    // Handle cash_on_delivery when order status becomes "delivered"
+    if (normalizedStatus === 'delivered' && order.paymentType === 'cash_on_delivery' && order.driverId) {
+      try {
+        // Calculate order amount from items
+        const items = (order.items as any[]) || [];
+        const orderAmount = items.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0);
+        
+        if (orderAmount > 0) {
+          console.log(`Processing cash_on_delivery for order ${orderId}: deducting ${orderAmount} from wallet and adding to cash in hand`);
+          
+          // Deduct from wallet balance
+          const walletResult = await this.walletService.deductFromWallet(
+            order.driverId,
+            orderAmount,
+            order.id,
+            `Cash on delivery order amount deducted for order ${orderId}`
+          );
+          
+          if (walletResult.success) {
+            // Get current cash in hand from driver metadata
+            const driver = await this.driversService.findById(order.driverId);
+            const currentCashInHand = (driver.metadata as any)?.cashInHands || 0;
+            const newCashInHand = parseFloat(currentCashInHand.toString()) + orderAmount;
+            
+            // Update cash in hand in driver metadata
+            await this.driversService.updateMetadata(order.driverId, {
+              cashInHands: newCashInHand
+            });
+            
+            console.log(`Successfully processed cash_on_delivery: deducted ${orderAmount} from wallet, added to cash in hand (new total: ${newCashInHand})`);
+          } else {
+            console.error(`Failed to deduct from wallet for cash_on_delivery order ${orderId}: ${walletResult.message}`);
+            // Continue with order status update even if wallet deduction fails
+            // This allows the order to be marked as delivered, but the financial transaction may need manual review
+          }
+        } else {
+          console.warn(`Order ${orderId} has zero amount, skipping cash_on_delivery processing`);
+        }
+      } catch (error) {
+        console.error(`Error processing cash_on_delivery for order ${orderId}:`, error);
+        // Continue with order status update even if cash_on_delivery processing fails
+        // This ensures the order can still be marked as delivered
+      }
+    }
+    
+    // Set deliveredAt timestamp when status becomes delivered
+    if (normalizedStatus === 'delivered' && !order.deliveredAt) {
+      order.deliveredAt = new Date();
     }
     
     const savedOrder = await this.ordersRepository.save(order);

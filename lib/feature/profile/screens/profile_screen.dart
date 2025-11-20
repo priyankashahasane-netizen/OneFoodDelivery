@@ -196,82 +196,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ]),
               if ((profileController.profileModel?.todaysOrderCount ?? 0) > 0 || (profileController.profileModel?.thisWeekOrderCount ?? 0) > 0)
                 const SizedBox(height: Dimensions.paddingSizeDefault),
-
-              // Earnings Section (if enabled)
-              if (profileController.profileModel != null && (profileController.profileModel?.earnings ?? 0) == 1)
-                DetailsCustomCard(
-                  padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(children: [
-                        Icon(Icons.account_balance_wallet, color: Theme.of(context).primaryColor, size: 24),
-                        const SizedBox(width: Dimensions.paddingSizeSmall),
-                        Text('earnings'.tr, style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeLarge)),
-                      ]),
-                      const SizedBox(height: Dimensions.paddingSizeDefault),
-                      Row(children: [
-                        Expanded(
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text('today'.tr, style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor)),
-                            const SizedBox(height: Dimensions.paddingSizeExtraSmall),
-                            Text(
-                              _formatPriceWithoutSymbol(profileController.profileModel?.todaysEarning ?? 0.0),
-                              style: robotoBold.copyWith(fontSize: Dimensions.fontSizeLarge, color: Theme.of(context).primaryColor),
-                            ),
-                          ]),
-                        ),
-                        Container(height: 30, width: 1, color: Theme.of(context).disabledColor),
-                        Expanded(
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
-                            Text('this_week'.tr, style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor)),
-                            const SizedBox(height: Dimensions.paddingSizeExtraSmall),
-                            Text(
-                              _formatPriceWithoutSymbol(profileController.profileModel?.thisWeekEarning ?? 0.0),
-                              style: robotoBold.copyWith(fontSize: Dimensions.fontSizeLarge, color: Theme.of(context).primaryColor),
-                            ),
-                          ]),
-                        ),
-                        Container(height: 30, width: 1, color: Theme.of(context).disabledColor),
-                        Expanded(
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                            Text('this_month'.tr, style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor)),
-                            const SizedBox(height: Dimensions.paddingSizeExtraSmall),
-                            Text(
-                              _formatPriceWithoutSymbol(profileController.profileModel?.thisMonthEarning ?? 0.0),
-                              style: robotoBold.copyWith(fontSize: Dimensions.fontSizeLarge, color: Theme.of(context).primaryColor),
-                            ),
-                          ]),
-                        ),
-                      ]),
-                      if (profileController.profileModel?.balance != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: Dimensions.paddingSizeDefault),
-                          child: Row(children: [
-                            Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-                                ),
-                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                  Text('balance'.tr, style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor)),
-                                  const SizedBox(height: Dimensions.paddingSizeExtraSmall),
-                                  Text(
-                                    _formatPriceWithoutSymbol(profileController.profileModel?.balance ?? 0.0),
-                                    style: robotoBold.copyWith(fontSize: Dimensions.fontSizeDefault, color: Theme.of(context).primaryColor),
-                                  ),
-                                ]),
-                              ),
-                            ),
-                          ]),
-                        ),
-                    ],
-                  ),
-                ),
-              if (profileController.profileModel != null && (profileController.profileModel?.earnings ?? 0) == 1)
-                const SizedBox(height: Dimensions.paddingSizeDefault),
               const SizedBox(height: Dimensions.paddingSizeSmall),
 
               ProfileButtonWidget(icon: Icons.dark_mode, title: 'dark_mode'.tr, isButtonActive: Get.isDarkMode, onTap: () {
@@ -497,14 +421,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       return '--';
     }
-  }
-
-  String _formatPriceWithoutSymbol(double price) {
-    // Format price with commas but without currency symbol
-    final int decimalPlaces = Get.find<SplashController>().configModel?.digitAfterDecimalPoint ?? 2;
-    final String formatted = price.toStringAsFixed(decimalPlaces)
-        .replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},');
-    return formatted;
   }
 
   Widget _buildStarRating(double rating) {
