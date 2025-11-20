@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { randomUUID } from 'crypto';
 import { DriverWalletEntity } from './entities/driver-wallet.entity.js';
 import { WalletTransactionEntity } from './entities/wallet-transaction.entity.js';
 import { DriversService } from '../drivers/drivers.service.js';
@@ -12,14 +14,21 @@ export class WalletService {
     private readonly walletRepository: Repository<DriverWalletEntity>,
     @InjectRepository(WalletTransactionEntity)
     private readonly transactionRepository: Repository<WalletTransactionEntity>,
-    private readonly driversService: DriversService
+    private readonly driversService: DriversService,
+    @InjectDataSource()
+    private readonly dataSource: DataSource
   ) {}
 
-  async getWalletByDriverId(driverId: string): Promise<DriverWalletEntity | null> {
-    return await this.walletRepository.findOne({
-      where: { driverId },
-      relations: ['transactions']
-    });
+  /**
+   * Get wallet by driver ID without loading relations
+   * This prevents TypeORM relation syncing issues when the wallet is later saved
+   */
+  async getWalletByDriverId(driverId: string, includeRelations: boolean = false): Promise<DriverWalletEntity | null> {
+    const options: any = { where: { driverId } };
+    if (includeRelations) {
+      options.relations = ['transactions'];
+    }
+    return await this.walletRepository.findOne(options);
   }
 
   async getWalletTransactions(
@@ -27,7 +36,8 @@ export class WalletService {
     limit: number = 25,
     offset: number = 0
   ) {
-    const wallet = await this.getWalletByDriverId(driverId);
+    // Don't load relations - we query transactions separately anyway
+    const wallet = await this.getWalletByDriverId(driverId, false);
     
     if (!wallet) {
       return {
@@ -106,57 +116,88 @@ export class WalletService {
   }
 
   async adjustWalletToZero(driverId: string): Promise<{ success: boolean; message: string }> {
-    const wallet = await this.getWalletByDriverId(driverId);
-    
-    if (!wallet) {
-      throw new NotFoundException(`Wallet not found for driver ${driverId}`);
-    }
+    // Use a database transaction with raw SQL to completely bypass TypeORM entity tracking
+    // This prevents any relation syncing issues
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    // Ensure wallet has an ID
-    if (!wallet.id) {
-      throw new NotFoundException(`Wallet ID not found for driver ${driverId}`);
-    }
+    try {
+      // Get wallet using raw SQL to avoid entity tracking
+      const walletResult = await queryRunner.query(
+        `SELECT id, balance, currency FROM driver_wallets WHERE driver_id = $1 LIMIT 1`,
+        [driverId]
+      );
+      
+      if (!walletResult || walletResult.length === 0) {
+        await queryRunner.rollbackTransaction();
+        await queryRunner.release();
+        throw new NotFoundException(`Wallet not found for driver ${driverId}`);
+      }
 
-    const currentBalance = parseFloat(wallet.balance.toString());
-    
-    // If balance is already zero, return success
-    if (currentBalance === 0) {
+      const wallet = walletResult[0];
+      const walletId = wallet.id;
+      const currentBalance = parseFloat(wallet.balance);
+
+      // If balance is already zero, return success
+      if (currentBalance === 0) {
+        await queryRunner.rollbackTransaction();
+        await queryRunner.release();
+        return {
+          success: true,
+          message: 'Wallet balance is already zero'
+        };
+      }
+
+      // Create a debit transaction using raw SQL to avoid any relation issues
+      // Generate UUID in TypeScript to ensure consistency with TypeORM
+      const transactionId = randomUUID();
+      await queryRunner.query(
+        `INSERT INTO wallet_transactions (id, wallet_id, order_id, type, category, amount, description, created_at)
+         VALUES ($1, $2, NULL, $3, $4, $5, $6, NOW())`,
+        [
+          transactionId,
+          walletId,
+          'debit',
+          'adjustment',
+          currentBalance,
+          `Wallet adjustment: Balance reset to zero from ${currentBalance}`
+        ]
+      );
+
+      // Update wallet balance using raw SQL
+      await queryRunner.query(
+        `UPDATE driver_wallets SET balance = 0, updated_at = NOW() WHERE id = $1`,
+        [walletId]
+      );
+
+      // Commit the transaction
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+
+      // IMPORTANT: Also update driver metadata to sync payable_balance
+      // The profile reads payable_balance from drivers.metadata.payableBalance
+      // This is done outside the transaction since it's not critical for the wallet adjustment
+      try {
+        await this.driversService.updateMetadata(driverId, { payableBalance: 0 });
+      } catch (error) {
+        // Log error but don't fail the adjustment
+        console.error('Failed to update driver metadata:', error);
+      }
+
       return {
         success: true,
-        message: 'Wallet balance is already zero'
+        message: 'Wallet balance adjusted to zero successfully'
       };
+    } catch (error: any) {
+      // Rollback transaction on error
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
+      await queryRunner.release();
+      console.error('Error in adjustWalletToZero:', error);
+      throw error;
     }
-
-    // Create a debit transaction for the adjustment
-    // Set walletId directly (not the wallet entity) to ensure it's saved correctly
-    const adjustmentTransaction = this.transactionRepository.create({
-      walletId: wallet.id, // Set only the foreign key ID
-      orderId: null,
-      type: 'debit',
-      category: 'adjustment',
-      amount: currentBalance,
-      description: `Wallet adjustment: Balance reset to zero from ${currentBalance}`
-    });
-
-    await this.transactionRepository.save(adjustmentTransaction);
-
-    // Set wallet balance to zero
-    wallet.balance = 0;
-    await this.walletRepository.save(wallet);
-
-    // IMPORTANT: Also update driver metadata to sync payable_balance
-    // The profile reads payable_balance from drivers.metadata.payableBalance
-    try {
-      await this.driversService.updateMetadata(driverId, { payableBalance: 0 });
-    } catch (error) {
-      // Log error but don't fail the adjustment
-      console.error('Failed to update driver metadata:', error);
-    }
-
-    return {
-      success: true,
-      message: 'Wallet balance adjusted to zero successfully'
-    };
   }
 
   async getBankDetails(driverId: string) {

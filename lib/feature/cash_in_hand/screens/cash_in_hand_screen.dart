@@ -200,56 +200,6 @@ class _CashInHandScreenState extends State<CashInHandScreen> {
                         ),
                         const SizedBox(height: Dimensions.paddingSizeDefault),
 
-                        Row(children: [
-
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-                                color: Theme.of(context).cardColor,
-                                boxShadow: [BoxShadow(color: Colors.black12, spreadRadius: 1, blurRadius: 5)],
-                              ),
-                              child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
-
-                                Text(
-                                  PriceConverter.convertPrice(profileController.profileModel!.cashInHands),
-                                  style: robotoBold.copyWith(fontSize: Dimensions.fontSizeLarge, color: Theme.of(context).primaryColor),
-                                ),
-                                const SizedBox(height: Dimensions.paddingSizeSmall),
-
-                                Text('cash_in_hand'.tr, style: robotoRegular.copyWith(color: Theme.of(context).disabledColor)),
-
-                              ]),
-                            ),
-                          ),
-                          const SizedBox(width: Dimensions.paddingSizeDefault),
-
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-                                color: Theme.of(context).cardColor,
-                                boxShadow: [BoxShadow(color: Colors.black12, spreadRadius: 1, blurRadius: 5)],
-                              ),
-                              child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
-
-                                Text(
-                                  PriceConverter.convertPrice(profileController.profileModel!.totalWithdrawn),
-                                  style: robotoBold.copyWith(fontSize: Dimensions.fontSizeLarge, color: Theme.of(context).primaryColor),
-                                ),
-                                const SizedBox(height: Dimensions.paddingSizeSmall),
-
-                                Text('total_withdrawn'.tr, style: robotoRegular.copyWith(color: Theme.of(context).disabledColor)),
-
-                              ]),
-                            ),
-                          ),
-
-                        ]),
-                        const SizedBox(height:Dimensions.paddingSizeSmall),
-
                         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                           Text('transaction_history'.tr, style: robotoMedium),
                           InkWell(

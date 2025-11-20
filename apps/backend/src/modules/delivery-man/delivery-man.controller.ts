@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Query, Request, UseGuards, UnauthorizedException, Param } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Query, Request, UseGuards, UnauthorizedException, Param, BadRequestException, HttpException } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt.guard.js';
 import { OrdersService } from '../orders/orders.service.js';
 import { DriversService } from '../drivers/drivers.service.js';
@@ -566,7 +566,18 @@ export class DeliveryManController {
         success: result.success
       };
     } catch (error: any) {
-      throw error;
+      // Log the error for debugging
+      console.error('Error in makeWalletAdjustment:', error);
+      
+      // If it's already an HttpException, re-throw it
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      
+      // Otherwise, wrap it in a BadRequestException with a user-friendly message
+      throw new BadRequestException(
+        error?.message || 'Failed to adjust wallet balance. Please try again.'
+      );
     }
   }
 
