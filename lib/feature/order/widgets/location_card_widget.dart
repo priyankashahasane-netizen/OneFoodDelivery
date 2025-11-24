@@ -5,11 +5,14 @@ import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_m
 import 'package:stackfood_multivendor_driver/feature/order/widgets/cancellation_dialogue_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/order/screens/order_details_screen.dart';
 import 'package:stackfood_multivendor_driver/helper/route_helper.dart';
+import 'package:stackfood_multivendor_driver/helper/date_converter_helper.dart';
+import 'package:stackfood_multivendor_driver/helper/price_converter_helper.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_snackbar_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 
 class LocationCardWidget extends StatefulWidget {
   final OrderModel orderModel;
@@ -144,12 +147,35 @@ class _LocationCardWidgetState extends State<LocationCardWidget> {
                   ),
                   const SizedBox(height: Dimensions.paddingSizeSmall),
                   
+                  // Order number and details
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Order #${widget.orderModel.id}',
+                        style: robotoBold.copyWith(
+                          fontSize: Dimensions.fontSizeExtraLarge,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _getOrderTimeAndDetails(),
+                        style: robotoRegular.copyWith(
+                          fontSize: Dimensions.fontSizeSmall,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: Dimensions.paddingSizeSmall),
+                  
                   // Progress bar
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'to ${widget.orderModel.deliveryAddress?.address?.split(',').first ?? 'Home'} -',
+                        'to ${widget.orderModel.deliveryAddress?.address ?? 'Home'}',
                         style: robotoRegular.copyWith(
                           fontSize: Dimensions.fontSizeSmall,
                           color: Colors.grey[600],
@@ -609,5 +635,24 @@ class _LocationCardWidgetState extends State<LocationCardWidget> {
     if (progress > 1.0) return 1.0;
     
     return progress;
+  }
+
+  String _getOrderTimeAndDetails() {
+    String timeStr = '';
+    if (widget.orderModel.createdAt != null) {
+      try {
+        DateTime orderTime = DateConverter.dateTimeStringToDate(widget.orderModel.createdAt!);
+        timeStr = DateFormat('h:mm a').format(orderTime);
+      } catch (e) {
+        timeStr = '';
+      }
+    }
+    
+    int itemCount = widget.orderModel.detailsCount ?? 1;
+    String itemsText = itemCount == 1 ? '$itemCount item' : '$itemCount items';
+    double orderAmount = widget.orderModel.orderAmount ?? 0;
+    String priceText = PriceConverter.convertPrice(orderAmount, showCurrency: false);
+    
+    return '$timeStr | $itemsText, $priceText';
   }
 }

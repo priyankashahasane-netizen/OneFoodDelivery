@@ -449,7 +449,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                       borderRadius: Dimensions.radiusSmall,
                       isBorder: false,
                       child: Row(children: [
-                        Text('order_type'.tr, style: robotoBold),
+                        Text('Order Type', style: robotoBold),
                         const Expanded(child: SizedBox()),
                         Text(
                           (controllerOrderModel.orderType ?? 'regular').toTitleCase(),

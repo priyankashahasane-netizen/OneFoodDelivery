@@ -46,6 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
   ll.LatLng? _currentLocation;
   bool _isLoadingLocation = false;
   StreamSubscription<Position>? _locationStreamSubscription;
+  bool _hasInitialLocation = false; // Track if we have any location to show
 
   @override
   void initState() {
@@ -55,6 +56,10 @@ class _HomeScreenState extends State<HomeScreen> {
       onStateChange: _onStateChanged,
     );
 
+    // Try to get a quick location from profile first (for offline drivers)
+    _initializeLocationFromProfile();
+    
+    // Load data and get location in parallel
     _loadData();
     _getCurrentLocation();
     _startLocationTrackingIfOnline();
@@ -62,6 +67,42 @@ class _HomeScreenState extends State<HomeScreen> {
     Future.delayed(const Duration(milliseconds: 200), () {
       checkPermission();
     });
+  }
+
+  // Initialize location from profile if available (faster than GPS)
+  void _initializeLocationFromProfile() {
+    try {
+      final profileController = Get.find<ProfileController>();
+      final profileModel = profileController.profileModel;
+      
+      if (profileModel != null) {
+        // Use home address if offline, or try to get last known location
+        if (profileModel.homeAddressLatitude != null && profileModel.homeAddressLongitude != null) {
+          setState(() {
+            _currentLocation = ll.LatLng(
+              profileModel.homeAddressLatitude!,
+              profileModel.homeAddressLongitude!,
+            );
+            _hasInitialLocation = true;
+          });
+          // Move map to this location immediately (after first frame)
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            try {
+              _mapController.move(_currentLocation!, 15.0);
+            } catch (e) {
+              // Map not ready yet, will be set when map renders
+              if (kDebugMode) {
+                debugPrint('Map not ready for initial move: $e');
+              }
+            }
+          });
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error initializing location from profile: $e');
+      }
+    }
   }
 
   Future<void> _getCurrentLocation({bool forceGPS = false}) async {
@@ -90,9 +131,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 profileModel.homeAddressLongitude!,
               );
               _isLoadingLocation = false;
+              _hasInitialLocation = true;
             });
             // Move map to home address location
-            _mapController.move(_currentLocation!, 15.0);
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              try {
+                _mapController.move(_currentLocation!, 15.0);
+              } catch (e) {
+                // Map not ready yet
+                if (kDebugMode) {
+                  debugPrint('Map not ready for move: $e');
+                }
+              }
+            });
             return;
           }
         }
@@ -137,17 +188,43 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
+      // Use best accuracy for initial fix, but with timeout fallback
+      Position position;
+      try {
+        position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.best,
+          timeLimit: const Duration(seconds: 10), // Timeout after 10 seconds
+        ).timeout(
+          const Duration(seconds: 10),
+        );
+      } catch (e) {
+        // Fallback to lower accuracy if high accuracy times out
+        if (kDebugMode) {
+          debugPrint('High accuracy location timed out, trying medium accuracy: $e');
+        }
+        position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.medium,
+          timeLimit: const Duration(seconds: 5),
+        );
+      }
 
       setState(() {
         _currentLocation = ll.LatLng(position.latitude, position.longitude);
         _isLoadingLocation = false;
+        _hasInitialLocation = true;
       });
 
       // Move map to current location
-      _mapController.move(_currentLocation!, 15.0);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        try {
+          _mapController.move(_currentLocation!, 15.0);
+        } catch (e) {
+          // Map not ready yet
+          if (kDebugMode) {
+            debugPrint('Map not ready for move: $e');
+          }
+        }
+      });
     } catch (e) {
       if (kDebugMode) {
         debugPrint('Error getting location: $e');
@@ -329,7 +406,14 @@ class _HomeScreenState extends State<HomeScreen> {
               _currentLocation = ll.LatLng(position.latitude, position.longitude);
             });
             // Smoothly move map to new location
-            _mapController.move(_currentLocation!, _mapController.camera.zoom);
+            try {
+              _mapController.move(_currentLocation!, _mapController.camera.zoom);
+            } catch (e) {
+              // Map not ready yet, ignore
+              if (kDebugMode) {
+                debugPrint('Map not ready for live update: $e');
+              }
+            }
             
             if (kDebugMode) {
               debugPrint('📍 Live location update: ${position.latitude}, ${position.longitude}');
@@ -558,7 +642,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-                              child: _isLoadingLocation
+                              child: (!_hasInitialLocation && _isLoadingLocation)
                                   ? Center(
                                       child: CircularProgressIndicator(
                                         color: Theme.of(context).primaryColor,
@@ -572,11 +656,19 @@ class _HomeScreenState extends State<HomeScreen> {
                                         interactionOptions: const InteractionOptions(
                                           flags: InteractiveFlag.all,
                                         ),
+                                        // Don't wait for location to render map
+                                        minZoom: 3,
+                                        maxZoom: 19,
                                       ),
                                       children: [
                                         TileLayer(
                                           urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                                           userAgentPackageName: 'com.sixamtech.app_retain',
+                                          maxZoom: 19,
+                                          minZoom: 3,
+                                          tileProvider: NetworkTileProvider(),
+                                          // Enable tile caching for better performance
+                                          maxNativeZoom: 19,
                                         ),
                                         if (_currentLocation != null && _currentLocation!.latitude != 0.0 && _currentLocation!.longitude != 0.0)
                                           MarkerLayer(

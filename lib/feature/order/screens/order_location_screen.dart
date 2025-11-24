@@ -4,10 +4,10 @@ import 'package:stackfood_multivendor_driver/api/api_client.dart';
 import 'package:stackfood_multivendor_driver/feature/order/controllers/order_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_model.dart';
 import 'package:stackfood_multivendor_driver/feature/order/widgets/location_card_widget.dart';
+import 'package:stackfood_multivendor_driver/feature/order/screens/order_details_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/controllers/profile_controller.dart';
-import 'package:stackfood_multivendor_driver/helper/date_converter_helper.dart';
-import 'package:stackfood_multivendor_driver/helper/price_converter_helper.dart';
 import 'package:stackfood_multivendor_driver/helper/directions_helper.dart';
+import 'package:stackfood_multivendor_driver/helper/route_helper.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
 import 'package:stackfood_multivendor_driver/util/images.dart';
@@ -100,6 +100,20 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
     }
   }
 
+  void _navigateToOrderDetails() {
+    // Navigate to order details screen with order details as argument
+    // Pass UUID if available for more efficient API calls
+    Get.toNamed(
+      RouteHelper.getOrderDetailsRoute(widget.orderModel.id),
+      arguments: OrderDetailsScreen(
+        orderId: widget.orderModel.id,
+        orderUuid: widget.orderModel.uuid, // Pass UUID directly if available
+        isRunningOrder: true, // Orders shown in location card are active/running orders
+        orderIndex: widget.index,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Safely get coordinates with fallback
@@ -114,7 +128,14 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Stack(children: [
+      body: GestureDetector(
+        onVerticalDragEnd: (details) {
+          // Detect swipe up gesture (negative velocity means upward movement)
+          if (details.primaryVelocity != null && details.primaryVelocity! < -500) {
+            _navigateToOrderDetails();
+          }
+        },
+        child: Stack(children: [
         // Map
         FlutterMap(
           mapController: _mapController,
@@ -149,57 +170,21 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
                 ),
               ],
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Time and close button row
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      DateFormat('h:mm a').format(DateTime.now()),
-                      style: robotoRegular.copyWith(
-                        fontSize: Dimensions.fontSizeDefault,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, color: Colors.black),
-                      onPressed: () => Get.back(),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
+                Text(
+                  DateFormat('h:mm a').format(DateTime.now()),
+                  style: robotoRegular.copyWith(
+                    fontSize: Dimensions.fontSizeDefault,
+                    color: Colors.grey[600],
+                  ),
                 ),
-                const SizedBox(height: Dimensions.paddingSizeSmall),
-                
-                // Order number
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Order #${widget.orderModel.id}',
-                            style: robotoBold.copyWith(
-                              fontSize: Dimensions.fontSizeExtraLarge,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _getOrderTimeAndDetails(),
-                            style: robotoRegular.copyWith(
-                              fontSize: Dimensions.fontSizeSmall,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.black),
+                  onPressed: () => Get.back(),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                 ),
               ],
             ),
@@ -219,27 +204,9 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
             estimatedArrivalMinutes: _estimatedArrivalMinutes,
           ),
         ),
-      ]),
+        ]),
+      ),
     );
-  }
-
-  String _getOrderTimeAndDetails() {
-    String timeStr = '';
-    if (widget.orderModel.createdAt != null) {
-      try {
-        DateTime orderTime = DateConverter.dateTimeStringToDate(widget.orderModel.createdAt!);
-        timeStr = DateFormat('h:mm a').format(orderTime);
-      } catch (e) {
-        timeStr = '';
-      }
-    }
-    
-    int itemCount = widget.orderModel.detailsCount ?? 1;
-    String itemsText = itemCount == 1 ? '$itemCount item' : '$itemCount items';
-    double orderAmount = widget.orderModel.orderAmount ?? 0;
-    String priceText = PriceConverter.convertPrice(orderAmount);
-    
-    return '$timeStr | $itemsText, $priceText';
   }
 
   /// Safely parse coordinate string to double with fallback
