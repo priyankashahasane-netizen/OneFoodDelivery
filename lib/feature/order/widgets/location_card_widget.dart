@@ -506,7 +506,12 @@ class _LocationCardWidgetState extends State<LocationCardWidget> {
       case 'picked_up':
         return 'Order Picked';
       case 'in_transit':
-        return 'Arriving in ${widget.estimatedArrivalMinutes ?? 30} mins';
+        // Calculate remaining ETA dynamically
+        int remainingMinutes = _getRemainingEtaMinutes();
+        if (remainingMinutes == 0) {
+          return 'Ready to deliver';
+        }
+        return 'Arriving in $remainingMinutes ${remainingMinutes == 1 ? 'min' : 'mins'}';
       case 'delivered':
         return 'Delivered';
       case 'cancelled':
@@ -520,6 +525,28 @@ class _LocationCardWidgetState extends State<LocationCardWidget> {
       default:
         return 'Driver Pending';
     }
+  }
+
+  // Calculate remaining ETA in minutes
+  int _getRemainingEtaMinutes() {
+    // Get initial estimated arrival time in minutes
+    int initialEstimatedMinutes = widget.estimatedArrivalMinutes ?? 30;
+    
+    // If we don't have a start time, return the initial estimate
+    if (_inTransitStartTime == null) {
+      return initialEstimatedMinutes;
+    }
+    
+    // Calculate elapsed time in minutes
+    DateTime now = DateTime.now();
+    Duration elapsed = now.difference(_inTransitStartTime!);
+    int elapsedMinutes = elapsed.inMinutes; // Use whole minutes for ETA display
+    
+    // Calculate remaining ETA: initial estimate - elapsed time
+    int remainingMinutes = initialEstimatedMinutes - elapsedMinutes;
+    
+    // Ensure ETA doesn't go below 0 (or 1 for better UX)
+    return remainingMinutes > 0 ? remainingMinutes : 0;
   }
 
   double _calculateProgress() {

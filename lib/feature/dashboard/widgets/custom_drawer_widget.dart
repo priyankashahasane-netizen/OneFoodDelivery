@@ -58,13 +58,20 @@ class CustomDrawerWidget extends StatelessWidget {
                           ),
                         ),
                         child: ClipOval(
-                          child: CustomImageWidget(
-                            image: profileModel?.imageFullUrl ?? '',
-                            height: 80,
-                            width: 80,
-                            fit: BoxFit.cover,
-                            placeholder: Images.placeholder,
-                          ),
+                          child: (profileModel?.imageFullUrl != null && profileModel!.imageFullUrl!.isNotEmpty)
+                            ? CustomImageWidget(
+                                image: profileModel.imageFullUrl!,
+                                height: 80,
+                                width: 80,
+                                fit: BoxFit.cover,
+                                placeholder: Images.placeholder,
+                              )
+                            : Image.asset(
+                                Images.demoProfilePic,
+                                height: 80,
+                                width: 80,
+                                fit: BoxFit.cover,
+                              ),
                         ),
                       ),
                       const SizedBox(height: Dimensions.paddingSizeSmall),
