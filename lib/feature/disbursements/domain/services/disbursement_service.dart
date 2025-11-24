@@ -26,8 +26,8 @@ class DisbursementService implements DisbursementServiceInterface {
   }
 
   @override
-  Future<bool> deleteMethod(int id) async{
-    return await disbursementRepositoryInterface.delete(id);
+  Future<bool> deleteMethod(String bankAccountId) async{
+    return await disbursementRepositoryInterface.deleteBankAccount(bankAccountId);
   }
 
   @override

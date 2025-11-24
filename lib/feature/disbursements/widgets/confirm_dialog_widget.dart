@@ -6,8 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class ConfirmDialogWidget extends StatelessWidget {
-  final int id;
-  const ConfirmDialogWidget({super.key, required this.id, });
+  final String? bankAccountId;
+  final int? id; // Keep for backward compatibility
+  const ConfirmDialogWidget({super.key, this.bankAccountId, this.id});
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +46,13 @@ class ConfirmDialogWidget extends StatelessWidget {
                 Expanded(
                   child: CustomButtonWidget(
                     buttonText: 'ok'.tr,
-                    onPressed: () => disbursementController.deleteMethod(id),
+                    onPressed: () {
+                      if (bankAccountId != null) {
+                        disbursementController.deleteMethod(bankAccountId!);
+                      } else if (id != null) {
+                        disbursementController.deleteMethod(id.toString());
+                      }
+                    },
                   ),
                 ),
 

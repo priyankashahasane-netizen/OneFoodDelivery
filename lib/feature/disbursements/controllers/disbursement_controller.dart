@@ -73,12 +73,17 @@ class DisbursementController extends GetxController implements GetxService {
     update();
     bool isSuccess = await disbursementServiceInterface.addWithdraw(data);
     if(isSuccess) {
+      _isLoading = false;
+      update();
+      // Refresh bank details first
+      await getBankDetails();
+      // Go back to bank details page (which will show the updated list)
       Get.back();
-      getDisbursementMethodList();
       showCustomSnackBar('add_successfully'.tr, isError: false);
+    } else {
+      _isLoading = false;
+      update();
     }
-    _isLoading = false;
-    update();
   }
 
   Future<bool> getDisbursementMethodList() async {
@@ -99,24 +104,33 @@ class DisbursementController extends GetxController implements GetxService {
     bool isSuccess = await disbursementServiceInterface.makeDefaultMethod(data);
     if(isSuccess) {
       _index = -1;
-      getDisbursementMethodList();
+      _isLoading = false;
+      // Refresh bank details to get updated default status
+      // This will update _disbursementMethodBody and call update() internally
+      await getBankDetails();
       showCustomSnackBar('set_default_method_successful'.tr, isError: false);
+    } else {
+      _isLoading = false;
+      update();
     }
-    _isLoading = false;
-    update();
   }
 
-  Future<void> deleteMethod(int id) async {
+  Future<void> deleteMethod(String bankAccountId) async {
     _isDeleteLoading = true;
     update();
-    bool isSuccess = await disbursementServiceInterface.deleteMethod(id);
+    bool isSuccess = await disbursementServiceInterface.deleteMethod(bankAccountId);
     if(isSuccess) {
-      getDisbursementMethodList();
+      _isDeleteLoading = false;
+      // Close dialog first
       Get.back();
+      // Refresh bank details to get updated list
+      // This will update _disbursementMethodBody and call update() internally
+      await getBankDetails();
       showCustomSnackBar('method_delete_successfully'.tr, isError: false);
+    } else {
+      _isDeleteLoading = false;
+      update();
     }
-    _isDeleteLoading = false;
-    update();
   }
 
   Future<void> getDisbursementReport(int offset) async {
@@ -209,6 +223,7 @@ class DisbursementController extends GetxController implements GetxService {
           
           return disburse.Methods(
             id: bankDetail.id,
+            bankAccountId: bankDetail.bankAccountId,
             methodName: bankDetail.methodName,
             methodFields: convertedFields,
             isDefault: bankDetail.isDefault,
@@ -239,6 +254,7 @@ class DisbursementController extends GetxController implements GetxService {
         methods: [],
       );
     }
+    // Trigger UI update after refreshing bank details - ensure GetBuilder rebuilds
     update();
     return _widthDrawMethods;
   }

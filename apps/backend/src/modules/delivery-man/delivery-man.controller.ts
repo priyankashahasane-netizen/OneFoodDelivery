@@ -422,6 +422,259 @@ export class DeliveryManController {
     }
   }
 
+  @Post('withdraw-method/delete')
+  @UseGuards(JwtAuthGuard)
+  async deleteWithdrawMethod(@Body() body: any, @Request() req: any) {
+    try {
+      // Get driver ID from JWT token
+      let driverId = req?.user?.sub || req?.user?.driverId;
+      const phone = req?.user?.phone;
+
+      // Check if driver ID is demo account placeholder
+      const isDemoAccount = req?.user?.driverId === 'demo-driver-id';
+
+      // If driver ID is provided (not demo), verify it exists
+      if (driverId && !isDemoAccount) {
+        try {
+          await this.driversService.findById(driverId);
+        } catch (error) {
+          // Driver not found with this ID - try to resolve by phone if available
+          if (phone) {
+            const driverByPhone = await this.driversService.findByPhone(phone);
+            if (driverByPhone) {
+              driverId = driverByPhone.id;
+            }
+          }
+
+          // If still not found, try demo phone variations
+          if (!driverId || driverId === req?.user?.sub) {
+            const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+            for (const demoPhone of demoPhones) {
+              const demoDriver = await this.driversService.findByPhone(demoPhone);
+              if (demoDriver) {
+                driverId = demoDriver.id;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      // Resolve demo account driver ID by phone
+      if (isDemoAccount || !driverId) {
+        const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+        for (const demoPhone of demoPhones) {
+          const demoDriver = await this.driversService.findByPhone(demoPhone);
+          if (demoDriver) {
+            driverId = demoDriver.id;
+            break;
+          }
+        }
+      }
+
+      if (!driverId) {
+        throw new UnauthorizedException('Driver ID not found in token');
+      }
+
+      // Get bank account ID from body
+      const bankAccountId = body.bank_account_id || body.id;
+      if (!bankAccountId) {
+        throw new BadRequestException('Bank account ID is required');
+      }
+
+      // Delete the bank account
+      await this.driversService.deleteBankAccount(driverId, bankAccountId);
+
+      return {
+        message: 'Bank account deleted successfully',
+        success: true
+      };
+    } catch (error: any) {
+      console.error('Error in deleteWithdrawMethod:', error);
+      
+      // If it's already an HttpException, re-throw it
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      
+      // Otherwise, wrap it in a BadRequestException
+      throw new BadRequestException(
+        error?.message || 'Failed to delete bank account. Please try again.'
+      );
+    }
+  }
+
+  @Post('withdraw-method/make-default')
+  @UseGuards(JwtAuthGuard)
+  async makeDefaultWithdrawMethod(@Body() body: any, @Request() req: any) {
+    try {
+      // Get driver ID from JWT token
+      let driverId = req?.user?.sub || req?.user?.driverId;
+      const phone = req?.user?.phone;
+
+      // Check if driver ID is demo account placeholder
+      const isDemoAccount = req?.user?.driverId === 'demo-driver-id';
+
+      // If driver ID is provided (not demo), verify it exists
+      if (driverId && !isDemoAccount) {
+        try {
+          await this.driversService.findById(driverId);
+        } catch (error) {
+          // Driver not found with this ID - try to resolve by phone if available
+          if (phone) {
+            const driverByPhone = await this.driversService.findByPhone(phone);
+            if (driverByPhone) {
+              driverId = driverByPhone.id;
+            }
+          }
+
+          // If still not found, try demo phone variations
+          if (!driverId || driverId === req?.user?.sub) {
+            const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+            for (const demoPhone of demoPhones) {
+              const demoDriver = await this.driversService.findByPhone(demoPhone);
+              if (demoDriver) {
+                driverId = demoDriver.id;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      // Resolve demo account driver ID by phone
+      if (isDemoAccount || !driverId) {
+        const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+        for (const demoPhone of demoPhones) {
+          const demoDriver = await this.driversService.findByPhone(demoPhone);
+          if (demoDriver) {
+            driverId = demoDriver.id;
+            break;
+          }
+        }
+      }
+
+      if (!driverId) {
+        throw new UnauthorizedException('Driver ID not found in token');
+      }
+
+      // Get bank account ID from body (support both 'id' and 'bank_account_id')
+      const bankAccountId = body.bank_account_id || body.id;
+      if (!bankAccountId) {
+        throw new BadRequestException('Bank account ID is required');
+      }
+
+      // Set as default
+      await this.driversService.setDefaultBankAccount(driverId, bankAccountId);
+
+      return {
+        message: 'Bank account set as default successfully',
+        success: true
+      };
+    } catch (error: any) {
+      console.error('Error in makeDefaultWithdrawMethod:', error);
+      
+      // If it's already an HttpException, re-throw it
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      
+      // Otherwise, wrap it in a BadRequestException
+      throw new BadRequestException(
+        error?.message || 'Failed to set default bank account. Please try again.'
+      );
+    }
+  }
+
+  @Post('withdraw-method/store')
+  @UseGuards(JwtAuthGuard)
+  async storeWithdrawMethod(@Body() body: any, @Request() req: any) {
+    try {
+      // Get driver ID from JWT token
+      let driverId = req?.user?.sub || req?.user?.driverId;
+      const phone = req?.user?.phone;
+
+      // Check if driver ID is demo account placeholder
+      const isDemoAccount = req?.user?.driverId === 'demo-driver-id';
+
+      // If driver ID is provided (not demo), verify it exists
+      if (driverId && !isDemoAccount) {
+        try {
+          await this.driversService.findById(driverId);
+        } catch (error) {
+          // Driver not found with this ID - try to resolve by phone if available
+          if (phone) {
+            const driverByPhone = await this.driversService.findByPhone(phone);
+            if (driverByPhone) {
+              driverId = driverByPhone.id;
+            }
+          }
+
+          // If still not found, try demo phone variations
+          if (!driverId || driverId === req?.user?.sub) {
+            const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+            for (const demoPhone of demoPhones) {
+              const demoDriver = await this.driversService.findByPhone(demoPhone);
+              if (demoDriver) {
+                driverId = demoDriver.id;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      // Resolve demo account driver ID by phone
+      if (isDemoAccount || !driverId) {
+        const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+        for (const demoPhone of demoPhones) {
+          const demoDriver = await this.driversService.findByPhone(demoPhone);
+          if (demoDriver) {
+            driverId = demoDriver.id;
+            break;
+          }
+        }
+      }
+
+      if (!driverId) {
+        throw new UnauthorizedException('Driver ID not found in token');
+      }
+
+      // Validate required fields
+      if (!body.account_holder_name || !body.account_number || !body.ifsc_code || !body.bank_name) {
+        throw new BadRequestException('Missing required fields: account_holder_name, account_number, ifsc_code, bank_name');
+      }
+
+      // Create bank account
+      const bankAccount = await this.driversService.createBankAccount(driverId, {
+        account_holder_name: body.account_holder_name,
+        account_number: body.account_number,
+        ifsc_code: body.ifsc_code,
+        bank_name: body.bank_name,
+        branch_name: body.branch_name,
+        upi_id: body.upi_id
+      });
+
+      return {
+        message: 'Bank account added successfully',
+        success: true,
+        id: bankAccount.id
+      };
+    } catch (error: any) {
+      console.error('Error in storeWithdrawMethod:', error);
+      
+      // If it's already an HttpException, re-throw it
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      
+      // Otherwise, wrap it in a BadRequestException
+      throw new BadRequestException(
+        error?.message || 'Failed to add bank account. Please try again.'
+      );
+    }
+  }
+
   @Get('message/list')
   @UseGuards(JwtAuthGuard)
   async getMessageList(

@@ -1,5 +1,6 @@
 class WidthDrawMethodModel {
   int? id;
+  String? bankAccountId;
   String? methodName;
   List<MethodFields>? methodFields;
   int? isDefault;
@@ -9,6 +10,7 @@ class WidthDrawMethodModel {
 
   WidthDrawMethodModel({
     this.id,
+    this.bankAccountId,
     this.methodName,
     this.methodFields,
     this.isDefault,
@@ -19,6 +21,7 @@ class WidthDrawMethodModel {
 
   WidthDrawMethodModel.fromJson(Map<String, dynamic> json) {
     id = json['id'];
+    bankAccountId = json['bank_account_id'];
     methodName = json['method_name'];
     if (json['method_fields'] != null) {
       methodFields = <MethodFields>[];

@@ -32,6 +32,7 @@ class DisbursementMethodBody {
 
 class Methods {
   int? id;
+  String? bankAccountId;
   int? restaurantId;
   int? deliveryManId;
   int? withdrawalMethodId;
@@ -43,6 +44,7 @@ class Methods {
 
   Methods({
     this.id,
+    this.bankAccountId,
     this.restaurantId,
     this.deliveryManId,
     this.withdrawalMethodId,
@@ -55,6 +57,7 @@ class Methods {
 
   Methods.fromJson(Map<String, dynamic> json) {
     id = json['id'];
+    bankAccountId = json['bank_account_id'];
     restaurantId = json['restaurant_id'];
     deliveryManId = json['delivery_man_id'];
     withdrawalMethodId = json['withdrawal_method_id'];

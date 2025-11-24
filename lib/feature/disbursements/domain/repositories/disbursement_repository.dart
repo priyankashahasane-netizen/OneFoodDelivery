@@ -35,8 +35,14 @@ class DisbursementRepository implements DisbursementRepositoryInterface {
   }
 
   @override
-  Future<bool> delete(int id) async{
-    Response response = await apiClient.postData('${AppConstants.deleteDisbursementMethodUri}?token=${_getUserToken()}', {'_method': 'delete', 'id': id});
+  Future<bool> delete(int id) async {
+    // This method is required by RepositoryInterface but we use deleteBankAccount instead
+    throw UnimplementedError('Use deleteBankAccount instead');
+  }
+
+  @override
+  Future<bool> deleteBankAccount(String bankAccountId) async{
+    Response response = await apiClient.postData('${AppConstants.deleteDisbursementMethodUri}?token=${_getUserToken()}', {'bank_account_id': bankAccountId});
     return (response.statusCode == 200);
   }
 

@@ -199,12 +199,6 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
                         ],
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.more_vert, color: Colors.black),
-                      onPressed: () {
-                        // Show menu options
-                      },
-                    ),
                   ],
                 ),
               ],

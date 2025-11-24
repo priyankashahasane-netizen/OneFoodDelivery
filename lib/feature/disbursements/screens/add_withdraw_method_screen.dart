@@ -1,12 +1,10 @@
 import 'package:stackfood_multivendor_driver/feature/disbursements/controllers/disbursement_controller.dart';
 import 'package:stackfood_multivendor_driver/helper/date_converter_helper.dart';
+import 'package:stackfood_multivendor_driver/helper/route_helper.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
-import 'package:stackfood_multivendor_driver/util/styles.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_app_bar_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/dashboard/widgets/global_bottom_nav_widget.dart';
-import 'package:stackfood_multivendor_driver/feature/dashboard/widgets/custom_drawer_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_button_widget.dart';
-import 'package:stackfood_multivendor_driver/common/widgets/custom_dropdown_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_snackbar_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_text_form_field.dart';
 import 'package:flutter/material.dart';
@@ -28,14 +26,25 @@ class _AddWithDrawMethodScreenState extends State<AddWithDrawMethodScreen> {
     Get.find<DisbursementController>().setMethod(isUpdate: false);
   }
 
+  String _capitalizeFirst(String text) {
+    if (text.isEmpty) return text;
+    return text[0].toUpperCase() + text.substring(1);
+  }
+
   @override
   Widget build(BuildContext context) {
     return  GetBuilder<DisbursementController>(builder: (disbursementController) {
 
       return Scaffold(
 
-        appBar: CustomAppBarWidget(title: 'add_withdraw_method'.tr),
-        drawer: CustomDrawerWidget(isFromDashboard: false),
+        appBar: CustomAppBarWidget(
+          title: 'add_withdraw_method'.tr,
+          showMenuButton: false,
+          isBackButtonExist: true,
+          onBackPressed: () {
+            Get.offNamed(RouteHelper.getWithdrawMethodRoute(isFromDashBoard: false));
+          },
+        ),
         bottomNavigationBar: const GlobalBottomNavWidget(),
 
         body: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -46,45 +55,6 @@ class _AddWithDrawMethodScreenState extends State<AddWithDrawMethodScreen> {
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-                  Text("payment_method".tr, style: robotoBold),
-                  const SizedBox(height: Dimensions.paddingSizeSmall),
-
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-                      color: Theme.of(context).cardColor,
-                      border: Border.all(color: Theme.of(context).primaryColor, width: 0.3),
-                    ),
-                    child: CustomDropdown<int>(
-                      onChange: (int? value, int index) {
-                        disbursementController.setMethodId(index);
-                        disbursementController.setMethod();
-                      },
-                      dropdownButtonStyle: DropdownButtonStyle(
-                        height: 45,
-                        padding: const EdgeInsets.symmetric(
-                          vertical: Dimensions.paddingSizeExtraSmall,
-                          horizontal: Dimensions.paddingSizeExtraSmall,
-                        ),
-                        primaryColor: Theme.of(context).textTheme.bodyLarge!.color,
-                      ),
-                      dropdownStyle: DropdownStyle(
-                        elevation: 10,
-                        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-                        padding: const EdgeInsets.all(Dimensions.paddingSizeExtraSmall),
-                      ),
-                      items: disbursementController.methodList,
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 8),
-                        child: Text(
-                          disbursementController.widthDrawMethods != null && disbursementController.widthDrawMethods!.isNotEmpty
-                            ? disbursementController.widthDrawMethods![0].methodName! : 'select_payment_method'.tr,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: Dimensions.paddingSizeExtraLarge),
 
                   ListView.builder(
                     physics: const BouncingScrollPhysics(),
@@ -97,7 +67,7 @@ class _AddWithDrawMethodScreenState extends State<AddWithDrawMethodScreen> {
 
                           Expanded(
                             child: CustomTextFormField(
-                              titleName: disbursementController.methodFields[index].inputName.toString().replaceAll('_', ' '),
+                              titleName: _capitalizeFirst(disbursementController.methodFields[index].inputName.toString().replaceAll('_', ' ')),
                               hintText: disbursementController.methodFields[index].placeholder,
                               controller: disbursementController.textControllerList[index],
                               capitalization: TextCapitalization.words,
@@ -166,7 +136,11 @@ class _AddWithDrawMethodScreenState extends State<AddWithDrawMethodScreen> {
                       showCustomSnackBar('required_fields_can_not_be_empty'.tr);
                     }else{
                       Map<String?, String> data = {};
-                      data['withdraw_method_id'] = disbursementController.widthDrawMethods![disbursementController.selectedMethodIndex!].id.toString();
+                      int methodIndex = disbursementController.selectedMethodIndex ?? 0;
+                      if (disbursementController.widthDrawMethods != null && 
+                          disbursementController.widthDrawMethods!.isNotEmpty) {
+                        data['withdraw_method_id'] = disbursementController.widthDrawMethods![methodIndex].id.toString();
+                      }
                       for (var result in disbursementController.methodFields) {
                         data[result.inputName] = disbursementController.textControllerList[disbursementController.methodFields.indexOf(result)].text.trim();
                       }

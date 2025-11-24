@@ -146,8 +146,21 @@ export class DriversService {
   async getBankAccountsForWithdrawMethods(driverId: string) {
     const bankAccounts = await this.getBankAccountsByDriverId(driverId);
     
+    // Get default bank account ID from driver metadata
+    const driver = await this.findById(driverId);
+    const defaultBankAccountId = (driver.metadata as any)?.defaultBankAccountId;
+    
+    // Sort accounts: default first, then by creation date
+    const sortedAccounts = [...bankAccounts].sort((a, b) => {
+      if (defaultBankAccountId) {
+        if (a.id === defaultBankAccountId) return -1;
+        if (b.id === defaultBankAccountId) return 1;
+      }
+      return a.createdAt.getTime() - b.createdAt.getTime();
+    });
+    
     // Map bank accounts to Flutter-expected withdraw method format
-    return bankAccounts.map((account, index) => {
+    return sortedAccounts.map((account, index) => {
       // Create method_fields based on bank account data
       const methodFields = [
         {
@@ -196,14 +209,76 @@ export class DriversService {
 
       return {
         id: index + 1, // Sequential ID for Flutter compatibility
+        bank_account_id: account.id, // Actual bank account UUID
         method_name: `${account.bankName} - ${account.accountNumber.substring(account.accountNumber.length - 4)}`,
         method_fields: methodFields,
-        is_default: index === 0 ? 1 : 0, // First account as default
+        is_default: (defaultBankAccountId && account.id === defaultBankAccountId) || (!defaultBankAccountId && index === 0) ? 1 : 0,
         is_active: account.isVerified ? 1 : 0,
         created_at: account.createdAt.toISOString(),
         updated_at: account.updatedAt.toISOString()
       };
     });
+  }
+
+  async createBankAccount(driverId: string, data: {
+    account_holder_name: string;
+    account_number: string;
+    ifsc_code: string;
+    bank_name: string;
+    branch_name?: string;
+    upi_id?: string;
+  }): Promise<DriverBankAccountEntity> {
+    const bankAccount = this.bankAccountRepository.create({
+      driverId,
+      accountHolderName: data.account_holder_name,
+      accountNumber: data.account_number,
+      ifscCode: data.ifsc_code,
+      bankName: data.bank_name,
+      branchName: data.branch_name || null,
+      upiId: data.upi_id || null,
+      isVerified: false
+    });
+    
+    return await this.bankAccountRepository.save(bankAccount);
+  }
+
+  async setDefaultBankAccount(driverId: string, bankAccountId: string): Promise<void> {
+    // Get all bank accounts for this driver
+    const allAccounts = await this.getBankAccountsByDriverId(driverId);
+    
+    // Find the account to make default
+    const accountToMakeDefault = allAccounts.find(acc => acc.id === bankAccountId);
+    if (!accountToMakeDefault) {
+      throw new NotFoundException(`Bank account ${bankAccountId} not found for driver ${driverId}`);
+    }
+    
+    // Store the default bank account ID in driver metadata
+    await this.updateMetadata(driverId, { defaultBankAccountId: bankAccountId });
+  }
+
+  async deleteBankAccount(driverId: string, bankAccountId: string): Promise<void> {
+    // Get all bank accounts for this driver
+    const allAccounts = await this.getBankAccountsByDriverId(driverId);
+    
+    // Find the account to delete
+    const accountToDelete = allAccounts.find(acc => acc.id === bankAccountId);
+    if (!accountToDelete) {
+      throw new NotFoundException(`Bank account ${bankAccountId} not found for driver ${driverId}`);
+    }
+    
+    // Check if this is the default account
+    const driver = await this.findById(driverId);
+    const defaultBankAccountId = (driver.metadata as any)?.defaultBankAccountId;
+    
+    // Delete the bank account
+    await this.bankAccountRepository.remove(accountToDelete);
+    
+    // If this was the default account, clear the default from metadata
+    if (defaultBankAccountId === bankAccountId) {
+      const updatedMetadata = { ...(driver.metadata || {}) };
+      delete updatedMetadata.defaultBankAccountId;
+      await this.updateMetadata(driverId, updatedMetadata);
+    }
   }
 }
 
