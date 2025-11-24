@@ -46,6 +46,9 @@ export class WebhooksService {
       paymentType: dto.paymentType,
       status: 'pending',
       slaSeconds: dto.slaMinutes * 60,
+      customerName: dto.customerName || null,
+      customerPhone: dto.customerPhone || null,
+      customerEmail: dto.customerEmail || null,
     });
 
     const savedOrder = await this.orderRepository.save(order);

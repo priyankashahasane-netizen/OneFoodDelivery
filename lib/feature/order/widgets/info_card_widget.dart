@@ -1,5 +1,4 @@
 import 'package:stackfood_multivendor_driver/common/widgets/custom_asset_image_widget.dart';
-import 'package:stackfood_multivendor_driver/common/widgets/custom_image_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/details_custom_card.dart';
 import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_model.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
@@ -12,7 +11,7 @@ import 'package:url_launcher/url_launcher_string.dart';
 
 class InfoCardWidget extends StatelessWidget {
   final String title;
-  final String image;
+  final String? image; // No longer used, kept for backward compatibility
   final String? name;
   final DeliveryAddress? addressModel;
   final String? phone;
@@ -21,9 +20,9 @@ class InfoCardWidget extends StatelessWidget {
   final bool showButton;
   final bool isDelivery;
   final OrderModel? orderModel;
-  final Function? messageOnTap;
+  final Function? messageOnTap; // No longer used, kept for backward compatibility
   final bool isRestaurant;
-  const InfoCardWidget({super.key, required this.title, required this.image, required this.name, required this.addressModel, required this.phone,
+  const InfoCardWidget({super.key, required this.title, this.image, required this.name, required this.addressModel, required this.phone,
     required this.latitude, required this.longitude, required this.showButton, this.isDelivery = false, this.orderModel, this.messageOnTap, this.isRestaurant = false});
 
   @override
@@ -38,12 +37,6 @@ class InfoCardWidget extends StatelessWidget {
         const SizedBox(height: Dimensions.paddingSizeSmall),
 
         (name != null && name!.isNotEmpty) ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-          ClipOval(child: CustomImageWidget(
-            image: image,
-            height: 50, width: 50, fit: BoxFit.cover,
-          )),
-          const SizedBox(width: Dimensions.paddingSizeSmall),
 
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
@@ -74,14 +67,6 @@ class InfoCardWidget extends StatelessWidget {
 
 
           showButton ? Row(children: [
-            InkWell(
-              onTap: messageOnTap as void Function()?,
-              child: CustomAssetImageWidget(
-                image: Images.chatIcon, height: 25, width: 25,
-              ),
-            ),
-            SizedBox(width: Dimensions.paddingSizeLarge),
-
             orderModel != null ? InkWell(
               onTap: () async {
                 if(await canLaunchUrlString('tel:$phone')) {

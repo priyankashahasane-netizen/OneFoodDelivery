@@ -23,7 +23,12 @@ class OrderWidget extends StatelessWidget {
       onTap: () {
         Get.toNamed(
           RouteHelper.getOrderDetailsRoute(orderModel.id),
-          arguments: OrderDetailsScreen(orderId: orderModel.id, isRunningOrder: isRunningOrder, orderIndex: orderIndex),
+          arguments: OrderDetailsScreen(
+            orderId: orderModel.id,
+            orderUuid: orderModel.uuid, // Pass UUID directly if available
+            isRunningOrder: isRunningOrder,
+            orderIndex: orderIndex,
+          ),
         );
       },
       child: CustomCard(

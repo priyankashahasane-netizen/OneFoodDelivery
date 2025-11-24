@@ -4,7 +4,6 @@ import 'package:stackfood_multivendor_driver/api/api_client.dart';
 import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_cancellation_body_model.dart';
 import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_details_model.dart';
 import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_model.dart';
-import 'package:stackfood_multivendor_driver/feature/order/domain/models/status_list_model.dart';
 import 'package:stackfood_multivendor_driver/feature/order/domain/repositories/order_repository_interface.dart';
 import 'package:stackfood_multivendor_driver/util/app_constants.dart';
 import 'package:get/get.dart';
@@ -368,73 +367,116 @@ class OrderRepository implements OrderRepositoryInterface {
       // Backend returns order object with order_details array
       if (response.body != null) {
         debugPrint('🔍 getOrderDetails: Parsing response for order $orderID');
-        debugPrint('Response body keys: ${response.body.keys.toList()}');
         
-        // Check for order_details array (most common case)
-        if (response.body['order_details'] != null && response.body['order_details'] is List) {
-          debugPrint('✅ Found order_details array with ${(response.body['order_details'] as List).length} items');
-          (response.body['order_details'] as List).forEach((orderDetails) {
-            try {
-              orderDetailsModel!.add(OrderDetailsModel.fromJson(orderDetails));
-            } catch (e, stackTrace) {
-              debugPrint('❌ Error parsing order detail: $e');
-              debugPrint('Stack trace: $stackTrace');
-              debugPrint('Order detail data: $orderDetails');
-            }
-          });
-        } else if (response.body is List) {
-          // If response is directly a list
-          debugPrint('✅ Response is directly a list');
-          (response.body as List).forEach((orderDetails) {
-            try {
-              orderDetailsModel!.add(OrderDetailsModel.fromJson(orderDetails));
-            } catch (e, stackTrace) {
-              debugPrint('❌ Error parsing order detail: $e');
-              debugPrint('Stack trace: $stackTrace');
-            }
-          });
-        } else if (response.body is Map) {
-          // Single order object - try to extract order_details or use items
-          if (response.body['order_details'] != null) {
-            debugPrint('✅ Found order_details in map');
-            if (response.body['order_details'] is List) {
-              (response.body['order_details'] as List).forEach((orderDetails) {
+        // Handle response body - could be Map or already parsed
+        Map<String, dynamic>? responseMap;
+        if (response.body is Map) {
+          responseMap = response.body as Map<String, dynamic>;
+        } else {
+          debugPrint('⚠️ getOrderDetails: Response body is not a Map, type: ${response.body.runtimeType}');
+        }
+        
+        if (responseMap != null) {
+          debugPrint('Response body keys: ${responseMap.keys.toList()}');
+          
+          // Check for order_details array (most common case)
+          if (responseMap['order_details'] != null) {
+            if (responseMap['order_details'] is List) {
+              final orderDetailsList = responseMap['order_details'] as List;
+              debugPrint('✅ Found order_details array with ${orderDetailsList.length} items');
+              
+              if (orderDetailsList.isEmpty) {
+                debugPrint('⚠️ getOrderDetails: order_details array is empty - order may have no items');
+              }
+              
+              orderDetailsList.forEach((orderDetails) {
                 try {
-                  orderDetailsModel!.add(OrderDetailsModel.fromJson(orderDetails));
+                  if (orderDetails is Map) {
+                    orderDetailsModel!.add(OrderDetailsModel.fromJson(orderDetails as Map<String, dynamic>));
+                  } else {
+                    debugPrint('⚠️ getOrderDetails: orderDetails item is not a Map: ${orderDetails.runtimeType}');
+                  }
                 } catch (e, stackTrace) {
                   debugPrint('❌ Error parsing order detail: $e');
                   debugPrint('Stack trace: $stackTrace');
+                  debugPrint('Order detail data: $orderDetails');
                 }
               });
+            } else {
+              debugPrint('⚠️ getOrderDetails: order_details is not a List, type: ${responseMap['order_details'].runtimeType}');
             }
-          } else if (response.body['items'] != null && response.body['items'] is List) {
-            // Fallback: create order details from items
+          } else if (responseMap['items'] != null && responseMap['items'] is List) {
+            // Fallback: create order details from items (raw items format)
             debugPrint('✅ Found items array, creating order details');
-            (response.body['items'] as List).asMap().forEach((index, item) {
+            final itemsList = responseMap['items'] as List;
+            debugPrint('Items count: ${itemsList.length}');
+            
+            itemsList.asMap().forEach((index, item) {
               try {
-                orderDetailsModel!.add(OrderDetailsModel.fromJson({
-                  'id': index + 1,
-                  'food_id': item['food_id'] ?? null,
-                  'order_id': response.body['id'] ?? orderID,
-                  'price': item['price'] ?? 0.0,
-                  'food_details': {
-                    'id': item['food_id'] ?? null,
-                    'name': item['name'] ?? 'Item',
-                    'price': item['price'] ?? 0.0,
-                  },
-                  'add_ons': item['add_ons'] ?? [],
-                  'quantity': item['quantity'] ?? 1,
-                  'tax_amount': item['tax_amount'] ?? 0.0,
-                }));
+                if (item is Map<String, dynamic>) {
+                  final itemMap = item;
+                  // Get numeric ID from order if available
+                  final orderIdValue = responseMap?['id'];
+                  final numericId = orderIdValue is int 
+                      ? orderIdValue 
+                      : (orderIdValue != null 
+                          ? int.tryParse(orderIdValue.toString()) 
+                          : null);
+                  
+                  final foodId = itemMap['food_id'] ?? itemMap['foodId'];
+                  final price = (itemMap['price'] ?? 0.0).toDouble();
+                  final name = itemMap['name'] ?? 'Item';
+                  
+                  orderDetailsModel!.add(OrderDetailsModel.fromJson({
+                    'id': index + 1,
+                    'food_id': foodId,
+                    'order_id': numericId ?? orderID,
+                    'price': price,
+                    'food_details': {
+                      'id': foodId,
+                      'name': name,
+                      'description': itemMap['description'],
+                      'image_full_url': itemMap['image_full_url'] ?? itemMap['imageUrl'] ?? itemMap['image_fullUrl'],
+                      'price': price,
+                    },
+                    'variation': itemMap['variation'] ?? itemMap['variations'] ?? [],
+                    'add_ons': itemMap['add_ons'] ?? itemMap['addOns'] ?? [],
+                    'quantity': itemMap['quantity'] ?? 1,
+                    'tax_amount': (itemMap['tax_amount'] ?? itemMap['taxAmount'] ?? 0.0).toDouble(),
+                    'discount_on_food': (itemMap['discount'] ?? itemMap['discount_on_food'] ?? 0.0).toDouble(),
+                    'discount_type': itemMap['discount_type'] ?? itemMap['discountType'],
+                    'variant': itemMap['variant'],
+                  }));
+                } else {
+                  debugPrint('⚠️ getOrderDetails: item is not a Map: ${item.runtimeType}');
+                }
               } catch (e, stackTrace) {
                 debugPrint('❌ Error creating order detail from item: $e');
                 debugPrint('Stack trace: $stackTrace');
+                debugPrint('Item data: $item');
               }
             });
           } else {
             debugPrint('⚠️ getOrderDetails: No order_details or items found in response');
-            debugPrint('Available keys: ${response.body.keys.toList()}');
+            debugPrint('Available keys: ${responseMap.keys.toList()}');
+            debugPrint('Response body sample: ${responseMap.toString().substring(0, 500)}');
           }
+        } else if (response.body is List) {
+          // If response is directly a list (unlikely but handle it)
+          debugPrint('✅ Response is directly a list');
+          (response.body as List).forEach((orderDetails) {
+            try {
+              if (orderDetails is Map) {
+                orderDetailsModel!.add(OrderDetailsModel.fromJson(orderDetails as Map<String, dynamic>));
+              }
+            } catch (e, stackTrace) {
+              debugPrint('❌ Error parsing order detail: $e');
+              debugPrint('Stack trace: $stackTrace');
+            }
+          });
+        } else {
+          debugPrint('⚠️ getOrderDetails: Response body is not in expected format');
+          debugPrint('Response body type: ${response.body.runtimeType}');
         }
         
         debugPrint('✅ getOrderDetails: Successfully parsed ${orderDetailsModel.length} order details');
@@ -736,9 +778,6 @@ class OrderRepository implements OrderRepositoryInterface {
     ];
   }
 
-  String _getUserToken() {
-    return sharedPreferences.getString(AppConstants.token) ?? "";
-  }
 
   @override
   Future add(value) {

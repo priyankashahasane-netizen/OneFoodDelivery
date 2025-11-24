@@ -442,10 +442,12 @@ class _LocationCardWidgetState extends State<LocationCardWidget> {
                   TextButton(
                     onPressed: () {
                       // Navigate to order details screen with order details as argument
+                      // Pass UUID if available for more efficient API calls
                       Get.toNamed(
                         RouteHelper.getOrderDetailsRoute(widget.orderModel.id),
                         arguments: OrderDetailsScreen(
                           orderId: widget.orderModel.id,
+                          orderUuid: widget.orderModel.uuid, // Pass UUID directly if available
                           isRunningOrder: true, // Orders shown in location card are active/running orders
                           orderIndex: widget.index,
                         ),

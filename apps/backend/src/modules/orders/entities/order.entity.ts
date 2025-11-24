@@ -48,6 +48,16 @@ export class OrderEntity {
   @Column({ name: 'tracking_url', length: 255, nullable: true })
   trackingUrl!: string | null;
 
+  @Column({ name: 'customer_name', length: 255, nullable: true })
+  customerName!: string | null;
+
+  @Column({ name: 'customer_phone', length: 20, nullable: true })
+  @Index()
+  customerPhone!: string | null;
+
+  @Column({ name: 'customer_email', length: 255, nullable: true })
+  customerEmail!: string | null;
+
   @Column({ name: 'assigned_at', type: 'timestamptz', nullable: true })
   assignedAt!: Date | null;
 

@@ -590,13 +590,25 @@ class OrderController extends GetxController implements GetxService {
       }
     }
     
-    // Use UUID if available, otherwise use the original orderID
-    List<OrderDetailsModel>? orderDetailsModel = await orderServiceInterface.getOrderDetails(orderUuid ?? orderID);
-    if(orderDetailsModel != null && orderDetailsModel.isNotEmpty) {
-      _orderDetailsModel = [];
-      _orderDetailsModel!.addAll(orderDetailsModel);
-    } else if (orderDetailsModel != null && orderDetailsModel.isEmpty) {
-      // Empty list means 403/404 error - keep as null to show error state
+    try {
+      // Use UUID if available, otherwise use the original orderID
+      List<OrderDetailsModel>? orderDetailsModel = await orderServiceInterface.getOrderDetails(orderUuid ?? orderID);
+      if(orderDetailsModel != null) {
+        // API call succeeded - set the model (even if empty list)
+        _orderDetailsModel = [];
+        if (orderDetailsModel.isNotEmpty) {
+          _orderDetailsModel!.addAll(orderDetailsModel);
+        }
+        // If empty list, it means no items or 403/404 - but we still set it to empty list
+        // so the UI can render (it will show "No items found")
+      } else {
+        // API call returned null (network error, etc.) - keep as null to show error state
+        _orderDetailsModel = null;
+        debugPrint('⚠️ getOrderDetails: API returned null for order $orderID');
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ getOrderDetails: Exception occurred: $e');
+      debugPrint('Stack trace: $stackTrace');
       _orderDetailsModel = null;
     }
     update();

@@ -189,12 +189,18 @@ export class OrdersService {
     
     // Calculate order amount from items
     const items = (order.items as any[]) || [];
+    console.log(`[transformOrderForFlutter] Order ${order.id}: items count = ${items.length}, items =`, JSON.stringify(items, null, 2));
+    
+    if (items.length === 0) {
+      console.warn(`[transformOrderForFlutter] WARNING: Order ${order.id} has no items! items value:`, order.items);
+    }
+    
     const orderAmount = items.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0);
     
     // Create a numeric ID from UUID hash (for compatibility)
     const numericId = Math.abs(order.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % 1000000;
     
-    return {
+    const result = {
       id: numericId,
       user_id: null,
       order_amount: orderAmount,
@@ -206,7 +212,7 @@ export class OrdersService {
       transaction_reference: null,
       delivery_address_id: null,
       delivery_man_id: driverId,
-      order_type: 'delivery',
+      order_type: order.orderType || 'regular', // Use order.orderType from database
       restaurant_id: null,
       created_at: order.createdAt?.toISOString() || new Date().toISOString(),
       updated_at: order.updatedAt?.toISOString() || new Date().toISOString(),
@@ -228,7 +234,7 @@ export class OrdersService {
       delivery_address: {
         id: null,
         address_type: 'home',
-        contact_person_number: null,
+        contact_person_number: order.customerPhone || null,
         address: deliveryAddressText,
         latitude: typeof order.dropoff === 'object' && order.dropoff !== null ? String((order.dropoff as any).lat || '') : '',
         longitude: typeof order.dropoff === 'object' && order.dropoff !== null ? String((order.dropoff as any).lng || '') : '',
@@ -237,14 +243,24 @@ export class OrdersService {
         created_at: null,
         updated_at: null,
         user_id: null,
-        contact_person_name: null,
+        contact_person_name: order.customerName || null,
         road: null,
         house: null,
         floor: null,
         postal_code: null,
         address_label: null,
       },
-      customer: null,
+      customer: order.customerName || order.customerPhone || order.customerEmail ? {
+        id: null,
+        f_name: order.customerName?.split(' ')[0] || null,
+        l_name: order.customerName?.split(' ').slice(1).join(' ') || null,
+        phone: order.customerPhone || null,
+        email: order.customerEmail || null,
+        image_full_url: null,
+        created_at: null,
+        updated_at: null,
+        cm_firebase_token: null,
+      } : null,
       processing_time: null,
       chat_permission: null,
       restaurant_model: null,
@@ -267,35 +283,45 @@ export class OrdersService {
         add_ons: item.addOns || [],
       })),
       // Order details format for Flutter app
-      order_details: items.map((item: any, index: number) => ({
-        id: index + 1,
-        food_id: item.foodId || null,
-        order_id: numericId,
-        price: item.price || 0,
-        food_details: {
-          id: item.foodId || null,
-          name: item.name || 'Item',
-          description: item.description || null,
-          image_full_url: item.imageUrl || null,
+      order_details: items.map((item: any, index: number) => {
+        const orderDetail = {
+          id: index + 1,
+          food_id: item.foodId || null,
+          order_id: numericId,
           price: item.price || 0,
-        },
-        variation: item.variations || [],
-        add_ons: (item.addOns || []).map((addon: any) => ({
-          name: addon.name || 'Add-on',
-          price: addon.price || 0,
-          quantity: addon.quantity || 1,
-        })),
-        discount_on_food: item.discount || 0,
-        discount_type: item.discountType || null,
-        quantity: item.quantity || 1,
-        tax_amount: item.taxAmount || 0,
-        variant: item.variant || null,
-        created_at: order.createdAt?.toISOString() || new Date().toISOString(),
-        updated_at: order.updatedAt?.toISOString() || new Date().toISOString(),
-        item_campaign_id: item.campaignId || null,
-        total_add_on_price: (item.addOns || []).reduce((sum: number, addon: any) => sum + ((addon.price || 0) * (addon.quantity || 1)), 0),
-      })),
+          food_details: {
+            id: item.foodId || null,
+            name: item.name || 'Item',
+            description: item.description || null,
+            image_full_url: item.imageUrl || null,
+            price: item.price || 0,
+          },
+          variation: item.variations || [],
+          add_ons: (item.addOns || []).map((addon: any) => ({
+            name: addon.name || 'Add-on',
+            price: addon.price || 0,
+            quantity: addon.quantity || 1,
+          })),
+          discount_on_food: item.discount || 0,
+          discount_type: item.discountType || null,
+          quantity: item.quantity || 1,
+          tax_amount: item.taxAmount || 0,
+          variant: item.variant || null,
+          created_at: order.createdAt?.toISOString() || new Date().toISOString(),
+          updated_at: order.updatedAt?.toISOString() || new Date().toISOString(),
+          item_campaign_id: item.campaignId || null,
+          total_add_on_price: (item.addOns || []).reduce((sum: number, addon: any) => sum + ((addon.price || 0) * (addon.quantity || 1)), 0),
+        };
+        console.log(`[transformOrderForFlutter] Created order_detail[${index}]:`, JSON.stringify(orderDetail, null, 2));
+        return orderDetail;
+      }),
     };
+    
+    console.log(`[transformOrderForFlutter] Order ${order.id}: Returning order_details count = ${result.order_details.length}`);
+    return result;
+  }
+    console.log(`[transformOrderForFlutter] Order ${order.id}: Returning order_details count = ${result.order_details.length}`);
+    return result;
   }
 
   async create(payload: UpsertOrderDto) {

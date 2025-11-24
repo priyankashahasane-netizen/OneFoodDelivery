@@ -72,6 +72,18 @@ export class UpsertOrderDto {
   @IsOptional()
   @IsEnum(OrderType)
   orderType?: OrderType;
+
+  @IsOptional()
+  @IsString()
+  customerName?: string;
+
+  @IsOptional()
+  @IsString()
+  customerPhone?: string;
+
+  @IsOptional()
+  @IsString()
+  customerEmail?: string;
 }
 
 

@@ -57,6 +57,10 @@ export class CreateOrderFromWebhookDto {
   @IsOptional()
   customerName?: string;
 
+  @IsString()
+  @IsOptional()
+  customerEmail?: string;
+
   @IsNumber()
   @Min(1)
   slaMinutes: number;
