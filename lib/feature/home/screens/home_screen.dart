@@ -585,30 +585,35 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 point: _currentLocation!,
                                                 width: 60,
                                                 height: 60,
-                                                child: Image.asset(
-                                                  // Show HappyMan icon when offline, DeliveryBike icon when online
-                                                  (profileModel != null && (profileModel.active ?? 0) == 0)
-                                                      ? Images.happyManIcon
-                                                      : Images.deliveryBikeIcon,
+                                                alignment: Alignment.bottomCenter,
+                                                child: SizedBox(
                                                   width: 60,
                                                   height: 60,
-                                                  fit: BoxFit.contain,
-                                                  errorBuilder: (context, error, stackTrace) {
-                                                    // Fallback icons based on online/offline status
-                                                    if (profileModel != null && (profileModel.active ?? 0) == 0) {
-                                                      return Icon(
-                                                        Icons.home,
-                                                        color: Theme.of(context).primaryColor,
-                                                        size: 40,
-                                                      );
-                                                    } else {
-                                                      return Icon(
-                                                        Icons.directions_bike,
-                                                        color: Theme.of(context).primaryColor,
-                                                        size: 40,
-                                                      );
-                                                    }
-                                                  },
+                                                  child: Center(
+                                                    child: Image.asset(
+                                                      // Show HappyMan icon when offline, DeliveryBike icon when online
+                                                      (profileModel != null && (profileModel.active ?? 0) == 0)
+                                                          ? Images.happyManIcon
+                                                          : Images.deliveryBikeIcon,
+                                                      fit: BoxFit.contain,
+                                                      errorBuilder: (context, error, stackTrace) {
+                                                        // Fallback icons based on online/offline status
+                                                        if (profileModel != null && (profileModel.active ?? 0) == 0) {
+                                                          return Icon(
+                                                            Icons.home,
+                                                            color: Theme.of(context).primaryColor,
+                                                            size: 40,
+                                                          );
+                                                        } else {
+                                                          return Icon(
+                                                            Icons.directions_bike,
+                                                            color: Theme.of(context).primaryColor,
+                                                            size: 40,
+                                                          );
+                                                        }
+                                                      },
+                                                    ),
+                                                  ),
                                                 ),
                                               ),
                                             ],

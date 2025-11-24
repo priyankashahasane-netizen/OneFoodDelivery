@@ -346,6 +346,7 @@ class _TodaysMapScreenState extends State<TodaysMapScreen> {
           ),
           width: 40,
           height: 40,
+          alignment: Alignment.bottomCenter,
           child: Container(
             decoration: BoxDecoration(
               color: Colors.green,
@@ -374,6 +375,7 @@ class _TodaysMapScreenState extends State<TodaysMapScreen> {
             point: ll.LatLng(stop.lat, stop.lng),
             width: 30,
             height: 30,
+            alignment: Alignment.bottomCenter,
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.red,
@@ -443,6 +445,7 @@ class _TodaysMapScreenState extends State<TodaysMapScreen> {
               point: ll.LatLng(stop.lat, stop.lng),
               width: isPickup ? 40 : 30,
               height: isPickup ? 40 : 30,
+              alignment: Alignment.bottomCenter,
               child: Container(
                 decoration: BoxDecoration(
                   color: isPickup ? Colors.green : Colors.red,
@@ -626,28 +629,33 @@ class _TodaysMapScreenState extends State<TodaysMapScreen> {
                         point: _currentLocation!,
                         width: 60,
                         height: 60,
-                        child: Image.asset(
-                          (profileModel != null && (profileModel.active ?? 0) == 0)
-                              ? Images.happyManIcon
-                              : Images.deliveryBikeIcon,
+                        alignment: Alignment.bottomCenter,
+                        child: SizedBox(
                           width: 60,
                           height: 60,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            if (profileModel != null && (profileModel.active ?? 0) == 0) {
-                              return Icon(
-                                Icons.home,
-                                color: Theme.of(context).primaryColor,
-                                size: 40,
-                              );
-                            } else {
-                              return Icon(
-                                Icons.directions_bike,
-                                color: Theme.of(context).primaryColor,
-                                size: 40,
-                              );
-                            }
-                          },
+                          child: Center(
+                            child: Image.asset(
+                              (profileModel != null && (profileModel.active ?? 0) == 0)
+                                  ? Images.happyManIcon
+                                  : Images.deliveryBikeIcon,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                if (profileModel != null && (profileModel.active ?? 0) == 0) {
+                                  return Icon(
+                                    Icons.home,
+                                    color: Theme.of(context).primaryColor,
+                                    size: 40,
+                                  );
+                                } else {
+                                  return Icon(
+                                    Icons.directions_bike,
+                                    color: Theme.of(context).primaryColor,
+                                    size: 40,
+                                  );
+                                }
+                              },
+                            ),
+                          ),
                         ),
                       ),
                     ],

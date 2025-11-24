@@ -447,22 +447,27 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
             point: ll.LatLng(driverLat, driverLng),
             width: 60,
             height: 60,
-            child: Image.asset(
-              Images.deliveryBikeIcon,
+            alignment: Alignment.bottomCenter,
+            child: SizedBox(
               width: 60,
               height: 60,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                // Fallback to icon if image is not found
-                return Container(
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade700,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 3),
-                  ),
-                  child: Icon(Icons.directions_car, color: Colors.white, size: 30),
-                );
-              },
+              child: Center(
+                child: Image.asset(
+                  Images.deliveryBikeIcon,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    // Fallback to icon if image is not found
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade700,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                      ),
+                      child: Icon(Icons.directions_car, color: Colors.white, size: 30),
+                    );
+                  },
+                ),
+              ),
             ),
           ),
         );
@@ -480,22 +485,27 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
             point: ll.LatLng(restaurantLat, restaurantLng),
             width: 60,
             height: 60,
-            child: Image.asset(
-              Images.restaurantIconMarker,
+            alignment: Alignment.bottomCenter,
+            child: SizedBox(
               width: 60,
               height: 60,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                // Fallback to icon if image is not found
-                return Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey[800],
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 3),
-                  ),
-                  child: Icon(Icons.restaurant, color: Colors.white, size: 24),
-                );
-              },
+              child: Center(
+                child: Image.asset(
+                  Images.restaurantIconMarker,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    // Fallback to icon if image is not found
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[800],
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                      ),
+                      child: Icon(Icons.restaurant, color: Colors.white, size: 24),
+                    );
+                  },
+                ),
+              ),
             ),
           ),
         );
@@ -507,22 +517,27 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
           point: ll.LatLng(deliveryLat, deliveryLng),
           width: 60,
           height: 60,
-          child: Image.asset(
-            Images.homeIconMarker,
+          alignment: Alignment.bottomCenter,
+          child: SizedBox(
             width: 60,
             height: 60,
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) {
-              // Fallback to icon if image is not found
-              return Container(
-                decoration: BoxDecoration(
-                  color: Colors.orange,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3),
-                ),
-                child: Icon(Icons.home, color: Colors.white, size: 24),
-              );
-            },
+            child: Center(
+              child: Image.asset(
+                Images.homeIconMarker,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  // Fallback to icon if image is not found
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: Colors.orange,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 3),
+                    ),
+                    child: Icon(Icons.home, color: Colors.white, size: 24),
+                  );
+                },
+              ),
+            ),
           ),
         ),
       );
