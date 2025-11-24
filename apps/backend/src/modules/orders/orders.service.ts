@@ -320,9 +320,6 @@ export class OrdersService {
     console.log(`[transformOrderForFlutter] Order ${order.id}: Returning order_details count = ${result.order_details.length}`);
     return result;
   }
-    console.log(`[transformOrderForFlutter] Order ${order.id}: Returning order_details count = ${result.order_details.length}`);
-    return result;
-  }
 
   async create(payload: UpsertOrderDto) {
     // Set default status and orderType if not provided

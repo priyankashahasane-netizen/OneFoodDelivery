@@ -5,8 +5,8 @@ class AppConstants {
   static const String appName = 'StackFood Delivery';
   static const double appVersion = 8.2;
 
-  static const String baseUrl = 'http://localhost:3000';
-  static const String trackingBaseUrl = 'http://localhost:3001/track';
+  static const String baseUrl = 'http://192.168.1.82:3000';
+  static const String trackingBaseUrl = 'http://192.168.1.82:3001/track';
   
   // Authentication
   static const String loginUri = '/api/v1/auth/delivery-man/login';
