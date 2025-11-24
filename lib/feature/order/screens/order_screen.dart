@@ -5,6 +5,7 @@ import 'package:stackfood_multivendor_driver/feature/order/widgets/order_button_
 import 'package:stackfood_multivendor_driver/feature/order/widgets/order_list_shimmer.dart';
 import 'package:stackfood_multivendor_driver/helper/custom_print_helper.dart';
 import 'package:stackfood_multivendor_driver/helper/date_converter_helper.dart';
+import 'package:stackfood_multivendor_driver/helper/route_helper.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_app_bar_widget.dart';
 import 'package:flutter/material.dart';
@@ -127,7 +128,14 @@ class _OrderScreenState extends State<OrderScreen> with AutomaticKeepAliveClient
     return Scaffold(
       appBar: CustomAppBarWidget(
         title: widget.isActiveOrders ? 'currently_active'.tr : 'my_orders'.tr, 
-        isBackButtonExist: false
+        isBackButtonExist: !widget.isActiveOrders, // Show back button only for My Orders
+        showMenuButton: false,
+        onBackPressed: !widget.isActiveOrders ? () {
+          Get.offNamedUntil(
+            RouteHelper.getMainRoute('home'),
+            (route) => route.settings.name == '/main' || route.settings.name == '/',
+          );
+        } : null,
       ),
 
       body: GetBuilder<OrderController>(builder: (orderController) {

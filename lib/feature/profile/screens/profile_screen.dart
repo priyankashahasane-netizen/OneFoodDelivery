@@ -78,7 +78,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CustomAppBarWidget(title: 'profile'.tr, isBackButtonExist: false),
+      appBar: CustomAppBarWidget(
+        title: 'profile'.tr,
+        isBackButtonExist: true,
+        showMenuButton: false,
+        onBackPressed: () {
+          Get.offNamedUntil(
+            RouteHelper.getMainRoute('home'),
+            (route) => route.settings.name == '/main' || route.settings.name == '/',
+          );
+        },
+      ),
       body: GetBuilder<ProfileController>(builder: (profileController) {
         return profileController.profileModel == null ? const Center(child: CircularProgressIndicator()) : ProfileBgWidget(
           backButton: false,

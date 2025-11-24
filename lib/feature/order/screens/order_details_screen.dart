@@ -44,6 +44,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:stackfood_multivendor_driver/util/app_constants.dart';
+import 'package:stackfood_multivendor_driver/feature/dashboard/controllers/drawer_controller.dart' as drawer_ctrl;
 
 class OrderDetailsScreen extends StatefulWidget {
   final int? orderId;
@@ -156,22 +157,33 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
               ),
             ]),
             centerTitle: true,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios),
-              color: Theme.of(context).textTheme.bodyLarge!.color,
-              onPressed: (){
-                if(widget.fromNotification) {
-                  Get.offAllNamed(RouteHelper.getInitialRoute());
-                } else {
-                  Get.back();
-                }
-              },
+            leading: Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu),
+                color: Theme.of(context).textTheme.bodyLarge!.color,
+                onPressed: () {
+                  if (Get.isRegistered<drawer_ctrl.AppDrawerController>()) {
+                    final controller = Get.find<drawer_ctrl.AppDrawerController>();
+                    controller.openDrawer();
+                  } else {
+                    ScaffoldState? parentScaffold = _findParentScaffold(context);
+                    parentScaffold?.openDrawer();
+                  }
+                },
+              ),
             ),
-            backgroundColor: Theme.of(context).cardColor,
-            surfaceTintColor: Theme.of(context).cardColor,
-            shadowColor: Theme.of(context).hintColor.withValues(alpha: 0.5),
-            elevation: 2,
             actions: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios),
+                color: Theme.of(context).textTheme.bodyLarge!.color,
+                onPressed: (){
+                  if(widget.fromNotification) {
+                    Get.offAllNamed(RouteHelper.getInitialRoute());
+                  } else {
+                    Get.back();
+                  }
+                },
+              ),
               IconButton(
                 onPressed: () {
                   final trackingUrl = '${AppConstants.trackingBaseUrl}/${widget.orderId}';
@@ -181,6 +193,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 tooltip: 'Share tracking link',
               )
             ],
+            backgroundColor: Theme.of(context).cardColor,
+            surfaceTintColor: Theme.of(context).cardColor,
+            shadowColor: Theme.of(context).hintColor.withValues(alpha: 0.5),
+            elevation: 2,
           ),
 
           body: Padding(
@@ -1008,4 +1024,35 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       );
     },
   );
+
+  ScaffoldState? _findParentScaffold(BuildContext context) {
+    // Find the closest ScaffoldState that has a drawer
+    final scaffoldState = context.findAncestorStateOfType<ScaffoldState>();
+    if (scaffoldState != null && scaffoldState.mounted) {
+      try {
+        final scaffoldWidget = scaffoldState.context.findAncestorWidgetOfExactType<Scaffold>();
+        if (scaffoldWidget?.drawer != null) {
+          return scaffoldState;
+        }
+      } catch (e) {
+        // If we can't check, continue searching
+      }
+    }
+    
+    // If not found, traverse up using visitAncestorElements
+    ScaffoldState? foundScaffold;
+    context.visitAncestorElements((element) {
+      final widget = element.widget;
+      if (widget is Scaffold && widget.drawer != null) {
+        final state = element.findAncestorStateOfType<ScaffoldState>();
+        if (state != null && state.mounted) {
+          foundScaffold = state;
+          return false; // Stop traversal
+        }
+      }
+      return true; // Continue traversal
+    });
+    
+    return foundScaffold;
+  }
 }

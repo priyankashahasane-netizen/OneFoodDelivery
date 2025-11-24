@@ -12,6 +12,7 @@ import 'package:stackfood_multivendor_driver/util/images.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_app_bar_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_button_widget.dart';
+import 'package:stackfood_multivendor_driver/feature/dashboard/widgets/global_bottom_nav_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -45,7 +46,9 @@ class _CashInHandScreenState extends State<CashInHandScreen> {
       appBar: CustomAppBarWidget(
         title: 'my_account'.tr,
         isBackButtonExist: true,
+        showMenuButton: false,
       ),
+      bottomNavigationBar: const GlobalBottomNavWidget(),
 
       body: GetBuilder<CashInHandController>(builder: (cashInHandController) {
           return GetBuilder<ProfileController>(builder: (profileController) {

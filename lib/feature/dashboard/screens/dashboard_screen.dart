@@ -3,6 +3,7 @@ import 'package:stackfood_multivendor_driver/feature/disbursements/helper/disbur
 import 'package:stackfood_multivendor_driver/feature/home/screens/home_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/order/controllers/order_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/dashboard/controllers/drawer_controller.dart' as drawer_ctrl;
+import 'package:stackfood_multivendor_driver/feature/dashboard/controllers/bottom_nav_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/dashboard/widgets/bottom_nav_item_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/dashboard/widgets/custom_drawer_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/dashboard/widgets/new_request_dialog_widget.dart';
@@ -55,6 +56,13 @@ class DashboardScreenState extends State<DashboardScreen> {
     if (!Get.isRegistered<drawer_ctrl.AppDrawerController>()) {
       Get.put(drawer_ctrl.AppDrawerController());
     }
+
+    // Update bottom nav controller with current page index (defer to avoid build phase issues)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (Get.isRegistered<BottomNavController>()) {
+        Get.find<BottomNavController>().setCurrentIndex(_pageIndex);
+      }
+    });
 
     _screens = [
       const HomeScreen(),
@@ -168,6 +176,7 @@ class DashboardScreenState extends State<DashboardScreen> {
         drawer: CustomDrawerWidget(
           currentPageIndex: _pageIndex,
           onPageChange: _setPage,
+          isFromDashboard: true,
         ),
 
         bottomNavigationBar: Container(
@@ -211,6 +220,12 @@ class DashboardScreenState extends State<DashboardScreen> {
     setState(() {
       _pageController!.jumpToPage(pageIndex);
       _pageIndex = pageIndex;
+    });
+    // Update bottom nav controller (defer to avoid build phase issues)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (Get.isRegistered<BottomNavController>()) {
+        Get.find<BottomNavController>().setCurrentIndex(pageIndex);
+      }
     });
   }
 }

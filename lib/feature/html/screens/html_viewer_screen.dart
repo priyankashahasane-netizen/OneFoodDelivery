@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_app_bar_widget.dart';
+import 'package:stackfood_multivendor_driver/feature/dashboard/widgets/global_bottom_nav_widget.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
@@ -64,7 +65,9 @@ class _HtmlViewerScreenState extends State<HtmlViewerScreen> {
     return Scaffold(
       appBar: CustomAppBarWidget(
         title: widget.isPrivacyPolicy ? 'privacy_policy'.tr : 'terms_condition'.tr,
+        showMenuButton: false,
       ),
+      bottomNavigationBar: const GlobalBottomNavWidget(),
       body: Container(
         height: MediaQuery.of(context).size.height,
         width: MediaQuery.of(context).size.width,

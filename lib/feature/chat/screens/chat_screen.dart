@@ -13,6 +13,7 @@ import 'package:stackfood_multivendor_driver/util/images.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_snackbar_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/paginated_list_view_widget.dart';
+import 'package:stackfood_multivendor_driver/feature/dashboard/controllers/drawer_controller.dart' as drawer_ctrl;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -65,16 +66,32 @@ class _ChatScreenState extends State<ChatScreen> {
             backgroundColor: Theme.of(context).cardColor,
             surfaceTintColor: Theme.of(context).cardColor,
             shadowColor: Theme.of(context).disabledColor.withValues(alpha: 0.3),
-            leading: IconButton(
-              onPressed: () {
-                if(widget.fromNotification) {
-                  Get.offAllNamed(RouteHelper.getInitialRoute());
-                }else {
-                  Get.back();
-                }
-              },
-              icon: const Icon(Icons.arrow_back_ios),
+            leading: Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () {
+                  if (Get.isRegistered<drawer_ctrl.AppDrawerController>()) {
+                    final controller = Get.find<drawer_ctrl.AppDrawerController>();
+                    controller.openDrawer();
+                  } else {
+                    ScaffoldState? parentScaffold = _findParentScaffold(context);
+                    parentScaffold?.openDrawer();
+                  }
+                },
+              ),
             ),
+            actions: [
+              IconButton(
+                onPressed: () {
+                  if(widget.fromNotification) {
+                    Get.offAllNamed(RouteHelper.getInitialRoute());
+                  }else {
+                    Get.back();
+                  }
+                },
+                icon: const Icon(Icons.arrow_back_ios),
+              ),
+            ],
             title: Row(children: [
 
               ClipOval(
@@ -448,5 +465,36 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       );
     });
+  }
+
+  ScaffoldState? _findParentScaffold(BuildContext context) {
+    // Find the closest ScaffoldState that has a drawer
+    final scaffoldState = context.findAncestorStateOfType<ScaffoldState>();
+    if (scaffoldState != null && scaffoldState.mounted) {
+      try {
+        final scaffoldWidget = scaffoldState.context.findAncestorWidgetOfExactType<Scaffold>();
+        if (scaffoldWidget?.drawer != null) {
+          return scaffoldState;
+        }
+      } catch (e) {
+        // If we can't check, continue searching
+      }
+    }
+    
+    // If not found, traverse up using visitAncestorElements
+    ScaffoldState? foundScaffold;
+    context.visitAncestorElements((element) {
+      final widget = element.widget;
+      if (widget is Scaffold && widget.drawer != null) {
+        final state = element.findAncestorStateOfType<ScaffoldState>();
+        if (state != null && state.mounted) {
+          foundScaffold = state;
+          return false; // Stop traversal
+        }
+      }
+      return true; // Continue traversal
+    });
+    
+    return foundScaffold;
   }
 }

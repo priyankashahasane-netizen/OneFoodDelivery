@@ -3,6 +3,8 @@ import 'package:stackfood_multivendor_driver/helper/date_converter_helper.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_app_bar_widget.dart';
+import 'package:stackfood_multivendor_driver/feature/dashboard/widgets/global_bottom_nav_widget.dart';
+import 'package:stackfood_multivendor_driver/feature/dashboard/widgets/custom_drawer_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_button_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_dropdown_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_snackbar_widget.dart';
@@ -33,6 +35,8 @@ class _AddWithDrawMethodScreenState extends State<AddWithDrawMethodScreen> {
       return Scaffold(
 
         appBar: CustomAppBarWidget(title: 'add_withdraw_method'.tr),
+        drawer: CustomDrawerWidget(isFromDashboard: false),
+        bottomNavigationBar: const GlobalBottomNavWidget(),
 
         body: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 

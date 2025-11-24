@@ -3,6 +3,8 @@ import 'package:stackfood_multivendor_driver/feature/order/controllers/order_con
 import 'package:stackfood_multivendor_driver/feature/profile/controllers/profile_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_model.dart';
 import 'package:stackfood_multivendor_driver/feature/order/widgets/cancellation_dialogue_widget.dart';
+import 'package:stackfood_multivendor_driver/feature/order/screens/order_details_screen.dart';
+import 'package:stackfood_multivendor_driver/helper/route_helper.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_snackbar_widget.dart';
@@ -439,7 +441,15 @@ class _LocationCardWidgetState extends State<LocationCardWidget> {
                   const SizedBox(height: Dimensions.paddingSizeSmall),
                   TextButton(
                     onPressed: () {
-                      // Show more content
+                      // Navigate to order details screen with order details as argument
+                      Get.toNamed(
+                        RouteHelper.getOrderDetailsRoute(widget.orderModel.id),
+                        arguments: OrderDetailsScreen(
+                          orderId: widget.orderModel.id,
+                          isRunningOrder: true, // Orders shown in location card are active/running orders
+                          orderIndex: widget.index,
+                        ),
+                      );
                     },
                     child: Text(
                       '↓ View More',

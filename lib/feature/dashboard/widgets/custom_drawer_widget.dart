@@ -12,13 +12,15 @@ import 'package:stackfood_multivendor_driver/util/images.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
 
 class CustomDrawerWidget extends StatelessWidget {
-  final int currentPageIndex;
-  final Function(int) onPageChange;
+  final int? currentPageIndex;
+  final Function(int)? onPageChange;
+  final bool isFromDashboard;
 
   const CustomDrawerWidget({
     super.key,
-    required this.currentPageIndex,
-    required this.onPageChange,
+    this.currentPageIndex,
+    this.onPageChange,
+    this.isFromDashboard = true,
   });
 
   @override
@@ -106,28 +108,40 @@ class CustomDrawerWidget extends StatelessWidget {
                   _DrawerMenuItem(
                     icon: Icons.home,
                     title: 'home'.tr,
-                    isSelected: currentPageIndex == 0,
+                    isSelected: isFromDashboard && currentPageIndex == 0,
                     onTap: () {
                       Navigator.pop(context);
-                      onPageChange(0);
+                      if (isFromDashboard && onPageChange != null) {
+                        onPageChange!(0);
+                      } else {
+                        Get.offNamedUntil('/main?page=home', (route) => route.settings.name == '/main' || route.settings.name == '/');
+                      }
                     },
                   ),
                   _DrawerMenuItem(
                     icon: Icons.delivery_dining,
                     title: 'orders'.tr,
-                    isSelected: currentPageIndex == 2,
+                    isSelected: isFromDashboard && currentPageIndex == 2,
                     onTap: () {
                       Navigator.pop(context);
-                      onPageChange(2);
+                      if (isFromDashboard && onPageChange != null) {
+                        onPageChange!(2);
+                      } else {
+                        Get.offNamedUntil('/main?page=order', (route) => route.settings.name == '/main' || route.settings.name == '/');
+                      }
                     },
                   ),
                   _DrawerMenuItem(
                     icon: Icons.person,
                     title: 'profile'.tr,
-                    isSelected: currentPageIndex == 4,
+                    isSelected: isFromDashboard && currentPageIndex == 4,
                     onTap: () {
                       Navigator.pop(context);
-                      onPageChange(4);
+                      if (isFromDashboard && onPageChange != null) {
+                        onPageChange!(4);
+                      } else {
+                        Get.offNamedUntil('/main?page=profile', (route) => route.settings.name == '/main' || route.settings.name == '/');
+                      }
                     },
                   ),
                   GetBuilder<ProfileController>(

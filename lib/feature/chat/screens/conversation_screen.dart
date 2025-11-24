@@ -10,6 +10,7 @@ import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/util/images.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_app_bar_widget.dart';
+import 'package:stackfood_multivendor_driver/feature/dashboard/widgets/global_bottom_nav_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_image_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_ink_well_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_snackbar_widget.dart';
@@ -64,7 +65,11 @@ class _ConversationScreenState extends State<ConversationScreen> with TickerProv
   Widget build(BuildContext context) {
     return Scaffold(
 
-      appBar: CustomAppBarWidget(title: 'conversation_list'.tr),
+      appBar: CustomAppBarWidget(
+        title: 'conversation_list'.tr,
+        showMenuButton: false,
+      ),
+      bottomNavigationBar: const GlobalBottomNavWidget(),
 
       body: GetBuilder<ChatController>(builder: (chatController) {
 

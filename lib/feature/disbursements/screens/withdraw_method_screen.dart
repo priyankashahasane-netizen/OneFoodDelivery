@@ -6,6 +6,7 @@ import 'package:stackfood_multivendor_driver/helper/route_helper.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_app_bar_widget.dart';
+import 'package:stackfood_multivendor_driver/feature/dashboard/widgets/global_bottom_nav_widget.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -38,7 +39,11 @@ class _WithdrawMethodScreenState extends State<WithdrawMethodScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
 
-      appBar: CustomAppBarWidget(title: 'disbursement_methods'.tr),
+      appBar: CustomAppBarWidget(
+        title: 'disbursement_methods'.tr,
+        showMenuButton: false,
+      ),
+      bottomNavigationBar: const GlobalBottomNavWidget(),
 
       floatingActionButton: FloatingActionButton(
         onPressed: () => Get.toNamed(RouteHelper.getAddWithdrawMethodRoute()),

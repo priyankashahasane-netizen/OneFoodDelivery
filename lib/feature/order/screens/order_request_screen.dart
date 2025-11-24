@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:stackfood_multivendor_driver/feature/order/controllers/order_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/order/widgets/order_requset_widget.dart';
+import 'package:stackfood_multivendor_driver/helper/route_helper.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_app_bar_widget.dart';
 import 'package:flutter/material.dart';
@@ -47,7 +48,17 @@ class OrderRequestScreenState extends State<OrderRequestScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
 
-      appBar: CustomAppBarWidget(title: 'order_request'.tr, isBackButtonExist: false),
+      appBar: CustomAppBarWidget(
+        title: 'order_request'.tr,
+        isBackButtonExist: true,
+        showMenuButton: false,
+        onBackPressed: () {
+          Get.offNamedUntil(
+            RouteHelper.getMainRoute('home'),
+            (route) => route.settings.name == '/main' || route.settings.name == '/',
+          );
+        },
+      ),
 
       body: GetBuilder<OrderController>(builder: (orderController) {
         // Cache filtered lists to avoid recalculating on every rebuild

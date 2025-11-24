@@ -10,6 +10,8 @@ import 'package:stackfood_multivendor_driver/util/images.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_button_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_snackbar_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_app_bar_widget.dart';
+import 'package:stackfood_multivendor_driver/feature/dashboard/widgets/global_bottom_nav_widget.dart';
+import 'package:stackfood_multivendor_driver/feature/dashboard/widgets/custom_drawer_widget.dart';
 import 'package:get/get.dart';
 
 class ChooseLanguageScreen extends StatelessWidget {
@@ -20,6 +22,8 @@ class ChooseLanguageScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Theme.of(context).cardColor,
       appBar: CustomAppBarWidget(title: 'choose_your_language'.tr, isBackButtonExist: false),
+      drawer: CustomDrawerWidget(isFromDashboard: false),
+      bottomNavigationBar: const GlobalBottomNavWidget(),
       body: GetBuilder<LocalizationController>(builder: (localizationController) {
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const SizedBox(height: Dimensions.paddingSizeSmall),

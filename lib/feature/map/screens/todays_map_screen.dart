@@ -15,6 +15,7 @@ import 'package:stackfood_multivendor_driver/api/api_client.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/util/images.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
+import 'package:stackfood_multivendor_driver/feature/dashboard/controllers/drawer_controller.dart' as drawer_ctrl;
 import 'dart:async';
 
 class TodaysMapScreen extends StatefulWidget {
@@ -512,6 +513,37 @@ class _TodaysMapScreenState extends State<TodaysMapScreen> {
     }
   }
 
+  ScaffoldState? _findParentScaffold(BuildContext context) {
+    // Find the closest ScaffoldState that has a drawer
+    final scaffoldState = context.findAncestorStateOfType<ScaffoldState>();
+    if (scaffoldState != null && scaffoldState.mounted) {
+      try {
+        final scaffoldWidget = scaffoldState.context.findAncestorWidgetOfExactType<Scaffold>();
+        if (scaffoldWidget?.drawer != null) {
+          return scaffoldState;
+        }
+      } catch (e) {
+        // If we can't check, continue searching
+      }
+    }
+    
+    // If not found, traverse up using visitAncestorElements
+    ScaffoldState? foundScaffold;
+    context.visitAncestorElements((element) {
+      final widget = element.widget;
+      if (widget is Scaffold && widget.drawer != null) {
+        final state = element.findAncestorStateOfType<ScaffoldState>();
+        if (state != null && state.mounted) {
+          foundScaffold = state;
+          return false; // Stop traversal
+        }
+      }
+      return true; // Continue traversal
+    });
+    
+    return foundScaffold;
+  }
+
   @override
   void dispose() {
     _locationStreamSubscription?.cancel();
@@ -531,6 +563,22 @@ class _TodaysMapScreenState extends State<TodaysMapScreen> {
         ),
         backgroundColor: Theme.of(context).cardColor,
         elevation: 0,
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () {
+              if (Get.isRegistered<drawer_ctrl.AppDrawerController>()) {
+                final controller = Get.find<drawer_ctrl.AppDrawerController>();
+                controller.openDrawer();
+              } else {
+                ScaffoldState? parentScaffold = _findParentScaffold(context);
+                if (parentScaffold != null) {
+                  parentScaffold.openDrawer();
+                }
+              }
+            },
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),

@@ -38,6 +38,7 @@ import 'package:stackfood_multivendor_driver/feature/profile/domain/repositories
 import 'package:stackfood_multivendor_driver/feature/profile/domain/services/profile_service.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/domain/services/profile_service_interface.dart';
 import 'package:stackfood_multivendor_driver/feature/dashboard/controllers/drawer_controller.dart' as drawer_ctrl;
+import 'package:stackfood_multivendor_driver/feature/dashboard/controllers/bottom_nav_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/auth/controllers/auth_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/auth/controllers/address_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/auth/domain/repositories/auth_repository.dart';
@@ -141,6 +142,8 @@ Future<Map<String, Map<String, String>>> init() async {
   Get.lazyPut(() => AddressController(addressServiceInterface: Get.find()));
   // Initialize AppDrawerController immediately since it's used early in the app lifecycle
   Get.put(drawer_ctrl.AppDrawerController(), permanent: true);
+  // Initialize BottomNavController
+  Get.put(BottomNavController(), permanent: true);
 
 
   /// Retrieving localized data
