@@ -98,6 +98,9 @@ class _LocationCardWidgetState extends State<LocationCardWidget> {
           topLeft: Radius.circular(20),
           topRight: Radius.circular(20),
         ),
+        border: widget.orderModel.orderType?.toLowerCase() == 'subscription'
+            ? Border.all(color: Colors.orange, width: 2.0)
+            : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),

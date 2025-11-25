@@ -31,8 +31,15 @@ class OrderWidget extends StatelessWidget {
           ),
         );
       },
-      child: CustomCard(
-        child: Column(children: [
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+          border: orderModel.orderType?.toLowerCase() == 'subscription'
+              ? Border.all(color: Colors.orange, width: 2.0)
+              : null,
+        ),
+        child: CustomCard(
+          child: Column(children: [
 
           Container(
             padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
@@ -139,6 +146,7 @@ class OrderWidget extends StatelessWidget {
           ),
 
         ]),
+        ),
       ),
     );
   }

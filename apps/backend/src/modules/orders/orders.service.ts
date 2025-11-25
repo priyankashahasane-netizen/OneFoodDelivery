@@ -669,7 +669,7 @@ export class OrdersService {
         transaction_reference: null,
         delivery_address_id: null,
         delivery_man_id: driverId,
-        order_type: 'delivery',
+        order_type: o.orderType || 'regular', // Use actual orderType from database (regular or subscription)
         restaurant_id: null,
         created_at: o.createdAt?.toISOString() || new Date().toISOString(),
         updated_at: o.updatedAt?.toISOString() || new Date().toISOString(),
@@ -780,7 +780,7 @@ export class OrdersService {
         transaction_reference: null,
         delivery_address_id: null,
         delivery_man_id: null,
-        order_type: 'delivery',
+        order_type: o.orderType || 'regular', // Use actual orderType from database (regular or subscription)
         restaurant_id: null,
         created_at: o.createdAt?.toISOString() || new Date().toISOString(),
         updated_at: o.updatedAt?.toISOString() || new Date().toISOString(),
@@ -943,7 +943,7 @@ export class OrdersService {
         transaction_reference: null,
         delivery_address_id: null,
         delivery_man_id: driverId,
-        order_type: 'delivery',
+        order_type: o.orderType || 'regular', // Use actual orderType from database (regular or subscription)
         restaurant_id: null,
         created_at: o.createdAt?.toISOString() || new Date().toISOString(),
         updated_at: o.updatedAt?.toISOString() || new Date().toISOString(),

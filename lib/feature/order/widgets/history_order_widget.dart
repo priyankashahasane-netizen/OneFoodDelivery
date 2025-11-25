@@ -18,6 +18,10 @@ class HistoryOrderWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Check if orderType is "subscription" (case-insensitive)
+    final String? orderTypeLower = orderModel.orderType?.toLowerCase().trim();
+    final bool isSubscription = orderTypeLower == 'subscription';
+    
     return InkWell(
       onTap: () {
         final orderController = Get.find<OrderController>();
@@ -29,10 +33,18 @@ class HistoryOrderWidget extends StatelessWidget {
         ));
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: Dimensions.paddingSizeSmall),
+        margin: EdgeInsets.only(
+          bottom: Dimensions.paddingSizeSmall,
+          left: isSubscription ? 2.0 : 0,
+          right: isSubscription ? 2.0 : 0,
+          top: isSubscription ? 2.0 : 0,
+        ),
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+          border: isSubscription
+              ? Border.all(color: Colors.orange, width: 4.0)
+              : null,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
@@ -84,23 +96,44 @@ class HistoryOrderWidget extends StatelessWidget {
                       ],
                     ),
                   ),
-                  // Status badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: Dimensions.paddingSizeSmall,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _getStatusBackgroundColor(context, orderModel.orderStatus),
-                      borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-                    ),
-                    child: Text(
-                      _formatStatusText(orderModel.orderStatus ?? ''),
-                      style: robotoMedium.copyWith(
-                        fontSize: Dimensions.fontSizeSmall,
-                        color: _getStatusTextColor(context, orderModel.orderStatus),
+                  // Status badge and order type
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      // Status badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: Dimensions.paddingSizeSmall,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _getStatusBackgroundColor(context, orderModel.orderStatus),
+                          borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+                        ),
+                        child: Text(
+                          _formatStatusText(orderModel.orderStatus ?? ''),
+                          style: robotoMedium.copyWith(
+                            fontSize: Dimensions.fontSizeSmall,
+                            color: _getStatusTextColor(context, orderModel.orderStatus),
+                          ),
+                        ),
                       ),
-                    ),
+                      // Order type display
+                      const SizedBox(height: 4),
+                      Text(
+                        orderTypeLower == 'subscription'
+                            ? 'Subscription'
+                            : orderTypeLower == 'regular'
+                                ? 'Regular'
+                                : orderModel.orderType?.toTitleCase() ?? 'Regular',
+                        style: robotoRegular.copyWith(
+                          fontSize: 10,
+                          color: isSubscription
+                              ? Colors.orange
+                              : Theme.of(context).hintColor,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -144,28 +177,6 @@ class HistoryOrderWidget extends StatelessWidget {
                 ],
               ),
             ),
-
-            // Delivery Type Section
-            Padding(
-              padding: const EdgeInsets.only(
-                left: Dimensions.paddingSizeDefault,
-                right: Dimensions.paddingSizeDefault,
-                bottom: Dimensions.paddingSizeSmall,
-              ),
-              child: Text(
-                orderModel.orderType == 'delivery' 
-                    ? 'home_delivery'.tr 
-                    : orderModel.orderType?.toTitleCase() ?? '',
-                style: robotoMedium.copyWith(
-                  color: orderModel.orderType == 'delivery' 
-                      ? ColorResources.blue 
-                      : Theme.of(context).primaryColor,
-                  fontSize: Dimensions.fontSizeSmall,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
           ],
         ),
       ),
@@ -183,7 +194,6 @@ class HistoryOrderWidget extends StatelessWidget {
       case 'confirmed':
       case 'delivered':
         return ColorResources.green;
-      case 'cancelled':
       case 'cancelled':
         return ColorResources.red; // Red background for cancelled
       case 'refund_requested':

@@ -174,7 +174,8 @@ class OrderModel {
     deliveryManId = json['delivery_man_id'] is int 
         ? json['delivery_man_id'] 
         : int.tryParse(json['delivery_man_id']?.toString() ?? '');
-    orderType = json['order_type'];
+    // Handle both snake_case and camelCase field names
+    orderType = json['order_type'] ?? json['orderType'];
     restaurantId = json['restaurant_id'] is int 
         ? json['restaurant_id'] 
         : int.tryParse(json['restaurant_id']?.toString() ?? '');

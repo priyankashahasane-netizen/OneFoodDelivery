@@ -71,19 +71,40 @@ class DisbursementController extends GetxController implements GetxService {
   Future<void> addWithdrawMethod(Map<String?, String> data) async {
     _isLoading = true;
     update();
-    bool isSuccess = await disbursementServiceInterface.addWithdraw(data);
-    if(isSuccess) {
+    try {
+      bool isSuccess = await disbursementServiceInterface.addWithdraw(data);
+      if(isSuccess) {
+        _isLoading = false;
+        update();
+        // Clear any form errors by resetting the form
+        _clearFormErrors();
+        // Refresh bank details first
+        await getBankDetails();
+        // Go back to bank details page (which will show the updated list)
+        Get.back();
+        showCustomSnackBar('add_successfully'.tr, isError: false);
+      } else {
+        _isLoading = false;
+        update();
+        // Show error message if operation failed
+        showCustomSnackBar('Failed to add bank account. Please try again.', isError: true);
+      }
+    } catch (e) {
       _isLoading = false;
       update();
-      // Refresh bank details first
-      await getBankDetails();
-      // Go back to bank details page (which will show the updated list)
-      Get.back();
-      showCustomSnackBar('add_successfully'.tr, isError: false);
-    } else {
-      _isLoading = false;
-      update();
+      _clearFormErrors();
+      // Error message will be shown by API client, but ensure form is cleared
     }
+  }
+
+  void _clearFormErrors() {
+    // Clear any validation errors by unfocusing all fields
+    // This will clear any error states in the form fields
+    for (var focusNode in _focusList) {
+      focusNode.unfocus();
+    }
+    // Reset form state by updating
+    update();
   }
 
   Future<bool> getDisbursementMethodList() async {
@@ -101,35 +122,69 @@ class DisbursementController extends GetxController implements GetxService {
     _index = index;
     _isLoading = true;
     update();
-    bool isSuccess = await disbursementServiceInterface.makeDefaultMethod(data);
-    if(isSuccess) {
+    try {
+      bool isSuccess = await disbursementServiceInterface.makeDefaultMethod(data);
+      if(isSuccess) {
+        _index = -1;
+        _isLoading = false;
+        update();
+        // Refresh bank details to get updated default status
+        // This will update _disbursementMethodBody and call update() internally
+        await getBankDetails();
+        // Ensure UI is updated after refresh
+        update();
+        showCustomSnackBar('set_default_method_successful'.tr, isError: false);
+      } else {
+        _index = -1;
+        _isLoading = false;
+        update();
+        showCustomSnackBar('Failed to set default method. Please try again.', isError: true);
+      }
+    } catch (e) {
       _index = -1;
       _isLoading = false;
-      // Refresh bank details to get updated default status
-      // This will update _disbursementMethodBody and call update() internally
-      await getBankDetails();
-      showCustomSnackBar('set_default_method_successful'.tr, isError: false);
-    } else {
-      _isLoading = false;
       update();
+      showCustomSnackBar('Failed to set default method: ${e.toString()}', isError: true);
     }
   }
 
   Future<void> deleteMethod(String bankAccountId) async {
     _isDeleteLoading = true;
     update();
-    bool isSuccess = await disbursementServiceInterface.deleteMethod(bankAccountId);
-    if(isSuccess) {
-      _isDeleteLoading = false;
-      // Close dialog first
+    try {
+      bool isSuccess = await disbursementServiceInterface.deleteMethod(bankAccountId);
+      if(isSuccess) {
+        // Close dialog FIRST before updating state to prevent GetBuilder from interfering
+        Get.back();
+        // Reset loading state after dialog is closed
+        _isDeleteLoading = false;
+        update();
+        // Small delay to ensure dialog is fully closed and UI is ready
+        await Future.delayed(const Duration(milliseconds: 200));
+        // Refresh bank details to get updated list
+        // This will update _disbursementMethodBody and call update() internally
+        await getBankDetails();
+        showCustomSnackBar('method_delete_successfully'.tr, isError: false);
+      } else {
+        // Close dialog even on failure
+        Get.back();
+        _isDeleteLoading = false;
+        update();
+        // Small delay to ensure dialog is fully closed
+        await Future.delayed(const Duration(milliseconds: 200));
+        // Refresh the list to get current state
+        await getBankDetails();
+        // Show error message for actual failures (not 404s which are handled as success)
+        showCustomSnackBar('Failed to delete bank account. Please try again.', isError: true);
+      }
+    } catch (e) {
+      // Close dialog even on error
       Get.back();
-      // Refresh bank details to get updated list
-      // This will update _disbursementMethodBody and call update() internally
-      await getBankDetails();
-      showCustomSnackBar('method_delete_successfully'.tr, isError: false);
-    } else {
       _isDeleteLoading = false;
       update();
+      showCustomSnackBar('Failed to delete bank account: ${e.toString()}', isError: true);
+      // Refresh the list to get current state
+      await getBankDetails();
     }
   }
 

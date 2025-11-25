@@ -192,9 +192,16 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
             elevation: 2,
           ),
 
-          body: Padding(
-            padding: const EdgeInsets.all(0),
-            child: GetBuilder<OrderController>(builder: (orderController) {
+          body: GetBuilder<OrderController>(builder: (orderController) {
+            return Container(
+              decoration: BoxDecoration(
+                border: (orderController.orderModel?.orderType?.toLowerCase() == 'subscription')
+                    ? Border.all(color: Colors.orange, width: 2.0)
+                    : null,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(0),
+                child: GetBuilder<OrderController>(builder: (orderController) {
 
               OrderModel? controllerOrderModel = orderController.orderModel;
 
@@ -1035,8 +1042,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 ),
 
               ]) : OrderDetailsShimmer();
-            }),
-          ),
+                }),
+              ),
+            );
+          }),
         );
       }),
     );

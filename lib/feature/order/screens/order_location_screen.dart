@@ -204,7 +204,7 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
             estimatedArrivalMinutes: _estimatedArrivalMinutes,
           ),
         ),
-        ]),
+      ]),
       ),
     );
   }

@@ -46,11 +46,11 @@ class ConfirmDialogWidget extends StatelessWidget {
                 Expanded(
                   child: CustomButtonWidget(
                     buttonText: 'ok'.tr,
-                    onPressed: () {
+                    onPressed: () async {
                       if (bankAccountId != null) {
-                        disbursementController.deleteMethod(bankAccountId!);
+                        await disbursementController.deleteMethod(bankAccountId!);
                       } else if (id != null) {
-                        disbursementController.deleteMethod(id.toString());
+                        await disbursementController.deleteMethod(id.toString());
                       }
                     },
                   ),

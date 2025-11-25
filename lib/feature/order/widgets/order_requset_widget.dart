@@ -10,6 +10,7 @@ import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_m
 import 'package:stackfood_multivendor_driver/feature/profile/controllers/profile_controller.dart';
 import 'package:stackfood_multivendor_driver/helper/date_converter_helper.dart';
 import 'package:stackfood_multivendor_driver/helper/price_converter_helper.dart';
+import 'package:stackfood_multivendor_driver/helper/string_extensions.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/util/images.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
@@ -54,7 +55,9 @@ class _OrderRequestWidgetState extends State<OrderRequestWidget> {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-        border: Border.all(color: Theme.of(context).hintColor.withValues(alpha: 0.2), width: 1.5),
+        border: widget.orderModel.orderType?.toLowerCase() == 'subscription'
+            ? Border.all(color: Colors.orange, width: 2.0)
+            : Border.all(color: Theme.of(context).hintColor.withValues(alpha: 0.2), width: 1.5),
       ),
       child: GetBuilder<OrderController>(builder: (orderController) {
         return Column(children: [
@@ -136,6 +139,21 @@ class _OrderRequestWidgetState extends State<OrderRequestWidget> {
 
                     ]),
                   ),
+                  // Order type display
+                  const SizedBox(height: 4),
+                  Text(
+                    (widget.orderModel.orderType?.toLowerCase().trim() == 'subscription')
+                        ? 'Subscription'
+                        : (widget.orderModel.orderType?.toLowerCase().trim() == 'regular')
+                            ? 'Regular'
+                            : widget.orderModel.orderType?.toTitleCase() ?? 'Regular',
+                    style: robotoRegular.copyWith(
+                      fontSize: 10,
+                      color: (widget.orderModel.orderType?.toLowerCase().trim() == 'subscription')
+                          ? Colors.orange
+                          : Theme.of(context).hintColor,
+                    ),
+                  ),
                 ]),
               ]),
 
@@ -191,18 +209,32 @@ class _OrderRequestWidgetState extends State<OrderRequestWidget> {
 
                 InkWell(
                   onTap: () => Get.to(()=> OrderLocationScreen(orderModel: widget.orderModel, orderController: orderController, index: widget.index, onTap: widget.onTap,)),
-                  child: Row(children: [
-                    CustomAssetImageWidget(
-                      image: Images.locationIcon, height: 12, width: 15,
-                      fit: BoxFit.contain,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeSmall, vertical: Dimensions.paddingSizeExtraSmall),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+                      border: Border.all(color: Theme.of(context).primaryColor, width: 1),
                     ),
-                    const SizedBox(width: 3),
-
-                    Text(
-                      'view_map'.tr,
-                      style: robotoRegular.copyWith(color: Theme.of(context).primaryColor, fontSize: Dimensions.fontSizeSmall),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CustomAssetImageWidget(
+                          image: Images.locationIcon, height: 14, width: 14,
+                          fit: BoxFit.contain,
+                          color: Theme.of(context).primaryColor,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'view_map'.tr,
+                          style: robotoMedium.copyWith(
+                            color: Theme.of(context).primaryColor, 
+                            fontSize: Dimensions.fontSizeSmall,
+                          ),
+                        ),
+                      ],
                     ),
-                  ]),
+                  ),
                 ),
               ]),
 
