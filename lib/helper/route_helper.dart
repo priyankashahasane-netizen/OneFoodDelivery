@@ -18,6 +18,20 @@ import 'package:stackfood_multivendor_driver/feature/order/screens/order_details
 import 'package:stackfood_multivendor_driver/feature/profile/screens/update_profile_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/splash/screens/splash_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/update/screens/update_screen.dart';
+import 'package:stackfood_multivendor_driver/feature/auth/screens/registration_step1_screen.dart';
+import 'package:stackfood_multivendor_driver/feature/auth/screens/registration_step2_screen.dart';
+import 'package:stackfood_multivendor_driver/feature/auth/screens/registration_step3_screen.dart';
+import 'package:stackfood_multivendor_driver/feature/auth/screens/registration_step4_screen.dart';
+import 'package:stackfood_multivendor_driver/feature/auth/screens/registration_step5_screen.dart';
+import 'package:stackfood_multivendor_driver/feature/auth/screens/registration_step6_screen.dart';
+import 'package:stackfood_multivendor_driver/feature/auth/screens/registration_step7_screen.dart';
+import 'package:stackfood_multivendor_driver/feature/auth/screens/registration_step8_screen.dart';
+import 'package:stackfood_multivendor_driver/feature/auth/screens/otp_login_screen.dart';
+import 'package:stackfood_multivendor_driver/feature/auth/screens/otp_signup_screen.dart';
+import 'package:stackfood_multivendor_driver/feature/auth/screens/otp_verification_screen.dart';
+import 'package:stackfood_multivendor_driver/feature/forgot_password/screens/forgot_password_screen.dart';
+import 'package:stackfood_multivendor_driver/feature/forgot_password/screens/verification_screen.dart';
+import 'package:stackfood_multivendor_driver/feature/forgot_password/screens/new_password_screen.dart';
 import 'package:get/get.dart';
 
 class RouteHelper {
@@ -40,6 +54,20 @@ class RouteHelper {
   static const String success = '/success';
   static const String payment = '/payment';
   static const String transactionHistory = '/transaction-history';
+  static const String registrationStep1 = '/registration-step-1';
+  static const String registrationStep2 = '/registration-step-2';
+  static const String registrationStep3 = '/registration-step-3';
+  static const String registrationStep4 = '/registration-step-4';
+  static const String registrationStep5 = '/registration-step-5';
+  static const String registrationStep6 = '/registration-step-6';
+  static const String registrationStep7 = '/registration-step-7';
+  static const String registrationStep8 = '/registration-step-8';
+  static const String otpLogin = '/otp-login';
+  static const String otpSignup = '/otp-signup';
+  static const String otpVerification = '/otp-verification';
+  static const String forgotPassword = '/forgot-password';
+  static const String forgotPasswordVerification = '/forgot-password-verification';
+  static const String resetPassword = '/reset-password';
 
 
   static String getInitialRoute() => initial;
@@ -82,6 +110,20 @@ class RouteHelper {
     return '$payment?redirect-url=$redirectUrl';
   }
   static String getTransactionHistoryRoute() => transactionHistory;
+  static String getRegistrationStep1Route() => registrationStep1;
+  static String getRegistrationStep2Route() => registrationStep2;
+  static String getRegistrationStep3Route() => registrationStep3;
+  static String getRegistrationStep4Route() => registrationStep4;
+  static String getRegistrationStep5Route() => registrationStep5;
+  static String getRegistrationStep6Route() => registrationStep6;
+  static String getRegistrationStep7Route() => registrationStep7;
+  static String getRegistrationStep8Route() => registrationStep8;
+  static String getOtpLoginRoute() => otpLogin;
+  static String getOtpSignupRoute() => otpSignup;
+  static String getOtpVerificationRoute() => otpVerification;
+  static String getForgotPasswordRoute() => forgotPassword;
+  static String getForgotPasswordVerificationRoute(String phone, {String? session}) => '$forgotPasswordVerification?phone=$phone${session != null ? '&session=$session' : ''}';
+  static String getResetPasswordRoute(String? phone, String? token, String type) => '$resetPassword?phone=$phone&token=$token&type=$type';
 
 
   static List<GetPage> routes = [
@@ -138,6 +180,36 @@ class RouteHelper {
       return PaymentScreen(redirectUrl: walletPayment);
     }),
     GetPage(name: transactionHistory, page: () => const TransactionHistoryScreen()),
+    GetPage(name: registrationStep1, page: () {
+      final args = Get.arguments as Map<String, dynamic>?;
+      return RegistrationStep1Screen(phone: args?['phone'] ?? '');
+    }),
+    GetPage(name: registrationStep2, page: () => const RegistrationStep2Screen()),
+    GetPage(name: registrationStep3, page: () => const RegistrationStep3Screen()),
+    GetPage(name: registrationStep4, page: () => const RegistrationStep4Screen()),
+    GetPage(name: registrationStep5, page: () => const RegistrationStep5Screen()),
+    GetPage(name: registrationStep6, page: () => const RegistrationStep6Screen()),
+    GetPage(name: registrationStep7, page: () => const RegistrationStep7Screen()),
+    GetPage(name: registrationStep8, page: () => const RegistrationStep8Screen()),
+    GetPage(name: otpLogin, page: () => OtpLoginScreen()),
+    GetPage(name: otpSignup, page: () => OtpSignupScreen()),
+    GetPage(name: otpVerification, page: () => const OtpVerificationScreen()),
+    GetPage(name: forgotPassword, page: () => const ForgotPasswordScreen()),
+    GetPage(name: forgotPasswordVerification, page: () {
+      final phone = Get.parameters['phone'] ?? '';
+      final session = Get.parameters['session'];
+      return VerificationScreen(number: phone, firebaseSession: session);
+    }),
+    GetPage(name: resetPassword, page: () {
+      final phone = Get.parameters['phone'];
+      final token = Get.parameters['token'];
+      final type = Get.parameters['type'] ?? 'reset-password';
+      return NewPasswordScreen(
+        resetToken: token,
+        number: phone,
+        fromPasswordChange: type == 'change-password',
+      );
+    }),
 
   ];
 }

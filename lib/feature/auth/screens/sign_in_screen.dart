@@ -1,8 +1,5 @@
-import 'package:country_code_picker/country_code_picker.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_snackbar_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/auth/controllers/auth_controller.dart';
-import 'package:stackfood_multivendor_driver/feature/language/controllers/localization_controller.dart';
-import 'package:stackfood_multivendor_driver/feature/splash/controllers/splash_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/controllers/profile_controller.dart';
 import 'package:stackfood_multivendor_driver/helper/custom_validator.dart';
 import 'package:stackfood_multivendor_driver/helper/route_helper.dart';
@@ -24,9 +21,8 @@ class SignInViewScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
-    String? countryDialCode = Get.find<AuthController>().getUserCountryCode().isNotEmpty ? Get.find<AuthController>().getUserCountryCode()
-        : CountryCode.fromCountryCode(Get.find<SplashController>().configModel!.country!).dialCode;
+    // Fixed to +91 for India
+    const String countryDialCode = '+91';
     _phoneController.text =  Get.find<AuthController>().getUserNumber();
     _passwordController.text = Get.find<AuthController>().getUserPassword();
 
@@ -56,22 +52,40 @@ class SignInViewScreen extends StatelessWidget {
                       boxShadow: [BoxShadow(color: Colors.black12, spreadRadius: 1, blurRadius: 5)],
                     ),
                     child: Column(children: [
-
-                      CustomTextFieldWidget(
-                        hintText: 'xxx-xxx-xxxxx'.tr,
-                        showLabelText: false,
-                        controller: _phoneController,
-                        focusNode: _phoneFocus,
-                        nextFocus: _passwordFocus,
-                        inputType: TextInputType.phone,
-                        isPhone: true,
-                        showBorder: false,
-                        divider: true,
-                        onCountryChanged: (CountryCode countryCode) {
-                          countryDialCode = countryCode.dialCode;
-                        },
-                        countryDialCode: countryDialCode != null ? CountryCode.fromCountryCode(Get.find<SplashController>().configModel!.country!).code
-                            : Get.find<LocalizationController>().locale.countryCode,
+                      // Phone field with fixed +91 prefix
+                      Row(
+                        children: [
+                          // Fixed +91 prefix for India
+                          Container(
+                            width: 60,
+                            padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeSmall),
+                            alignment: Alignment.center,
+                            child: Text(
+                              '+91',
+                              style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeLarge),
+                            ),
+                          ),
+                          Container(
+                            width: 1,
+                            height: 30,
+                            color: Theme.of(context).disabledColor.withValues(alpha: 0.3),
+                          ),
+                          Expanded(
+                            child: CustomTextFieldWidget(
+                              hintText: 'enter_mobile_number'.tr,
+                              showLabelText: false,
+                              controller: _phoneController,
+                              focusNode: _phoneFocus,
+                              nextFocus: _passwordFocus,
+                              inputType: TextInputType.phone,
+                              showBorder: false,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        height: 1,
+                        color: Theme.of(context).disabledColor.withValues(alpha: 0.3),
                       ),
 
                       CustomTextFieldWidget(
@@ -84,7 +98,7 @@ class SignInViewScreen extends StatelessWidget {
                         inputType: TextInputType.visiblePassword,
                         prefixIcon: Icons.lock,
                         isPassword: true,
-                        onSubmit: (text) => GetPlatform.isWeb ? _login(authController, _phoneController, _passwordController, countryDialCode!, context) : null,
+                        onSubmit: (text) => GetPlatform.isWeb ? _login(authController, _phoneController, _passwordController, countryDialCode, context) : null,
                       ),
 
                     ]),
@@ -120,7 +134,7 @@ class SignInViewScreen extends StatelessWidget {
                   CustomButtonWidget(
                     buttonText: 'sign_in'.tr,
                     isLoading: authController.isLoading,
-                    onPressed: () => _login(authController, _phoneController, _passwordController, countryDialCode!, context),
+                    onPressed: () => _login(authController, _phoneController, _passwordController, countryDialCode, context),
                   ),
 
                 ]);

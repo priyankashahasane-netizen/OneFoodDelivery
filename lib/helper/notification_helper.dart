@@ -2,16 +2,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
-// Auth removed - no longer using AuthController
 import 'package:stackfood_multivendor_driver/feature/dashboard/screens/dashboard_screen.dart';
-import 'package:stackfood_multivendor_driver/feature/order/controllers/order_controller.dart';
-import 'package:stackfood_multivendor_driver/feature/chat/controllers/chat_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/notification/domain/models/notification_body_model.dart';
-import 'package:stackfood_multivendor_driver/feature/splash/controllers/splash_controller.dart';
 import 'package:stackfood_multivendor_driver/helper/custom_print_helper.dart';
 import 'package:stackfood_multivendor_driver/helper/route_helper.dart';
 import 'package:stackfood_multivendor_driver/helper/user_type_helper.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:stackfood_multivendor_driver/util/app_constants.dart';
 import 'package:get/get.dart';
@@ -53,83 +48,24 @@ class NotificationHelper {
       return;
     });
 
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      customPrint("onMessage: ${message.data}");
-      customPrint("onMessage message type:${message.data['type']}");
-
-      if(message.data['type'] == 'maintenance'){
-        Get.find<SplashController>().getConfigData();
-      }
-
-      if(message.data['type'] == 'message' && Get.currentRoute.startsWith(RouteHelper.chatScreen)){
-        // Auth removed - always process messages
-        Get.find<ChatController>().getConversationList(1, type: Get.find<ChatController>().type);
-        if(Get.find<ChatController>().messageModel!.conversation!.id.toString() == message.data['conversation_id'].toString()) {
-          Get.find<ChatController>().getMessages(
-            1, NotificationBodyModel(
-            notificationType: NotificationType.message,
-            customerId: message.data['sender_type'] == UserType.user.name ? 0 : null,
-            vendorId: message.data['sender_type'] == UserType.vendor.name ? 0 : null,
-          ),
-            null, int.parse(message.data['conversation_id'].toString()),
-          );
-        }else {
-          NotificationHelper.showNotification(message, flutterLocalNotificationsPlugin);
-        }
-      }else if(message.data['type'] == 'message' && Get.currentRoute.startsWith(RouteHelper.conversationListScreen)) {
-        // Auth removed - always process messages
-        Get.find<ChatController>().getConversationList(1, type: Get.find<ChatController>().type);
-        NotificationHelper.showNotification(message, flutterLocalNotificationsPlugin);
-      }else if(message.data['type'] == 'maintenance'){
-      }else {
-        String? type = message.data['type'];
-
-        if (type != 'assign' && type != 'new_order' && type != 'order_request') {
-          NotificationHelper.showNotification(message, flutterLocalNotificationsPlugin);
-          Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus ?? 'all');
-          Get.find<OrderController>().getLatestOrders();
-        }
-      }
-    });
-
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      customPrint("onOpenApp: ${message.data}");
-      customPrint("onOpenApp message type:${message.data['type']}");
-      try{
-        if(message.data.isNotEmpty){
-
-          NotificationBodyModel notificationBody = convertNotification(message.data)!;
-
-          if(notificationBody.notificationType == NotificationType.order || notificationBody.notificationType == NotificationType.assign){
-            Get.toNamed(RouteHelper.getOrderDetailsRoute(int.parse(message.data['order_id']), fromNotification: true));
-          }else if(notificationBody.notificationType == NotificationType.order_request){
-            Get.toNamed(RouteHelper.getMainRoute('order-request'));
-          }else if(notificationBody.notificationType == NotificationType.message){
-            Get.toNamed(RouteHelper.getChatRoute(notificationBody: notificationBody, conversationId: notificationBody.conversationId, fromNotification: true));
-          }else if(notificationBody.notificationType == NotificationType.unassign){
-            Get.to(const DashboardScreen(pageIndex: 1));
-          }else{
-            Get.toNamed(RouteHelper.getNotificationRoute(fromNotification: true));
-          }
-        }
-      }catch (_) {}
-    });
+    // Firebase Messaging removed - using local notifications only
+    // Push notifications can be handled via backend webhooks or other services
   }
 
-  static Future<void> showNotification(RemoteMessage message, FlutterLocalNotificationsPlugin fln) async {
+  static Future<void> showNotification(Map<String, dynamic> messageData, FlutterLocalNotificationsPlugin fln) async {
     if(!GetPlatform.isIOS) {
       String? title;
       String? body;
       String? image;
       NotificationBodyModel? notificationBody;
 
-      title = message.data['title'];
-      body = message.data['body'];
-      notificationBody = convertNotification(message.data);
+      title = messageData['title'];
+      body = messageData['body'];
+      notificationBody = convertNotification(messageData);
 
-      image = (message.data['image'] != null && message.data['image'].isNotEmpty)
-          ? message.data['image'].startsWith('http') ? message.data['image']
-          : '${AppConstants.baseUrl}/storage/app/public/notification/${message.data['image']}' : null;
+      image = (messageData['image'] != null && messageData['image'].isNotEmpty)
+          ? messageData['image'].startsWith('http') ? messageData['image']
+          : '${AppConstants.baseUrl}/storage/app/public/notification/${messageData['image']}' : null;
 
       if(image != null && image.isNotEmpty) {
         try{
@@ -220,9 +156,11 @@ class NotificationHelper {
 }
 
 @pragma('vm:entry-point')
-Future<dynamic> myBackgroundMessageHandler(RemoteMessage message) async {
-  customPrint("onBackground: ${message.data}");
-  NotificationBodyModel? notificationBody = NotificationHelper.convertNotification(message.data);
+// Background message handler removed - Firebase Messaging no longer used
+// This function can be used with alternative notification services
+Future<dynamic> myBackgroundMessageHandler(Map<String, dynamic> messageData) async {
+  customPrint("onBackground: $messageData");
+  NotificationBodyModel? notificationBody = NotificationHelper.convertNotification(messageData);
 
   if(notificationBody != null && (notificationBody.notificationType == NotificationType.order || notificationBody.notificationType == NotificationType.order_request)) {
     FlutterForegroundTask.initCommunicationPort();

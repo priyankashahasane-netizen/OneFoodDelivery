@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:stackfood_multivendor_driver/feature/disbursements/helper/disbursement_helper.dart';
 import 'package:stackfood_multivendor_driver/feature/home/screens/home_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/order/controllers/order_controller.dart';
@@ -6,19 +5,14 @@ import 'package:stackfood_multivendor_driver/feature/dashboard/controllers/drawe
 import 'package:stackfood_multivendor_driver/feature/dashboard/controllers/bottom_nav_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/dashboard/widgets/bottom_nav_item_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/dashboard/widgets/custom_drawer_widget.dart';
-import 'package:stackfood_multivendor_driver/feature/dashboard/widgets/new_request_dialog_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/order/screens/order_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/controllers/profile_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/screens/profile_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/order/screens/order_request_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/map/screens/todays_map_screen.dart';
 import 'package:stackfood_multivendor_driver/helper/custom_print_helper.dart';
-import 'package:stackfood_multivendor_driver/helper/notification_helper.dart';
-import 'package:stackfood_multivendor_driver/helper/route_helper.dart';
-import 'package:stackfood_multivendor_driver/main.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_alert_dialog_widget.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -40,7 +34,6 @@ class DashboardScreenState extends State<DashboardScreen> {
   int _pageIndex = 0;
   late List<Widget> _screens;
   final _channel = const MethodChannel('com.sixamtech/app_retain');
-  late StreamSubscription _stream;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _scaffoldKeySet = false;
 
@@ -84,26 +77,8 @@ class DashboardScreenState extends State<DashboardScreen> {
     Get.find<OrderController>().getLatestOrders();
 
     customPrint('dashboard call');
-      _stream = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        customPrint("dashboard onMessage: ${message.data}/ ${message.data['type']}");
-        String? type = message.data['body_loc_key'] ?? message.data['type'];
-        String? orderID = message.data['title_loc_key'] ?? message.data['order_id'];
-      if(type != 'assign' && type != 'new_order' && type != 'message' && type != 'order_request'&& type != 'order_status' && type != 'maintenance') {
-        NotificationHelper.showNotification(message, flutterLocalNotificationsPlugin);
-      }
-      if(type == 'new_order'/* || type == 'order_request'*/) {
-        Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus ?? 'all');
-        Get.find<OrderController>().getLatestOrders();
-        Get.dialog(NewRequestDialogWidget(isRequest: true, onTap: () => _navigateRequestPage(), orderId: int.parse(orderID!)));
-      }else if(type == 'assign' && orderID != null && orderID.isNotEmpty) {
-        Get.find<OrderController>().getCurrentOrders(status: Get.find<OrderController>().selectedRunningOrderStatus ?? 'all');
-        Get.find<OrderController>().getLatestOrders();
-        Get.dialog(NewRequestDialogWidget(isRequest: false, onTap: () => Get.toNamed(RouteHelper.getOrderDetailsRoute(int.parse(orderID))), orderId: int.parse(orderID)));
-      }else if(type == 'block') {
-        // Auth removed - just stop location record if needed
-        Get.find<ProfileController>().stopLocationRecord();
-      }
-    });
+    // Firebase Messaging removed - notifications can be handled via backend webhooks
+    // _stream subscription removed - use alternative notification service if needed
   }
 
   void _navigateRequestPage() {
@@ -130,8 +105,7 @@ class DashboardScreenState extends State<DashboardScreen> {
   @override
   void dispose() {
     super.dispose();
-
-    _stream.cancel();
+    // Stream subscription removed - Firebase Messaging no longer used
   }
 
   showDisbursementWarningMessage() async {

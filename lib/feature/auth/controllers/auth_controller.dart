@@ -141,4 +141,34 @@ class AuthController extends GetxController implements GetxService {
       update();
     }
   }
+
+  Future<ResponseModel> sendOtp(String phone) async {
+    _isLoading = true;
+    update();
+    ResponseModel responseModel = await authServiceInterface.sendOtp(phone);
+    _isLoading = false;
+    update();
+    return responseModel;
+  }
+
+  Future<ResponseModel> verifyOtp(String phone, String otp, {bool isLogin = true}) async {
+    _isLoading = true;
+    update();
+    ResponseModel responseModel = await authServiceInterface.verifyOtp(phone, otp, isLogin: isLogin);
+    _isLoading = false;
+    update();
+    return responseModel;
+  }
+
+  Future<void> logout() async {
+    _isLoading = true;
+    update();
+    
+    // Clear all shared data (token, user data, etc.)
+    await clearSharedData();
+    await clearUserNumberAndPassword();
+    
+    _isLoading = false;
+    update();
+  }
 }

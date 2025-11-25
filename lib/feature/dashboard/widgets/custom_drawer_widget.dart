@@ -3,6 +3,9 @@ import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_image_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_snackbar_widget.dart';
+import 'package:stackfood_multivendor_driver/common/widgets/custom_bottom_sheet_widget.dart';
+import 'package:stackfood_multivendor_driver/common/widgets/custom_confirmation_bottom_sheet.dart';
+import 'package:stackfood_multivendor_driver/feature/auth/controllers/auth_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/controllers/profile_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/language/controllers/localization_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/language/widgets/language_bottom_sheet_widget.dart';
@@ -238,13 +241,7 @@ class CustomDrawerWidget extends StatelessWidget {
               title: 'log_out'.tr,
               onTap: () {
                 Navigator.pop(context);
-                // Add logout functionality
-                // Since auth was removed, you may want to navigate to splash or show a message
-                Get.snackbar(
-                  'log_out'.tr,
-                  'logout_feature_not_available'.tr,
-                  snackPosition: SnackPosition.BOTTOM,
-                );
+                _showLogoutConfirmation(context);
               },
             ),
             SizedBox(height: Dimensions.paddingSizeSmall),
@@ -350,6 +347,30 @@ class CustomDrawerWidget extends StatelessWidget {
             child: Text('close'.tr),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showLogoutConfirmation(BuildContext context) {
+    showCustomBottomSheet(
+      child: CustomConfirmationBottomSheet(
+        cancelButtonText: 'no'.tr,
+        confirmButtonText: 'yes'.tr,
+        title: 'log_out'.tr,
+        description: 'are_you_sure_to_logout'.tr,
+        onConfirm: () async {
+          try {
+            final authController = Get.find<AuthController>();
+            await authController.logout();
+            
+            // Navigate to OTP login screen
+            Get.offAllNamed(RouteHelper.getOtpLoginRoute());
+            
+            showCustomSnackBar('logged_out_successfully'.tr, isError: false);
+          } catch (e) {
+            showCustomSnackBar('logout_failed: ${e.toString()}'.tr, isError: true);
+          }
+        },
       ),
     );
   }

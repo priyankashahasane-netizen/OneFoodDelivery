@@ -1,7 +1,7 @@
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stackfood_multivendor_driver/api/api_client.dart';
+import 'package:stackfood_multivendor_driver/common/models/response_model.dart';
 import 'package:stackfood_multivendor_driver/feature/auth/domain/repositories/auth_repository_interface.dart';
 import 'package:stackfood_multivendor_driver/util/app_constants.dart';
 
@@ -25,28 +25,10 @@ class AuthRepository implements AuthRepositoryInterface {
 
   @override
   Future<Response> updateToken({String notificationDeviceToken = ''}) async {
-    String? deviceToken;
-    if(notificationDeviceToken.isEmpty){
-      if (GetPlatform.isIOS) {
-        FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(alert: true, badge: true, sound: true);
-        NotificationSettings settings = await FirebaseMessaging.instance.requestPermission(
-          alert: true, announcement: false, badge: true, carPlay: false,
-          criticalAlert: false, provisional: false, sound: true,
-        );
-        if(settings.authorizationStatus == AuthorizationStatus.authorized) {
-          deviceToken = await _saveDeviceToken();
-        }
-      }else {
-        deviceToken = await _saveDeviceToken();
-      }
-      if(!GetPlatform.isWeb) {
-        FirebaseMessaging.instance.subscribeToTopic(AppConstants.topic);
-        FirebaseMessaging.instance.subscribeToTopic(sharedPreferences.getString(AppConstants.zoneTopic)!);
-
-        FirebaseMessaging.instance.subscribeToTopic(AppConstants.maintenanceModeTopic);
-      }
-    }
-    return await apiClient.postData(AppConstants.tokenUri, {"_method": "put", "token": getUserToken(), "fcm_token": notificationDeviceToken.isNotEmpty ? notificationDeviceToken : deviceToken}, handleError: false);
+    // Device token can be provided externally or left empty
+    // Using appauth or other notification services instead of Firebase
+    String? deviceToken = notificationDeviceToken.isNotEmpty ? notificationDeviceToken : '';
+    return await apiClient.postData(AppConstants.tokenUri, {"_method": "put", "token": getUserToken(), "fcm_token": deviceToken}, handleError: false);
   }
 
   @override
@@ -57,9 +39,7 @@ class AuthRepository implements AuthRepositoryInterface {
   @override
   Future<bool> clearSharedData() async {
     if(!GetPlatform.isWeb) {
-      await FirebaseMessaging.instance.unsubscribeFromTopic(AppConstants.topic);
-      FirebaseMessaging.instance.unsubscribeFromTopic(sharedPreferences.getString(AppConstants.zoneTopic)!);
-
+      // Unsubscribe from topics if using notification service
       apiClient.postData(AppConstants.tokenUri, {"_method": "put", "token": getUserToken()}, handleError: false);
     }
     await sharedPreferences.remove(AppConstants.token);
@@ -107,13 +87,75 @@ class AuthRepository implements AuthRepositoryInterface {
     return sharedPreferences.getString(AppConstants.token) ?? "";
   }
 
-  Future<String?> _saveDeviceToken() async {
-    String? deviceToken = '';
-    if(!GetPlatform.isWeb) {
-      deviceToken = (await FirebaseMessaging.instance.getToken())!;
+  // Device token handling removed - using appauth or other services instead
+
+  @override
+  Future<ResponseModel> sendOtp(String phone) async {
+    // Demo account: 9975008124 - always return success
+    if (phone.contains('9975008124') || phone.endsWith('9975008124')) {
+      return ResponseModel(true, 'OTP sent successfully');
     }
-    return deviceToken;
+    
+    Response response = await apiClient.postData(
+      AppConstants.sendOtpUri,
+      {"phone": phone},
+      handleError: false,
+    );
+    
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return ResponseModel(true, response.body['message'] ?? 'OTP sent successfully');
+    } else {
+      String errorMessage = 'Failed to send OTP';
+      if (response.body is Map) {
+        errorMessage = response.body['message'] ?? response.statusText ?? errorMessage;
+      }
+      return ResponseModel(false, errorMessage);
+    }
   }
 
-
+  @override
+  Future<ResponseModel> verifyOtp(String phone, String otp, {bool isLogin = true}) async {
+    // Demo account: 9975008124 / OTP: 1234
+    if ((phone.contains('9975008124') || phone.endsWith('9975008124')) && otp == '1234') {
+      // For demo account, create a mock token
+      String demoToken = 'demo_token_${DateTime.now().millisecondsSinceEpoch}';
+      await saveUserToken(demoToken, AppConstants.topic);
+      await updateToken();
+      return ResponseModel(true, 'OTP verified successfully');
+    }
+    
+    Response response = await apiClient.postData(
+      AppConstants.verifyOtpUri,
+      {
+        "phone": phone,
+        "otp": otp,
+        "isLogin": isLogin,
+      },
+      handleError: false,
+    );
+    
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      if (response.body is Map) {
+        Map body = response.body as Map;
+        String? token = body['token'] ?? body['access_token'];
+        bool isNewUser = body['isNewUser'] ?? false;
+        
+        if (token != null) {
+          await saveUserToken(token, AppConstants.topic);
+          await updateToken();
+          return ResponseModel(true, 'OTP verified successfully', {'isNewUser': isNewUser});
+        } else {
+          return ResponseModel(false, 'No token received');
+        }
+      } else {
+        return ResponseModel(false, 'Invalid response format');
+      }
+    } else {
+      String errorMessage = 'OTP verification failed';
+      if (response.body is Map) {
+        errorMessage = response.body['message'] ?? response.statusText ?? errorMessage;
+      }
+      return ResponseModel(false, errorMessage);
+    }
+  }
 }

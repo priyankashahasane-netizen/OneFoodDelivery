@@ -1,7 +1,5 @@
-import 'package:country_code_picker/country_code_picker.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_snackbar_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/forgot_password/controllers/forgot_password_controller.dart';
-import 'package:stackfood_multivendor_driver/feature/splash/controllers/splash_controller.dart';
 import 'package:stackfood_multivendor_driver/helper/custom_validator.dart';
 import 'package:stackfood_multivendor_driver/helper/route_helper.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
@@ -24,8 +22,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   
   final TextEditingController _numberController = TextEditingController();
   final FocusNode _numberFocus = FocusNode();
-  String? _countryDialCode = CountryCode.fromCountryCode(Get.find<SplashController>().configModel!.country!).dialCode;
-  final String? _countryCode = CountryCode.fromCountryCode(Get.find<SplashController>().configModel!.country!).code;
+  // Fixed to +91 for India
+  static const String _countryDialCode = '+91';
 
   @override
   void initState() {
@@ -60,30 +58,29 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               color: Theme.of(context).cardColor,
             ),
             child: Row(children: [
-
-              CountryCodePicker(
-                onChanged: (CountryCode countryCode) {
-                  _countryDialCode = countryCode.dialCode;
-                },
-                initialSelection: _countryCode,
-                favorite: [_countryCode!],
-                showDropDownButton: true,
-                padding: EdgeInsets.zero,
-                showFlagMain: true,
-                textStyle: robotoRegular.copyWith(
-                  fontSize: Dimensions.fontSizeLarge, color: Theme.of(context).textTheme.bodyLarge!.color,
+              // Fixed +91 prefix for India
+              Container(
+                width: 60,
+                padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeSmall),
+                alignment: Alignment.center,
+                child: Text(
+                  '+91',
+                  style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeLarge),
                 ),
-
               ),
-
+              Container(
+                width: 1,
+                height: 30,
+                color: Theme.of(context).disabledColor.withValues(alpha: 0.3),
+              ),
               Expanded(child: CustomTextFieldWidget(
                 controller: _numberController,
                 inputType: TextInputType.phone,
                 inputAction: TextInputAction.done,
                 focusNode: _numberFocus,
                 labelText: 'phone'.tr,
-                hintText: 'xxx-xxx-xxxxx'.tr,
-                onSubmit: (text) => GetPlatform.isWeb ? _forgetPass(_countryDialCode!) : null,
+                hintText: 'enter_mobile_number'.tr,
+                onSubmit: (text) => GetPlatform.isWeb ? _forgetPass(_countryDialCode) : null,
               )),
 
             ]),
@@ -93,7 +90,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           GetBuilder<ForgotPasswordController>(builder: (forgotPasswordController) {
             return !forgotPasswordController.isLoading ? CustomButtonWidget(
               buttonText: 'next'.tr,
-              onPressed: () => _forgetPass(_countryDialCode!),
+              onPressed: () => _forgetPass(_countryDialCode),
             ) : const Center(child: CircularProgressIndicator());
           }),
 
@@ -118,11 +115,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     }else {
       Get.find<ForgotPasswordController>().forgotPassword(numberWithCountryCode).then((status) async {
         if (status.isSuccess) {
-          if(Get.find<SplashController>().configModel!.firebaseOtpVerification!) {
-            Get.find<ForgotPasswordController>().firebaseVerifyPhoneNumber(numberWithCountryCode);
-          } else {
-            Get.toNamed(RouteHelper.getVerificationRoute(numberWithCountryCode));
-          }
+          // Navigate to verification screen
+          Get.toNamed(RouteHelper.getForgotPasswordVerificationRoute(numberWithCountryCode));
         }else {
           showCustomSnackBar(status.message);
         }

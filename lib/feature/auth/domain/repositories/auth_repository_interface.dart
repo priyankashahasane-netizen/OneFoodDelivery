@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:stackfood_multivendor_driver/common/models/response_model.dart';
 
 abstract class AuthRepositoryInterface {
   Future<Response> login(String phone, String password);
@@ -12,4 +13,6 @@ abstract class AuthRepositoryInterface {
   String getUserPassword();
   Future<bool> clearUserNumberAndPassword();
   String getUserToken();
+  Future<ResponseModel> sendOtp(String phone);
+  Future<ResponseModel> verifyOtp(String phone, String otp, {bool isLogin = true});
 }

@@ -10,6 +10,9 @@ class AppConstants {
   
   // Authentication
   static const String loginUri = '/api/v1/auth/delivery-man/login';
+  static const String sendOtpUri = '/api/v1/auth/delivery-man/send-otp';
+  static const String verifyOtpUri = '/api/v1/auth/delivery-man/verify-otp';
+  static const String registerUri = '/api/v1/auth/delivery-man/register';
   
   // Driver Profile
   static const String driverProfileUri = '/api/drivers/me';

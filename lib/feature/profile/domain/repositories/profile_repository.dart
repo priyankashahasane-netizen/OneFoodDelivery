@@ -5,7 +5,6 @@ import 'package:stackfood_multivendor_driver/feature/profile/domain/models/recor
 import 'package:stackfood_multivendor_driver/feature/profile/domain/models/shift_model.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/domain/repositories/profile_repository_interface.dart';
 import 'package:stackfood_multivendor_driver/util/app_constants.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
@@ -380,8 +379,7 @@ class ProfileRepository implements ProfileRepositoryInterface {
     }else {
       if(!GetPlatform.isWeb) {
         _updateToken(notificationDeviceToken: '@');
-        FirebaseMessaging.instance.unsubscribeFromTopic(AppConstants.topic);
-        FirebaseMessaging.instance.unsubscribeFromTopic(sharedPreferences.getString(AppConstants.zoneTopic)!);
+        // Topic unsubscription removed - Firebase Messaging no longer used
       }
     }
     sharedPreferences.setBool(AppConstants.notification, isActive);
@@ -420,36 +418,10 @@ class ProfileRepository implements ProfileRepositoryInterface {
   }
 
   Future<Response> _updateToken({String notificationDeviceToken = ''}) async {
-    String? deviceToken;
-    if(notificationDeviceToken.isEmpty){
-      if (GetPlatform.isIOS) {
-        FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(alert: true, badge: true, sound: true);
-        NotificationSettings settings = await FirebaseMessaging.instance.requestPermission(
-          alert: true, announcement: false, badge: true, carPlay: false,
-          criticalAlert: false, provisional: false, sound: true,
-        );
-        if(settings.authorizationStatus == AuthorizationStatus.authorized) {
-          deviceToken = await _saveDeviceToken();
-        }
-      }else {
-        deviceToken = await _saveDeviceToken();
-      }
-      if(!GetPlatform.isWeb) {
-        FirebaseMessaging.instance.subscribeToTopic(AppConstants.topic);
-        FirebaseMessaging.instance.subscribeToTopic(sharedPreferences.getString(AppConstants.zoneTopic)!);
-
-        FirebaseMessaging.instance.subscribeToTopic(AppConstants.maintenanceModeTopic);
-      }
-    }
-    return await apiClient.postData(AppConstants.tokenUri, {"_method": "put", "token": _getUserToken(), "fcm_token": notificationDeviceToken.isNotEmpty ? notificationDeviceToken : deviceToken}, handleError: false);
-  }
-
-  Future<String?> _saveDeviceToken() async {
-    String? deviceToken = '';
-    if(!GetPlatform.isWeb) {
-      deviceToken = (await FirebaseMessaging.instance.getToken())!;
-    }
-    return deviceToken;
+    // Device token can be provided externally or left empty
+    // Using appauth or other notification services instead of Firebase
+    String? deviceToken = notificationDeviceToken.isNotEmpty ? notificationDeviceToken : '';
+    return await apiClient.postData(AppConstants.tokenUri, {"_method": "put", "token": _getUserToken(), "fcm_token": deviceToken}, handleError: false);
   }
 
   String _getUserToken() {

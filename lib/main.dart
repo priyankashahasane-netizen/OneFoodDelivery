@@ -10,8 +10,6 @@ import 'package:stackfood_multivendor_driver/theme/dark_theme.dart';
 import 'package:stackfood_multivendor_driver/theme/light_theme.dart';
 import 'package:stackfood_multivendor_driver/util/app_constants.dart';
 import 'package:stackfood_multivendor_driver/util/messages.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
@@ -28,45 +26,28 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   Map<String, Map<String, String>> languages = await di.init();
 
-  if(GetPlatform.isAndroid) {
-    await Firebase.initializeApp(
-      options: const FirebaseOptions(
-        apiKey: 'AIzaSyCc3OCd5I2xSlnftZ4bFAbuCzMhgQHLivA',
-        appId: '1:491987943015:android:a6fb4303cc4bf3d18f1ec2',
-        messagingSenderId: '491987943015',
-        projectId: 'stackmart-500c7',
-        storageBucket: 'stackmart-500c7.appspot.com',
-      ),
+  // Initialize Aadhaar Auth Service (optional - requires UIDAI credentials)
+  // Uncomment and configure with your AUA credentials when ready to use
+  /*
+  try {
+    AadhaarAuthService.initialize(
+      auaCode: 'YOUR_AUA_CODE',
+      saCode: 'YOUR_SUB_AUA_CODE',
+      licenseKey: 'YOUR_LICENSE_KEY',
+      environment: Environment.STAGING, // or Environment.PRODUCTION
     );
-  } else if(GetPlatform.isIOS) {
-    await Firebase.initializeApp();
-  } else if(GetPlatform.isMacOS) {
-    await Firebase.initializeApp(
-      options: const FirebaseOptions(
-        apiKey: 'AIzaSyA8lpofCi358diupbxu_E8l29g349P1INc',
-        appId: '1:410522356318:ios:6782d2452ecd04473dc2cf',
-        messagingSenderId: '410522356318',
-        projectId: 'e-food-9e6e3',
-        storageBucket: 'e-food-9e6e3.appspot.com',
-        iosClientId: '410522356318-lqa45bo7d289g8k4ns816b6g76qqmdhb.apps.googleusercontent.com',
-        iosBundleId: 'com.u6amtech.flutterRestaurant',
-      ),
-    );
-  } else {
-    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint('Aadhaar service initialization failed: $e');
   }
+  */
 
+  // Initialize local notifications (Firebase removed, using local notifications only)
   NotificationBodyModel? body;
   try {
     if (GetPlatform.isMobile) {
-      final RemoteMessage? remoteMessage = await FirebaseMessaging.instance.getInitialMessage();
-      if(remoteMessage != null){
-        body = NotificationHelper.convertNotification(remoteMessage.data);
-      }
       await NotificationHelper.initialize(flutterLocalNotificationsPlugin);
-      FirebaseMessaging.onBackgroundMessage(myBackgroundMessageHandler);
     }
-  }catch(_) {}
+  } catch(_) {}
 
   runApp(MyApp(languages: languages, body: body));
 }

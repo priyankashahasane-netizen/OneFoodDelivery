@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:stackfood_multivendor_driver/common/models/response_model.dart';
 import 'package:stackfood_multivendor_driver/feature/auth/domain/repositories/auth_repository_interface.dart';
 import 'package:stackfood_multivendor_driver/feature/auth/domain/services/auth_service_interface.dart';
 
@@ -61,5 +62,15 @@ class AuthService implements AuthServiceInterface {
   @override
   String getUserToken() {
     return authRepositoryInterface.getUserToken();
+  }
+
+  @override
+  Future<ResponseModel> sendOtp(String phone) async {
+    return await authRepositoryInterface.sendOtp(phone);
+  }
+
+  @override
+  Future<ResponseModel> verifyOtp(String phone, String otp, {bool isLogin = true}) async {
+    return await authRepositoryInterface.verifyOtp(phone, otp, isLogin: isLogin);
   }
 }

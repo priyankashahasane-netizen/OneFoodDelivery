@@ -66,17 +66,29 @@ class ForgotPasswordRepository implements ForgotPasswordRepositoryInterface {
 
   @override
   Future<ResponseModel> verifyFirebaseOtp({required String phoneNumber, required String session, required String otp}) async {
-    Response response = await apiClient.postData(AppConstants.firebaseAuthVerify,
-      {'sessionInfo' : session,
-        'phoneNumber' : phoneNumber,
-        'code' : otp,
-        'is_reset_token' : 1,
+    // Firebase removed - using backend OTP verification instead
+    Response response = await apiClient.postData(
+      AppConstants.verifyOtpUri,
+      {
+        'phone': phoneNumber,
+        'otp': otp,
+        'isLogin': false,
+        'is_reset_token': 1,
       },
+      handleError: false,
     );
-    if (response.statusCode == 200) {
-      return ResponseModel(true, response.body["message"]);
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      String message = 'OTP verified successfully';
+      if (response.body is Map && response.body['message'] != null) {
+        message = response.body['message'];
+      }
+      return ResponseModel(true, message);
     } else {
-      return ResponseModel(false, response.statusText);
+      String errorMessage = 'OTP verification failed';
+      if (response.body is Map && response.body['message'] != null) {
+        errorMessage = response.body['message'];
+      }
+      return ResponseModel(false, errorMessage);
     }
   }
 

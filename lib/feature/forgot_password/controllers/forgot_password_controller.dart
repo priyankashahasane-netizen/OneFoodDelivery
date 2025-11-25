@@ -1,6 +1,6 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:stackfood_multivendor_driver/common/models/response_model.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_snackbar_widget.dart';
+import 'package:stackfood_multivendor_driver/feature/auth/controllers/auth_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/forgot_password/domain/services/forgot_password_service_interface.dart';
 import 'package:get/get.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/domain/models/profile_model.dart';
@@ -76,34 +76,37 @@ class ForgotPasswordController extends GetxController implements GetxService{
     return responseModel;
   }
 
+  // Firebase Auth removed - using backend OTP API instead
+  // This method is kept for backward compatibility but now uses backend API
   Future<void> firebaseVerifyPhoneNumber(String phoneNumber, {bool canRoute = true}) async {
+    // Use the same OTP flow as main authentication
+    // For forgot password, we can reuse the sendOtp from auth controller
     _isLoading = true;
     update();
-
-    await FirebaseAuth.instance.verifyPhoneNumber(
-      phoneNumber: phoneNumber,
-      verificationCompleted: (PhoneAuthCredential credential) {},
-      verificationFailed: (FirebaseAuthException e) {
-        _isLoading = false;
-        update();
-
-        if(e.code == 'invalid-phone-number') {
-          showCustomSnackBar('please_submit_a_valid_phone_number'.tr);
-        }else{
-          showCustomSnackBar(e.message?.replaceAll('_', ' '));
-        }
-
-      },
-      codeSent: (String vId, int? resendToken) {
-        _isLoading = false;
-        update();
-
-        if(canRoute) {
-          Get.toNamed(RouteHelper.getVerificationRoute(phoneNumber, session: vId));
-        }
-      },
-      codeAutoRetrievalTimeout: (String verificationId) {},
-    );
+    
+    try {
+      // Import and use AuthController's sendOtp method
+      final authController = Get.find<AuthController>();
+      ResponseModel response = await authController.sendOtp(phoneNumber);
+      
+      _isLoading = false;
+      update();
+      
+      if (response.isSuccess && canRoute) {
+        // Navigate to verification screen (using OTP verification route)
+        Get.toNamed(RouteHelper.getOtpVerificationRoute(), arguments: {
+          'phone': phoneNumber,
+          'isLogin': false,
+          'isForgotPassword': true,
+        });
+      } else if (!response.isSuccess) {
+        showCustomSnackBar(response.message ?? 'Failed to send OTP');
+      }
+    } catch (e) {
+      _isLoading = false;
+      update();
+      showCustomSnackBar('Error: ${e.toString()}');
+    }
   }
 
 }

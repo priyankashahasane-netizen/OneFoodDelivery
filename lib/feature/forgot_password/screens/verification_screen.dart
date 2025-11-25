@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:stackfood_multivendor_driver/feature/auth/controllers/auth_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/forgot_password/controllers/forgot_password_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/splash/controllers/splash_controller.dart';
 import 'package:stackfood_multivendor_driver/helper/route_helper.dart';
@@ -110,21 +111,9 @@ class VerificationScreenState extends State<VerificationScreen> {
 
               !forgotPasswordController.isLoading ? TextButton(
                 onPressed: _seconds < 1 ? () async {
-                  ///Firebase OTP
-                  if(widget.firebaseSession != null) {
-                    await forgotPasswordController.firebaseVerifyPhoneNumber(_number!, canRoute: false);
-                    _startTimer();
-
-                  } else {
-                    forgotPasswordController.forgotPassword(_number).then((value) {
-                      if (value.isSuccess) {
-                        _startTimer();
-                        showCustomSnackBar('resend_code_successful'.tr, isError: false);
-                      } else {
-                        showCustomSnackBar(value.message);
-                      }
-                    });
-                  }
+                  // Use backend OTP API (Firebase removed)
+                  await forgotPasswordController.firebaseVerifyPhoneNumber(_number!, canRoute: false);
+                  _startTimer();
                 } : null,
                 child: Text('${'resent'.tr}${_seconds > 0 ? ' ($_seconds)' : ''}'),
               ) : Container(
@@ -138,21 +127,16 @@ class VerificationScreenState extends State<VerificationScreen> {
             forgotPasswordController.verificationCode.length == 6 ? !forgotPasswordController.isLoading ? CustomButtonWidget(
               buttonText: 'verify'.tr,
               onPressed: () {
-                if(widget.firebaseSession != null) {
-                  forgotPasswordController.verifyFirebaseOtp(phoneNumber: _number!, session: widget.firebaseSession!, otp: forgotPasswordController.verificationCode).then((value) {
-                    if(value.isSuccess) {
-                      Get.toNamed(RouteHelper.getResetPasswordRoute(_number, forgotPasswordController.verificationCode, 'reset-password'));
-                    }
-                  });
-                } else {
-                  forgotPasswordController.verifyToken(_number).then((value) {
-                    if(value.isSuccess) {
-                      Get.toNamed(RouteHelper.getResetPasswordRoute(_number, forgotPasswordController.verificationCode, 'reset-password'));
-                    }else {
-                      showCustomSnackBar(value.message);
-                    }
-                  });
-                }
+                // Use backend OTP verification (Firebase removed)
+                final authController = Get.find<AuthController>();
+                authController.verifyOtp(_number!, forgotPasswordController.verificationCode, isLogin: false).then((value) {
+                  if(value.isSuccess) {
+                    // OTP verified - use verification code as reset token
+                    Get.toNamed(RouteHelper.getResetPasswordRoute(_number, forgotPasswordController.verificationCode, 'reset-password'));
+                  } else {
+                    showCustomSnackBar(value.message);
+                  }
+                });
               },
             ) : const Center(child: CircularProgressIndicator()) : const SizedBox.shrink(),
 
