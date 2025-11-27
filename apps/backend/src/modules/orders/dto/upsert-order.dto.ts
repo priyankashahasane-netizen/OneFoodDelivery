@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { IsArray, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, ValidateNested, ArrayMinSize } from 'class-validator';
 
 export class CoordinateDto {
   @IsNumber()
@@ -44,6 +44,7 @@ export class UpsertOrderDto {
   status!: string;
 
   @IsArray()
+  @ArrayMinSize(1, { message: 'Order must have at least one item' })
   @IsOptional()
   items?: unknown[];
 
@@ -84,6 +85,10 @@ export class UpsertOrderDto {
   @IsOptional()
   @IsString()
   customerEmail?: string;
+
+  @IsOptional()
+  @IsNumber()
+  deliveryCharge?: number;
 }
 
 

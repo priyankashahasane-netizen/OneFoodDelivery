@@ -163,8 +163,9 @@ export class DriverProfileResponseDto {
       todays_earning: metadata.todaysEarning ?? 125.50,
       this_week_earning: metadata.thisWeekEarning ?? 875.25,
       this_month_earning: metadata.thisMonthEarning ?? 3250.00,
-      payable_balance: metadata.payableBalance ?? 1250.75,
-      Payable_Balance: metadata.payableBalance ?? 1250.75, // Frontend expects this format
+      // Use wallet balance for payable_balance since that's what the driver can withdraw
+      payable_balance: walletBalance !== null && walletBalance !== undefined ? walletBalance : (metadata.payableBalance ?? 0.0),
+      Payable_Balance: walletBalance !== null && walletBalance !== undefined ? walletBalance : (metadata.payableBalance ?? 0.0), // Frontend expects this format
       withdraw_able_balance: metadata.withDrawableBalance ?? 1000.00,
       total_withdrawn: metadata.totalWithdrawn ?? 5000.00,
       total_incentive_earning: metadata.totalIncentiveEarning ?? 150.00,

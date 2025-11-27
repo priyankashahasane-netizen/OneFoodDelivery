@@ -1,6 +1,6 @@
-import { Injectable, Inject, NotFoundException, forwardRef } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, forwardRef, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DeepPartial, Repository } from 'typeorm';
+import { DeepPartial, Repository, Not, IsNull } from 'typeorm';
 
 import { PaginationQueryDto } from '../../common/dto/pagination.dto.js';
 import { DriverEntity } from '../drivers/entities/driver.entity.js';
@@ -42,6 +42,23 @@ export class OrdersService {
   async listOrders(filters: ListOrdersDto) {
     const { page = 1, pageSize = 25, status, paymentType, driverId, assigned, orderType } = filters;
     
+    // Debug logging for assigned filter - log the entire filters object
+    console.log('[listOrders] Full filters object:', JSON.stringify(filters, null, 2));
+    console.log('[listOrders] assigned filter value:', assigned, 'type:', typeof assigned, 'isUndefined:', assigned === undefined, 'isNull:', assigned === null);
+    
+    // Handle assigned filter first to determine if we need the driver join
+    const hasAssignedFilter = assigned !== undefined;
+    let assignedBool: boolean | undefined = undefined;
+    
+    if (hasAssignedFilter) {
+      if (typeof assigned === 'boolean') {
+        assignedBool = assigned;
+      } else {
+        const assignedStr = String(assigned ?? 'false');
+        assignedBool = assignedStr.toLowerCase().trim() === 'true';
+      }
+    }
+    
     const queryBuilder = this.ordersRepository.createQueryBuilder('order')
       .leftJoinAndSelect('order.driver', 'driver')
       .orderBy('order.createdAt', 'DESC');
@@ -61,10 +78,12 @@ export class OrdersService {
       queryBuilder.andWhere('order.driverId = :driverId', { driverId });
     }
 
-    if (assigned !== undefined) {
-      if (assigned) {
+    // Handle assigned filter - ensure it works correctly
+    if (hasAssignedFilter && assignedBool !== undefined) {
+      if (assignedBool === true) {
         queryBuilder.andWhere('order.driverId IS NOT NULL');
       } else {
+        // For unassigned orders, check that driverId is NULL
         queryBuilder.andWhere('order.driverId IS NULL');
       }
     }
@@ -76,7 +95,51 @@ export class OrdersService {
     // Apply pagination
     queryBuilder.take(pageSize).skip((page - 1) * pageSize);
 
-    const [items, total] = await queryBuilder.getManyAndCount();
+    // Log the generated SQL query for debugging
+    const sql = queryBuilder.getSql();
+    const params = queryBuilder.getParameters();
+    console.log('[listOrders] SQL Query:', sql);
+    console.log('[listOrders] Query Parameters:', params);
+
+    // Get items and count separately to avoid issues with left join affecting count
+    const items = await queryBuilder.getMany();
+    
+    // Create a separate count query without the join to get accurate count
+    const countQueryBuilder = this.ordersRepository.createQueryBuilder('order');
+    
+    // Apply the same filters to the count query (but without the join)
+    if (status) {
+      const normalizedStatus = status === 'canceled' ? 'cancelled' : status;
+      countQueryBuilder.andWhere('order.status = :status', { status: normalizedStatus });
+    }
+    if (paymentType) {
+      countQueryBuilder.andWhere('order.paymentType = :paymentType', { paymentType });
+    }
+    if (driverId) {
+      countQueryBuilder.andWhere('order.driverId = :driverId', { driverId });
+    }
+    if (hasAssignedFilter && assignedBool !== undefined) {
+      if (assignedBool === true) {
+        countQueryBuilder.andWhere('order.driverId IS NOT NULL');
+      } else {
+        countQueryBuilder.andWhere('order.driverId IS NULL');
+      }
+    }
+    if (orderType) {
+      countQueryBuilder.andWhere('order.orderType = :orderType', { orderType });
+    }
+    
+    const total = await countQueryBuilder.getCount();
+    
+    console.log('[listOrders] Returning', items.length, 'items out of', total, 'total');
+    // Log first few items to verify driverId values
+    if (items.length > 0) {
+      console.log('[listOrders] Sample items driverId:', items.slice(0, 3).map((item: any) => ({
+        id: item.id?.substring(0, 8),
+        driverId: item.driverId,
+        hasDriver: !!item.driverId
+      })));
+    }
     
     return { items, total, page, pageSize };
   }
@@ -216,8 +279,8 @@ export class OrdersService {
       restaurant_id: null,
       created_at: order.createdAt?.toISOString() || new Date().toISOString(),
       updated_at: order.updatedAt?.toISOString() || new Date().toISOString(),
-      delivery_charge: 0,
-      original_delivery_charge: 0,
+      delivery_charge: parseFloat((order.deliveryCharge || 0).toString()),
+      original_delivery_charge: parseFloat((order.deliveryCharge || 0).toString()),
       dm_tips: 0,
       schedule_at: null,
       restaurant_name: restaurantAddress.split(',')[0] || 'Restaurant',
@@ -322,11 +385,17 @@ export class OrdersService {
   }
 
   async create(payload: UpsertOrderDto) {
+    // Validate that items are provided and not empty
+    if (!payload.items || (Array.isArray(payload.items) && payload.items.length === 0)) {
+      throw new BadRequestException('Order must have at least one item');
+    }
+
     // Set default status and orderType if not provided
     const orderData: DeepPartial<OrderEntity> = {
       ...payload,
       status: payload.status || 'created',
       orderType: payload.orderType || 'regular',
+      deliveryCharge: payload.deliveryCharge || 0,
     };
     const entity = this.ordersRepository.create(orderData);
     return this.ordersRepository.save(entity);
@@ -571,6 +640,33 @@ export class OrdersService {
       }
     }
     
+    // Credit delivery charges to driver's wallet when order is delivered
+    if (normalizedStatus === 'delivered' && order.driverId) {
+      try {
+        const deliveryCharge = parseFloat((order.deliveryCharge || 0).toString());
+        
+        if (deliveryCharge > 0) {
+          console.log(`Processing delivery charges for order ${orderId}: crediting ${deliveryCharge} to driver wallet`);
+          
+          const walletResult = await this.walletService.creditToWallet(
+            order.driverId,
+            deliveryCharge,
+            order.id,
+            `Delivery charges for order ${orderId}`
+          );
+          
+          if (walletResult.success) {
+            console.log(`Successfully credited delivery charges ${deliveryCharge} to driver ${order.driverId} for order ${orderId}`);
+          } else {
+            console.error(`Failed to credit delivery charges for order ${orderId}: ${walletResult.message}`);
+          }
+        }
+      } catch (error) {
+        console.error(`Error processing delivery charges for order ${orderId}:`, error);
+        // Continue with order status update even if delivery charge processing fails
+      }
+    }
+    
     // Set deliveredAt timestamp when status becomes delivered
     if (normalizedStatus === 'delivered' && !order.deliveredAt) {
       order.deliveredAt = new Date();
@@ -673,8 +769,8 @@ export class OrdersService {
         restaurant_id: null,
         created_at: o.createdAt?.toISOString() || new Date().toISOString(),
         updated_at: o.updatedAt?.toISOString() || new Date().toISOString(),
-        delivery_charge: 0,
-        original_delivery_charge: 0,
+        delivery_charge: parseFloat((o.deliveryCharge || 0).toString()),
+        original_delivery_charge: parseFloat((o.deliveryCharge || 0).toString()),
         dm_tips: 0,
         schedule_at: null,
         restaurant_name: restaurantAddress.split(',')[0] || 'Restaurant',
@@ -784,8 +880,8 @@ export class OrdersService {
         restaurant_id: null,
         created_at: o.createdAt?.toISOString() || new Date().toISOString(),
         updated_at: o.updatedAt?.toISOString() || new Date().toISOString(),
-        delivery_charge: 0,
-        original_delivery_charge: 0,
+        delivery_charge: parseFloat((o.deliveryCharge || 0).toString()),
+        original_delivery_charge: parseFloat((o.deliveryCharge || 0).toString()),
         dm_tips: 0,
         schedule_at: null,
         restaurant_name: restaurantAddress.split(',')[0] || 'Restaurant',
@@ -947,8 +1043,8 @@ export class OrdersService {
         restaurant_id: null,
         created_at: o.createdAt?.toISOString() || new Date().toISOString(),
         updated_at: o.updatedAt?.toISOString() || new Date().toISOString(),
-        delivery_charge: 0,
-        original_delivery_charge: 0,
+        delivery_charge: parseFloat((o.deliveryCharge || 0).toString()),
+        original_delivery_charge: parseFloat((o.deliveryCharge || 0).toString()),
         dm_tips: 0,
         schedule_at: null,
         restaurant_name: restaurantAddress.split(',')[0] || 'Restaurant',
@@ -1021,6 +1117,110 @@ export class OrdersService {
           refunded: statusCounts.find((c) => c.status === 'refunded')?.count || 0,
           refund_request_cancelled: statusCounts.find((c) => c.status === 'refund_request_cancelled')?.count || 0
       }
+    };
+  }
+
+  async bulkUpdateStatusToCreated() {
+    const orders = await this.ordersRepository.find();
+    let updatedCount = 0;
+    
+    for (const order of orders) {
+      order.status = 'created';
+      await this.ordersRepository.save(order);
+      updatedCount++;
+    }
+    
+    return {
+      success: true,
+      message: `Updated ${updatedCount} orders to "created" status`,
+      count: updatedCount
+    };
+  }
+
+  async bulkAssignToDemoDriver() {
+    // Find demo driver by phone (try all variations)
+    const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+    let demoDriver = null;
+    
+    for (const phone of demoPhones) {
+      demoDriver = await this.driversService.findByPhone(phone);
+      if (demoDriver) {
+        break;
+      }
+    }
+    
+    if (!demoDriver) {
+      throw new NotFoundException('Demo driver not found. Please ensure a driver with phone 9975008124 exists.');
+    }
+    
+    const orders = await this.ordersRepository.find();
+    let assignedCount = 0;
+    
+    for (const order of orders) {
+      order.driverId = demoDriver.id;
+      order.status = 'assigned';
+      order.assignedAt = new Date();
+      
+      // Set tracking URL if not already present
+      if (!order.trackingUrl) {
+        const base = process.env.TRACKING_BASE_URL ?? 'http://localhost:3001/track';
+        order.trackingUrl = `${base}/${order.id}`;
+      }
+      
+      await this.ordersRepository.save(order);
+      assignedCount++;
+    }
+    
+    // Enqueue route optimization for the demo driver
+    await this.routesService.enqueueOptimizationForDriver(demoDriver.id);
+    
+    return {
+      success: true,
+      message: `Assigned ${assignedCount} orders to demo driver (${demoDriver.name})`,
+      count: assignedCount,
+      driverId: demoDriver.id,
+      driverName: demoDriver.name
+    };
+  }
+
+  async bulkUnassignAll() {
+    // First, get all driver IDs that will be affected (before unassigning)
+    const ordersWithDrivers = await this.ordersRepository.find({
+      where: { driverId: Not(null as any) },
+      select: ['id', 'driverId']
+    });
+    
+    const affectedDriverIds = new Set<string>();
+    for (const order of ordersWithDrivers) {
+      if (order.driverId) {
+        affectedDriverIds.add(order.driverId);
+      }
+    }
+    
+    // Use update() to directly update the database without loading relations
+    // This ensures the driver relation is properly cleared
+    const updateResult = await this.ordersRepository
+      .createQueryBuilder()
+      .update(OrderEntity)
+      .set({
+        driverId: null,
+        assignedAt: null,
+        status: 'pending'
+      })
+      .where('driverId IS NOT NULL')
+      .execute();
+    
+    const unassignedCount = updateResult.affected || 0;
+    
+    // Re-optimize routes for all affected drivers
+    for (const driverId of affectedDriverIds) {
+      await this.routesService.enqueueOptimizationForDriver(driverId);
+    }
+    
+    return {
+      success: true,
+      message: `Unassigned ${unassignedCount} orders`,
+      count: unassignedCount
     };
   }
 }

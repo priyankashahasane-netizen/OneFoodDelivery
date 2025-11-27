@@ -1,55 +1,75 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
-import L from 'leaflet';
+import { useEffect, useRef, useState } from 'react';
 import RequireAuth from '../../components/RequireAuth';
 import { authedFetch } from '../../lib/auth';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:3000';
 const TILES = process.env.NEXT_PUBLIC_OSM_TILES ?? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
+// Force dynamic rendering to prevent SSR issues with Leaflet
+export const dynamic = 'force-dynamic';
+
 export default function LiveOps() {
-  const mapRef = useRef<L.Map | null>(null);
-  const markersRef = useRef<Record<string, L.Marker>>({});
+  const mapRef = useRef<any>(null);
+  const markersRef = useRef<Record<string, any>>({});
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    if (!mapRef.current) {
-      const map = L.map('map', { zoomControl: true }).setView([0, 0], 2);
-      L.tileLayer(TILES, { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
-      mapRef.current = map;
-    }
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isClient || typeof window === 'undefined') return;
 
     let cancelled = false;
-    async function poll() {
-      try {
-        const res = await authedFetch('/api/drivers?page=1&pageSize=200');
-        const data = await res.json();
-        if (cancelled || !mapRef.current) return;
-        data.items?.forEach((d: any) => {
-          if (typeof d.latitude !== 'number' || typeof d.longitude !== 'number') return;
-          const key = d.id;
-          const icon = L.divIcon({
-            html: `<div style="width:12px;height:12px;border-radius:12px;background:${d.online ? '#16a34a' : '#9ca3af'};border:2px solid white;"></div>`,
-            className: ''
+    let pollIntervalId: NodeJS.Timeout | null = null;
+
+    // Dynamically import Leaflet only on client side
+    import('leaflet').then((L) => {
+      if (!mapRef.current) {
+        const map = L.default.map('map', { zoomControl: true }).setView([0, 0], 2);
+        L.default.tileLayer(TILES, { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+        mapRef.current = map;
+      }
+
+      async function poll() {
+        try {
+          const res = await authedFetch('/api/drivers?page=1&pageSize=200');
+          const data = await res.json();
+          if (cancelled || !mapRef.current) return;
+          const map = mapRef.current; // Store reference to avoid null check issues
+          data.items?.forEach((d: any) => {
+            if (typeof d.latitude !== 'number' || typeof d.longitude !== 'number') return;
+            const key = d.id;
+            const icon = L.default.divIcon({
+              html: `<div style="width:12px;height:12px;border-radius:12px;background:${d.online ? '#16a34a' : '#9ca3af'};border:2px solid white;"></div>`,
+              className: ''
+            });
+            if (!markersRef.current[key]) {
+              markersRef.current[key] = L.default.marker([d.latitude, d.longitude], { icon }).addTo(map);
+            } else {
+              markersRef.current[key].setLatLng([d.latitude, d.longitude]);
+              markersRef.current[key].setIcon(icon);
+            }
           });
-          if (!markersRef.current[key]) {
-            markersRef.current[key] = L.marker([d.latitude, d.longitude], { icon }).addTo(mapRef.current);
-          } else {
-            markersRef.current[key].setLatLng([d.latitude, d.longitude]);
-            markersRef.current[key].setIcon(icon);
-          }
-        });
-      } catch {}
-    }
-    const id = setInterval(poll, 5000);
-    poll();
+        } catch {}
+      }
+      pollIntervalId = setInterval(poll, 5000);
+      poll();
+    });
+
     return () => {
       cancelled = true;
-      clearInterval(id);
-      mapRef.current?.remove();
-      mapRef.current = null;
+      if (pollIntervalId) {
+        clearInterval(pollIntervalId);
+      }
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
     };
-  }, []);
+  }, [isClient]);
 
   return (
     <RequireAuth>

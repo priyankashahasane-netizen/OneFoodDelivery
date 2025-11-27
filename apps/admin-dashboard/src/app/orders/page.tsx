@@ -27,6 +27,11 @@ export default function OrdersPage() {
   });
   const [pendingOrderTypes, setPendingOrderTypes] = useState<Record<string, 'regular' | 'subscription'>>({});
   const [pendingStatuses, setPendingStatuses] = useState<Record<string, string>>({});
+  const [pendingDeliveryCharges, setPendingDeliveryCharges] = useState<Record<string, string>>({});
+  const [editingDeliveryCharge, setEditingDeliveryCharge] = useState<Record<string, boolean>>({});
+  const [isBulkResetting, setIsBulkResetting] = useState(false);
+  const [isBulkAssigning, setIsBulkAssigning] = useState(false);
+  const [isBulkUnassigning, setIsBulkUnassigning] = useState(false);
 
   // Build query string from filters
   const queryString = useMemo(() => {
@@ -167,11 +172,114 @@ export default function OrdersPage() {
     }
   }
 
+  async function updateDeliveryCharge(orderId: string, deliveryCharge: number) {
+    try {
+      // Get the current order to preserve other fields
+      const currentOrder = data?.items?.find((o: any) => o.id === orderId);
+      if (!currentOrder) {
+        throw new Error('Order not found');
+      }
+
+      // Include all required fields for the DTO validation
+      await authedFetch(`/api/orders/${orderId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pickup: currentOrder.pickup || { lat: 0, lng: 0 },
+          dropoff: currentOrder.dropoff || { lat: 0, lng: 0 },
+          paymentType: currentOrder.paymentType || 'cash_on_delivery',
+          status: currentOrder.status || 'created',
+          deliveryCharge: deliveryCharge,
+        })
+      });
+      mutate();
+      setEditingDeliveryCharge(prev => {
+        const updated = { ...prev };
+        delete updated[orderId];
+        return updated;
+      });
+    } catch (error) {
+      alert('Failed to update delivery charge. Please try again.');
+      console.error('Update delivery charge error:', error);
+      setEditingDeliveryCharge(prev => {
+        const updated = { ...prev };
+        delete updated[orderId];
+        return updated;
+      });
+    }
+  }
+
   const handleQuickAssign = (orderId: string, driverId: string) => {
     if (driverId) {
       assign(orderId, driverId);
     }
   };
+
+  async function bulkResetStatusToCreated() {
+    if (!confirm('Are you sure you want to set all orders status to "created"? This will affect all orders in the system.')) {
+      return;
+    }
+    
+    setIsBulkResetting(true);
+    try {
+      const response = await authedFetch('/api/orders/bulk/reset-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const result = await response.json();
+      alert(`Success: ${result.message}`);
+      mutate();
+    } catch (error) {
+      alert('Failed to reset order statuses. Please try again.');
+      console.error('Bulk reset error:', error);
+    } finally {
+      setIsBulkResetting(false);
+    }
+  }
+
+  async function bulkAssignToDemoDriver() {
+    if (!confirm('Are you sure you want to assign all orders to the demo driver? This will affect all orders in the system.')) {
+      return;
+    }
+    
+    setIsBulkAssigning(true);
+    try {
+      const response = await authedFetch('/api/orders/bulk/assign-demo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const result = await response.json();
+      alert(`Success: ${result.message}`);
+      mutate();
+    } catch (error) {
+      alert('Failed to assign orders to demo driver. Please try again.');
+      console.error('Bulk assign error:', error);
+    } finally {
+      setIsBulkAssigning(false);
+    }
+  }
+
+  async function bulkUnassignAll() {
+    if (!confirm('Are you sure you want to unassign all orders? This will remove driver assignments from all orders in the system.')) {
+      return;
+    }
+    
+    setIsBulkUnassigning(true);
+    try {
+      const response = await authedFetch('/api/orders/bulk/unassign-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const result = await response.json();
+      alert(`Success: ${result.message}`);
+      mutate();
+    } catch (error) {
+      alert('Failed to unassign orders. Please try again.');
+      console.error('Bulk unassign error:', error);
+    } finally {
+      setIsBulkUnassigning(false);
+    }
+  }
 
   // Get total orders count (from unfiltered query) and filtered count
   const totalOrders = totalData?.total ?? data?.total ?? 0;
@@ -193,21 +301,74 @@ export default function OrdersPage() {
               )}
             </div>
           </div>
-          <button
-            onClick={() => router.push('/orders/create')}
-            style={{
-              background: '#2563eb',
-              color: '#fff',
-              border: 0,
-              padding: '8px 16px',
-              borderRadius: 6,
-              cursor: 'pointer',
-              fontSize: 14,
-              fontWeight: 500,
-            }}
-          >
-            + Create Order
-          </button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              onClick={bulkResetStatusToCreated}
+              disabled={isBulkResetting}
+              style={{
+                background: isBulkResetting ? '#9ca3af' : '#10b981',
+                color: '#fff',
+                border: 0,
+                padding: '8px 16px',
+                borderRadius: 6,
+                cursor: isBulkResetting ? 'not-allowed' : 'pointer',
+                fontSize: 14,
+                fontWeight: 500,
+                opacity: isBulkResetting ? 0.6 : 1,
+              }}
+            >
+              {isBulkResetting ? 'Resetting...' : 'Reset All to Created'}
+            </button>
+            <button
+              onClick={bulkAssignToDemoDriver}
+              disabled={isBulkAssigning}
+              style={{
+                background: isBulkAssigning ? '#9ca3af' : '#f59e0b',
+                color: '#fff',
+                border: 0,
+                padding: '8px 16px',
+                borderRadius: 6,
+                cursor: isBulkAssigning ? 'not-allowed' : 'pointer',
+                fontSize: 14,
+                fontWeight: 500,
+                opacity: isBulkAssigning ? 0.6 : 1,
+              }}
+            >
+              {isBulkAssigning ? 'Assigning...' : 'Assign All to Demo Driver'}
+            </button>
+            <button
+              onClick={bulkUnassignAll}
+              disabled={isBulkUnassigning}
+              style={{
+                background: isBulkUnassigning ? '#9ca3af' : '#ef4444',
+                color: '#fff',
+                border: 0,
+                padding: '8px 16px',
+                borderRadius: 6,
+                cursor: isBulkUnassigning ? 'not-allowed' : 'pointer',
+                fontSize: 14,
+                fontWeight: 500,
+                opacity: isBulkUnassigning ? 0.6 : 1,
+              }}
+            >
+              {isBulkUnassigning ? 'Unassigning...' : 'Unassign All'}
+            </button>
+            <button
+              onClick={() => router.push('/orders/create')}
+              style={{
+                background: '#2563eb',
+                color: '#fff',
+                border: 0,
+                padding: '8px 16px',
+                borderRadius: 6,
+                cursor: 'pointer',
+                fontSize: 14,
+                fontWeight: 500,
+              }}
+            >
+              + Create Order
+            </button>
+          </div>
         </div>
         
         {/* Filters Section */}
@@ -350,7 +511,41 @@ export default function OrdersPage() {
           </div>
         </div>
       {isLoading ? (
-        <p>Loading…</p>
+        <>
+          <style dangerouslySetInnerHTML={{__html: `
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+            .spinner {
+              animation: spin 1s linear infinite;
+            }
+          `}} />
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            padding: '60px 20px',
+            minHeight: '400px'
+          }}>
+            <div className="spinner" style={{
+              width: '48px',
+              height: '48px',
+              border: '4px solid #e5e7eb',
+              borderTop: '4px solid #2563eb',
+              borderRadius: '50%',
+            }} />
+            <p style={{ 
+              marginTop: '16px', 
+              fontSize: '14px', 
+              color: '#6b7280',
+              fontWeight: 500
+            }}>
+              {filters.assigned === 'assigned' ? 'Loading assigned orders...' : 'Loading orders...'}
+            </p>
+          </div>
+        </>
       ) : error ? (
         <div style={{ padding: 16, background: '#fee2e2', borderRadius: 8, color: '#991b1b' }}>
           <strong>Error loading orders:</strong> {error.message || 'Unknown error'}
@@ -377,6 +572,7 @@ export default function OrdersPage() {
                     <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Status</th>
                     <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Order Type</th>
                     <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Payment</th>
+                    <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Delivery Charge</th>
                     <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Pickup</th>
                     <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Dropoff</th>
                     <th style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '12px 8px', fontWeight: 600, fontSize: 14, color: '#374151' }}>Driver</th>
@@ -473,6 +669,66 @@ export default function OrdersPage() {
                       <span style={{ fontSize: 14, color: '#111827' }}>
                         {o.paymentType || 'N/A'}
                       </span>
+                    </td>
+                    <td style={{ padding: '12px 8px', verticalAlign: 'middle' }}>
+                      {editingDeliveryCharge[o.id] ? (
+                        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            defaultValue={o.deliveryCharge || 0}
+                            onBlur={(e) => {
+                              const value = parseFloat(e.target.value) || 0;
+                              updateDeliveryCharge(o.id, value);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                const value = parseFloat((e.target as HTMLInputElement).value) || 0;
+                                updateDeliveryCharge(o.id, value);
+                              } else if (e.key === 'Escape') {
+                                setEditingDeliveryCharge(prev => {
+                                  const updated = { ...prev };
+                                  delete updated[o.id];
+                                  return updated;
+                                });
+                              }
+                            }}
+                            autoFocus
+                            style={{
+                              width: 80,
+                              padding: '4px 8px',
+                              border: '1px solid #2563eb',
+                              borderRadius: 4,
+                              fontSize: 13,
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div
+                          onClick={() => setEditingDeliveryCharge(prev => ({ ...prev, [o.id]: true }))}
+                          style={{
+                            fontSize: 14,
+                            color: '#111827',
+                            cursor: 'pointer',
+                            padding: '4px 8px',
+                            borderRadius: 4,
+                            border: '1px solid transparent',
+                            display: 'inline-block',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = '#f3f4f6';
+                            e.currentTarget.style.borderColor = '#d1d5db';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'transparent';
+                            e.currentTarget.style.borderColor = 'transparent';
+                          }}
+                          title="Click to edit delivery charge"
+                        >
+                          ₹{parseFloat((o.deliveryCharge || 0).toString()).toFixed(2)}
+                        </div>
+                      )}
                     </td>
                     <td style={{ padding: '12px 8px', verticalAlign: 'middle', maxWidth: 200 }}>
                       <span style={{ fontSize: 13, color: '#111827', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

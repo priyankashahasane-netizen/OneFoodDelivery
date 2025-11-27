@@ -1093,6 +1093,10 @@ components:
             - regular
             - subscription
           default: regular
+        deliveryCharge:
+          type: number
+          format: float
+          default: 0
 
     OrderInput:
       allOf:

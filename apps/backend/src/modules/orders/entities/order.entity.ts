@@ -98,6 +98,9 @@ export class OrderEntity {
   })
   orderType!: 'regular' | 'subscription';
 
+  @Column({ name: 'delivery_charge', type: 'decimal', precision: 10, scale: 2, default: 0 })
+  deliveryCharge!: number;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 

@@ -32,6 +32,7 @@ export default function CreateOrderPage() {
     cancellationSource: '',
     cancellationReason: '',
     trackingUrl: '',
+    deliveryCharge: '',
     items: [] as OrderItem[],
   });
 
@@ -99,6 +100,7 @@ export default function CreateOrderPage() {
         cancellationSource: formData.cancellationSource || undefined,
         cancellationReason: formData.cancellationReason || undefined,
         trackingUrl: formData.trackingUrl || undefined,
+        deliveryCharge: formData.deliveryCharge ? parseFloat(formData.deliveryCharge) : undefined,
       };
 
       const response = await authedFetch('/api/orders', {
@@ -307,6 +309,31 @@ export default function CreateOrderPage() {
                   fontSize: 14,
                 }}
               />
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>
+                Delivery Charge (₹) (Optional)
+              </label>
+              <input
+                type="number"
+                name="deliveryCharge"
+                value={formData.deliveryCharge}
+                onChange={handleInputChange}
+                placeholder="e.g., 50.00"
+                step="0.01"
+                min="0"
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: 6,
+                  fontSize: 14,
+                }}
+              />
+              <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>
+                This amount will be credited to the driver's wallet when the order is delivered.
+              </div>
             </div>
           </div>
 

@@ -3,6 +3,7 @@ import 'package:stackfood_multivendor_driver/helper/price_converter_helper.dart'
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_app_bar_widget.dart';
+import 'package:stackfood_multivendor_driver/feature/dashboard/widgets/custom_drawer_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -25,7 +26,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      
+      drawer: const CustomDrawerWidget(isFromDashboard: false),
       appBar: CustomAppBarWidget(title: 'transaction_history'.tr),
 
       body: GetBuilder<CashInHandController>(builder: (cashInHandController) {

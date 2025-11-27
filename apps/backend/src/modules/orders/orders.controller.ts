@@ -20,7 +20,10 @@ export class OrdersController {
   @Get()
   @UseGuards(JwtAuthGuard)
   @Roles('admin', 'dispatcher', 'support')
-  async list(@Query() filters: ListOrdersDto) {
+  async list(@Query() filters: ListOrdersDto, @Query('assigned') rawAssigned?: string) {
+    // Log raw query parameter before transformation
+    console.log('[OrdersController] Raw assigned query param:', rawAssigned, 'type:', typeof rawAssigned);
+    console.log('[OrdersController] Transformed filters.assigned:', filters.assigned, 'type:', typeof filters.assigned);
     return this.ordersService.listOrders(filters);
   }
 
@@ -180,7 +183,35 @@ export class OrdersController {
   async updateStatus(@Param('id') id: string, @Body() body: { status: string; cancellationSource?: string; cancellationReason?: string; reason?: string }, @Request() req: any) {
     try {
       // Extract driver ID from JWT token for automatic assignment when status is "accepted"
-      const driverId = req?.user?.sub || req?.user?.driverId;
+      let driverId = req?.user?.sub || req?.user?.driverId;
+      
+      // Handle demo account - resolve to actual driver ID by phone if needed
+      if (!driverId || driverId === 'demo-driver-id') {
+        const phone = req?.user?.phone;
+        if (phone) {
+          try {
+            // Try to find driver by phone (check multiple phone format variations)
+            const phoneVariations = [
+              phone,
+              phone.replace('+91', '').replace(/-/g, ''),
+              phone.replace('+', ''),
+              `+91${phone.replace('+91', '').replace(/-/g, '')}`,
+              `91${phone.replace('+91', '').replace(/-/g, '')}`
+            ];
+            
+            for (const phoneVar of phoneVariations) {
+              const driver = await this.driversService.findByPhone(phoneVar);
+              if (driver) {
+                driverId = driver.id;
+                break;
+              }
+            }
+          } catch (e) {
+            // If driver lookup fails, continue with what we have
+            console.warn('updateStatus: Failed to lookup driver by phone:', e);
+          }
+        }
+      }
       
       // Handle both 'reason' (from frontend) and 'cancellationReason' (from API spec)
       const cancellationReason = body.cancellationReason || body.reason;
@@ -214,6 +245,27 @@ export class OrdersController {
   @Roles('admin', 'dispatcher')
   async delete(@Param('id') id: string) {
     return this.ordersService.delete(id);
+  }
+
+  @Post('bulk/reset-status')
+  @UseGuards(JwtAuthGuard)
+  @Roles('admin', 'dispatcher')
+  async bulkResetStatus() {
+    return this.ordersService.bulkUpdateStatusToCreated();
+  }
+
+  @Post('bulk/assign-demo')
+  @UseGuards(JwtAuthGuard)
+  @Roles('admin', 'dispatcher')
+  async bulkAssignDemo() {
+    return this.ordersService.bulkAssignToDemoDriver();
+  }
+
+  @Post('bulk/unassign-all')
+  @UseGuards(JwtAuthGuard)
+  @Roles('admin', 'dispatcher')
+  async bulkUnassignAll() {
+    return this.ordersService.bulkUnassignAll();
   }
 }
 

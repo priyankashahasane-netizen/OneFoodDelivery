@@ -29,11 +29,17 @@ export class ListOrdersDto {
 
   @IsOptional()
   @Transform(({ value }) => {
+    // Return undefined for empty strings, null, or undefined values
+    if (value === '' || value === null || value === undefined) {
+      return undefined;
+    }
     // Handle string values from query parameters
     if (typeof value === 'string') {
       const lowerValue = value.toLowerCase().trim();
       if (lowerValue === 'true') return true;
       if (lowerValue === 'false') return false;
+      // If it's a string but not 'true' or 'false', return undefined
+      return undefined;
     }
     // Handle boolean values (shouldn't happen with query params, but just in case)
     if (typeof value === 'boolean') {
@@ -41,7 +47,6 @@ export class ListOrdersDto {
     }
     return undefined;
   })
-  @IsBoolean()
   assigned?: boolean; // true for assigned, false for unassigned, undefined for all
 
   @IsOptional()

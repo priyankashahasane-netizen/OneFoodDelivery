@@ -75,7 +75,23 @@ class OrderRequestScreenState extends State<OrderRequestScreen> {
         final hasAnyOrders = hasAvailableOrders || hasAssignedOrders;
 
         if (isLoading && !hasAnyOrders) {
-          return const Center(child: CircularProgressIndicator());
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const CircularProgressIndicator(
+                  strokeWidth: 3,
+                ),
+                const SizedBox(height: Dimensions.paddingSizeLarge),
+                Text(
+                  'Loading orders...',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context).hintColor,
+                  ),
+                ),
+              ],
+            ),
+          );
         }
 
         if (!hasAnyOrders) {

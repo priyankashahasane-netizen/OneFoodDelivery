@@ -32,8 +32,11 @@
     "consolidate-demo-account": "node --loader ts-node/esm src/database/seeds/consolidate-demo-account.ts",
     "add-active-order-demo": "node --loader ts-node/esm src/database/seeds/add-active-order-demo.ts",
     "add-order-type-column": "node --loader ts-node/esm src/database/seeds/add-order-type-column.ts",
+    "add-delivery-charge-column": "node --loader ts-node/esm src/database/seeds/add-delivery-charge-column.ts",
     "add-customer-fields-to-orders": "node --loader ts-node/esm src/database/seeds/add-customer-fields-to-orders.ts",
-    "backfill-customer-data": "node --loader ts-node/esm src/database/seeds/backfill-customer-data.ts"
+    "backfill-customer-data": "node --loader ts-node/esm src/database/seeds/backfill-customer-data.ts",
+    "create-navi-mumbai-orders": "node --loader ts-node/esm src/database/seeds/create-navi-mumbai-orders.ts",
+    "fix-orders-items": "node --loader ts-node/esm src/database/seeds/fix-orders-missing-items.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.5",

@@ -175,9 +175,8 @@ export class WalletService {
       await queryRunner.commitTransaction();
       await queryRunner.release();
 
-      // IMPORTANT: Also update driver metadata to sync payable_balance
-      // The profile reads payable_balance from drivers.metadata.payableBalance
-      // This is done outside the transaction since it's not critical for the wallet adjustment
+      // NOTE: Profile now reads payable_balance directly from wallet balance
+      // Metadata update is optional and kept for backward compatibility
       try {
         await this.driversService.updateMetadata(driverId, { payableBalance: 0 });
       } catch (error) {
@@ -296,6 +295,80 @@ export class WalletService {
       }
       await queryRunner.release();
       console.error('Error in deductFromWallet:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Credit amount to wallet balance and create a credit transaction
+   * Used when order is delivered to pay delivery charges to driver
+   */
+  async creditToWallet(
+    driverId: string,
+    amount: number,
+    orderId: string,
+    description?: string
+  ): Promise<{ success: boolean; message: string }> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // Get wallet using raw SQL to avoid entity tracking
+      const walletResult = await queryRunner.query(
+        `SELECT id, balance, currency FROM driver_wallets WHERE driver_id = $1 LIMIT 1`,
+        [driverId]
+      );
+      
+      if (!walletResult || walletResult.length === 0) {
+        await queryRunner.rollbackTransaction();
+        await queryRunner.release();
+        throw new NotFoundException(`Wallet not found for driver ${driverId}`);
+      }
+
+      const wallet = walletResult[0];
+      const walletId = wallet.id;
+      const currentBalance = parseFloat(wallet.balance);
+
+      const newBalance = currentBalance + amount;
+
+      // Create a credit transaction using raw SQL
+      const transactionId = randomUUID();
+      await queryRunner.query(
+        `INSERT INTO wallet_transactions (id, wallet_id, order_id, type, category, amount, description, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+        [
+          transactionId,
+          walletId,
+          orderId,
+          'credit',
+          'delivery_fee',
+          amount,
+          description || `Delivery charges credited for order ${orderId}`
+        ]
+      );
+
+      // Update wallet balance using raw SQL
+      await queryRunner.query(
+        `UPDATE driver_wallets SET balance = $1, updated_at = NOW() WHERE id = $2`,
+        [newBalance, walletId]
+      );
+
+      // Commit the transaction
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+
+      return {
+        success: true,
+        message: `Successfully credited ${amount} to wallet balance`
+      };
+    } catch (error: any) {
+      // Rollback transaction on error
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
+      await queryRunner.release();
+      console.error('Error in creditToWallet:', error);
       throw error;
     }
   }
