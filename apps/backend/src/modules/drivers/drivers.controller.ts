@@ -1,10 +1,13 @@
-import { Body, Controller, Get, Param, Patch, Query, Request, HttpException, HttpStatus, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Request, HttpException, HttpStatus, BadRequestException, NotFoundException } from '@nestjs/common';
 import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt.guard.js';
+import { RolesGuard } from '../auth/roles.guard.js';
+import { Roles } from '../auth/roles.decorator.js';
 
 import { PaginationQueryDto } from '../../common/dto/pagination.dto.js';
 import { DriversService } from './drivers.service.js';
 import { UpdateDriverDto } from './dto/update-driver.dto.js';
+import { CreateDriverDto } from './dto/create-driver.dto.js';
 
 @Controller('drivers')
 export class DriversController {
@@ -13,6 +16,23 @@ export class DriversController {
   @Get()
   async list(@Query() pagination: PaginationQueryDto) {
     return this.driversService.listDrivers(pagination);
+  }
+
+  @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'dispatcher')
+  async create(@Body() payload: CreateDriverDto) {
+    try {
+      return await this.driversService.create(payload);
+    } catch (error: any) {
+      if (error.message?.includes('already exists')) {
+        throw new BadRequestException(error.message);
+      }
+      throw new HttpException(
+        error.message || 'Failed to create driver',
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
   }
 
   @Get('me')

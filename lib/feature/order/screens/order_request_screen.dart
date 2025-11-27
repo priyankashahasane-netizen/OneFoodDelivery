@@ -24,8 +24,12 @@ class OrderRequestScreenState extends State<OrderRequestScreen> {
     super.initState();
 
     final orderController = Get.find<OrderController>();
-    // Only load latest orders on initial load
-    orderController.getLatestOrders();
+    // Load both latest and assigned orders on initial load
+    // This ensures the loader shows immediately for assigned orders
+    Future.wait([
+      orderController.getLatestOrders(),
+      orderController.getAssignedOrders(),
+    ]);
     
     // Start timer to fetch both latest and assigned orders every 10 seconds
     _timer = Timer.periodic(const Duration(seconds: 10), (timer) {

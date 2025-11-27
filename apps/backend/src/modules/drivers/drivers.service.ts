@@ -1,9 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThanOrEqual } from 'typeorm';
 
 import { PaginationQueryDto } from '../../common/dto/pagination.dto.js';
 import { UpdateDriverDto } from './dto/update-driver.dto.js';
+import { CreateDriverDto } from './dto/create-driver.dto.js';
 import { DriverEntity } from './entities/driver.entity.js';
 import { DriverProfileResponseDto } from './dto/driver-profile-response.dto.js';
 import { DriverBankAccountEntity } from './entities/driver-bank-account.entity.js';
@@ -43,6 +44,31 @@ export class DriversService {
 
   async findByPhone(phone: string) {
     return await this.driversRepository.findOne({ where: { phone } });
+  }
+
+  async create(payload: CreateDriverDto) {
+    // Check if driver with this phone already exists
+    const existingDriver = await this.findByPhone(payload.phone);
+    if (existingDriver) {
+      throw new BadRequestException(`Driver with phone ${payload.phone} already exists`);
+    }
+
+    const driver = this.driversRepository.create({
+      name: payload.name,
+      phone: payload.phone,
+      vehicleType: payload.vehicleType,
+      capacity: payload.capacity ?? 0,
+      online: false,
+      status: 'offline',
+      latitude: payload.latitude ?? null,
+      longitude: payload.longitude ?? null,
+      homeAddress: payload.homeAddress ?? null,
+      homeAddressLatitude: payload.homeAddressLatitude ?? null,
+      homeAddressLongitude: payload.homeAddressLongitude ?? null,
+      zoneId: payload.zoneId ?? null
+    });
+
+    return await this.driversRepository.save(driver);
   }
 
   /**

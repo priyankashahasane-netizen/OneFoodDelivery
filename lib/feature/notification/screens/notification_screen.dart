@@ -9,7 +9,6 @@ import 'package:stackfood_multivendor_driver/util/images.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_app_bar_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/dashboard/widgets/global_bottom_nav_widget.dart';
-import 'package:stackfood_multivendor_driver/feature/dashboard/widgets/custom_drawer_widget.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/order_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -53,15 +52,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
       child: Scaffold(
         appBar: CustomAppBarWidget(
           title: 'notification'.tr,
+          showMenuButton: false,
+          isBackButtonExist: true,
           onBackPressed: () {
-            if (widget.fromNotification) {
-              Get.offAllNamed(RouteHelper.getInitialRoute());
-            } else {
-              Get.back();
-            }
+            Get.offNamedUntil(
+              RouteHelper.getMainRoute('home'),
+              (route) => route.settings.name == '/main' || route.settings.name == '/',
+            );
           },
         ),
-        drawer: CustomDrawerWidget(isFromDashboard: false),
         bottomNavigationBar: const GlobalBottomNavWidget(),
         body: GetBuilder<NotificationController>(builder: (notificationController) {
           if (notificationController.notificationList != null) {
