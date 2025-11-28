@@ -414,6 +414,12 @@ export class OrdersService {
     return this.ordersRepository.save(order);
   }
 
+  async updateDeliveryCharge(orderId: string, deliveryCharge: number) {
+    const order = await this.findById(orderId);
+    order.deliveryCharge = deliveryCharge;
+    return this.ordersRepository.save(order);
+  }
+
   async assignDriver(orderId: string, driverId: string) {
     const order = await this.findById(orderId);
     

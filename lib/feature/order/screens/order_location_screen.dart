@@ -10,7 +10,6 @@ import 'package:stackfood_multivendor_driver/helper/directions_helper.dart';
 import 'package:stackfood_multivendor_driver/helper/route_helper.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
-import 'package:stackfood_multivendor_driver/util/images.dart';
 import 'package:stackfood_multivendor_driver/util/app_constants.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as ll;
@@ -35,6 +34,7 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
   final List<Marker> _markers = [];
   final List<Polyline> _polylines = [];
   int? _estimatedArrivalMinutes;
+  final DraggableScrollableController _draggableController = DraggableScrollableController();
 
   // Default coordinates (fallback when location data is missing)
   static const double _defaultLat = 0.0;
@@ -47,6 +47,16 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _setMarker(widget.orderModel);
     });
+    // Initialize draggable sheet to start at about 40% of screen height
+    _draggableController.addListener(() {
+      setState(() {}); // Update UI when sheet position changes
+    });
+  }
+
+  @override
+  void dispose() {
+    _draggableController.dispose();
+    super.dispose();
   }
 
   @override
@@ -136,7 +146,7 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
           }
         },
         child: Stack(children: [
-        // Map
+        // Map - Full screen, will be partially covered by draggable sheet
         FlutterMap(
           mapController: _mapController,
           options: MapOptions(
@@ -191,18 +201,22 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
           ),
         ),
 
-        // Bottom Card
-        Positioned(
-          bottom: 0,
-          left: 0,
-          right: 0,
-          child: LocationCardWidget(
-            orderModel: widget.orderModel,
-            orderController: widget.orderController,
-            onTap: widget.onTap,
-            index: widget.index,
-            estimatedArrivalMinutes: _estimatedArrivalMinutes,
-          ),
+        // Draggable Bottom Card
+        DraggableScrollableSheet(
+          controller: _draggableController,
+          initialChildSize: 0.4, // Start at 40% of screen height
+          minChildSize: 0.25, // Minimum 25% (collapsed state)
+          maxChildSize: 0.75, // Maximum 75% (expanded state)
+          builder: (context, scrollController) {
+            return LocationCardWidget(
+              orderModel: widget.orderModel,
+              orderController: widget.orderController,
+              onTap: widget.onTap,
+              index: widget.index,
+              estimatedArrivalMinutes: _estimatedArrivalMinutes,
+              scrollController: scrollController,
+            );
+          },
         ),
       ]),
       ),
@@ -214,7 +228,14 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
     if (coordinate == null || coordinate.isEmpty || coordinate == '0') {
       return defaultValue;
     }
-    return double.tryParse(coordinate) ?? defaultValue;
+    final parsed = double.tryParse(coordinate);
+    if (parsed == null) {
+      if (kDebugMode) {
+        print('⚠️ OrderLocationScreen: Failed to parse coordinate: $coordinate');
+      }
+      return defaultValue;
+    }
+    return parsed;
   }
 
   void _setMarker(OrderModel orderModel) async {
@@ -236,6 +257,20 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
         orderModel.restaurantLng,
         deliveryLng, // Fallback to delivery location if restaurant location missing
       );
+
+      // Validate coordinates are within valid ranges
+      // Latitude: -90 to 90, Longitude: -180 to 180
+      if (deliveryLat < -90 || deliveryLat > 90 || deliveryLng < -180 || deliveryLng > 180) {
+        if (kDebugMode) {
+          print('⚠️ OrderLocationScreen: Invalid delivery coordinates: lat=$deliveryLat, lng=$deliveryLng');
+        }
+        setState(() {});
+        return;
+      }
+      
+      if (kDebugMode) {
+        print('📍 OrderLocationScreen: Coordinates - Delivery: ($deliveryLat, $deliveryLng), Restaurant: ($restaurantLat, $restaurantLng)');
+      }
 
       // Only proceed if we have valid delivery coordinates
       if (deliveryLat == _defaultLat && deliveryLng == _defaultLng) {
@@ -414,27 +449,37 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
             point: ll.LatLng(driverLat, driverLng),
             width: 60,
             height: 60,
-            alignment: Alignment.bottomCenter,
-            child: SizedBox(
-              width: 60,
-              height: 60,
-              child: Center(
-                child: Image.asset(
-                  Images.deliveryBikeIcon,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    // Fallback to icon if image is not found
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade700,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 3),
-                      ),
-                      child: Icon(Icons.directions_car, color: Colors.white, size: 30),
-                    );
-                  },
+            alignment: Alignment.topCenter,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: Colors.blue,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 2),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'Current',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -450,29 +495,39 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
         _markers.add(
           Marker(
             point: ll.LatLng(restaurantLat, restaurantLng),
-            width: 60,
-            height: 60,
-            alignment: Alignment.bottomCenter,
-            child: SizedBox(
-              width: 60,
-              height: 60,
-              child: Center(
-                child: Image.asset(
-                  Images.restaurantIconMarker,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    // Fallback to icon if image is not found
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: Colors.grey[800],
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 3),
-                      ),
-                      child: Icon(Icons.restaurant, color: Colors.white, size: 24),
-                    );
-                  },
+            width: 50,
+            height: 50,
+            alignment: Alignment.topCenter,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Container(
+                  width: 18,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: Colors.green,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 2),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'Pickup',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -482,29 +537,39 @@ class _OrderLocationScreenState extends State<OrderLocationScreen> {
       _markers.add(
         Marker(
           point: ll.LatLng(deliveryLat, deliveryLng),
-          width: 60,
-          height: 60,
-          alignment: Alignment.bottomCenter,
-          child: SizedBox(
-            width: 60,
-            height: 60,
-            child: Center(
-              child: Image.asset(
-                Images.homeIconMarker,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  // Fallback to icon if image is not found
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: Colors.orange,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 3),
-                    ),
-                    child: Icon(Icons.home, color: Colors.white, size: 24),
-                  );
-                },
+          width: 50,
+          height: 50,
+          alignment: Alignment.topCenter,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Container(
+                width: 18,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: Colors.orange,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
               ),
-            ),
+              const SizedBox(height: 2),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'Drop',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       );

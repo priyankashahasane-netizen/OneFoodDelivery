@@ -40,7 +40,7 @@ export class SmartPathService {
 
   /**
    * Generate Smart Path for a driver
-   * Identifies today's subscription orders, groups by pickup location, and creates optimized routes
+   * Identifies today's subscription orders and accepted orders, groups by pickup location, and creates optimized routes
    */
   async generateSmartPath(driverId: string, date?: Date): Promise<SmartPathEntity[]> {
     console.log(`[SmartPath] Generating Smart Path for driver ${driverId}, date: ${date || 'today'}`);
@@ -65,23 +65,23 @@ export class SmartPathService {
       console.warn(`[SmartPath] Driver ${driverId} has no location set. Routes will start from pickup location.`);
     }
 
-    // Query today's subscription orders for this driver
-    const subscriptionOrders = await this.getTodaysSubscriptionOrders(driverId, startOfDay, endOfDay);
-    console.log(`[SmartPath] Found ${subscriptionOrders.length} subscription orders for today`);
+    // Query today's subscription orders and accepted orders for this driver
+    const ordersForSmartPath = await this.getTodaysOrdersForSmartPath(driverId, startOfDay, endOfDay);
+    console.log(`[SmartPath] Found ${ordersForSmartPath.length} orders for smart path (subscription + accepted)`);
 
-    if (subscriptionOrders.length === 0) {
-      console.log(`[SmartPath] No subscription orders found for today. Returning empty array.`);
-      return []; // No subscription orders for today
+    if (ordersForSmartPath.length === 0) {
+      console.log(`[SmartPath] No orders found for smart path generation. Returning empty array.`);
+      return []; // No orders for today
     }
 
     // Log order details for debugging
-    subscriptionOrders.forEach((order, idx) => {
+    ordersForSmartPath.forEach((order, idx) => {
       console.log(`[SmartPath] Order ${idx + 1}: id=${order.id}, type=${order.orderType}, status=${order.status}, createdAt=${order.createdAt}`);
       console.log(`[SmartPath]   Pickup: ${JSON.stringify(order.pickup)}, Dropoff: ${JSON.stringify(order.dropoff)}`);
     });
 
     // Group orders by pickup location (within 100m tolerance)
-    const pickupGroups = this.groupOrdersByPickupLocation(subscriptionOrders, this.PICKUP_TOLERANCE_METERS);
+    const pickupGroups = this.groupOrdersByPickupLocation(ordersForSmartPath, this.PICKUP_TOLERANCE_METERS);
     console.log(`[SmartPath] Grouped into ${pickupGroups.length} pickup location groups`);
 
     // Generate Smart Path for each pickup group
@@ -151,14 +151,17 @@ export class SmartPathService {
   }
 
   /**
-   * Query today's subscription orders for a driver
+   * Query today's subscription orders and accepted orders for a driver
+   * Returns orders that are either:
+   * 1. Subscription orders created today, OR
+   * 2. Accepted orders (regardless of order type or creation date)
    */
-  private async getTodaysSubscriptionOrders(
+  private async getTodaysOrdersForSmartPath(
     driverId: string,
     startOfDay: Date,
     endOfDay: Date
   ): Promise<OrderEntity[]> {
-    console.log(`[SmartPath] Getting active orders for driver ${driverId}`);
+    console.log(`[SmartPath] Getting orders for smart path generation for driver ${driverId}`);
     
     // Use raw orders method to get OrderEntity
     const activeOrders = await (this.ordersService as OrdersService & {
@@ -167,26 +170,36 @@ export class SmartPathService {
 
     console.log(`[SmartPath] Found ${activeOrders.length} total active orders for driver`);
 
-    // Filter for subscription orders created today
+    // Filter for:
+    // 1. Subscription orders created today, OR
+    // 2. Accepted orders (any type, any date)
     const excludedStatuses = ['delivered', 'cancelled', 'cancelled', 'failed', 'refunded', 'refund_requested', 'refund_request_cancelled'];
     
     const filtered = activeOrders.filter(order => {
+      const isAccepted = order.status.toLowerCase() === 'accepted';
       const isSubscription = order.orderType === 'subscription';
       const isToday = order.createdAt >= startOfDay && order.createdAt <= endOfDay;
       const isActive = !excludedStatuses.includes(order.status.toLowerCase());
       
-      if (!isSubscription) {
-        console.log(`[SmartPath] Order ${order.id} filtered out: not subscription (type=${order.orderType})`);
-      } else if (!isToday) {
-        console.log(`[SmartPath] Order ${order.id} filtered out: not today (createdAt=${order.createdAt}, range=${startOfDay.toISOString()} to ${endOfDay.toISOString()})`);
-      } else if (!isActive) {
-        console.log(`[SmartPath] Order ${order.id} filtered out: not active (status=${order.status})`);
+      // Include if: (subscription AND today AND active) OR (accepted status)
+      const shouldInclude = (isSubscription && isToday && isActive) || isAccepted;
+      
+      if (!shouldInclude) {
+        if (!isSubscription && !isAccepted) {
+          console.log(`[SmartPath] Order ${order.id} filtered out: not subscription and not accepted (type=${order.orderType}, status=${order.status})`);
+        } else if (isSubscription && !isToday) {
+          console.log(`[SmartPath] Order ${order.id} filtered out: subscription but not today (createdAt=${order.createdAt}, range=${startOfDay.toISOString()} to ${endOfDay.toISOString()})`);
+        } else if (isSubscription && !isActive) {
+          console.log(`[SmartPath] Order ${order.id} filtered out: subscription but not active (status=${order.status})`);
+        }
       }
       
-      return isSubscription && isToday && isActive;
+      return shouldInclude;
     });
 
-    console.log(`[SmartPath] Filtered to ${filtered.length} subscription orders for today`);
+    const subscriptionCount = filtered.filter(o => o.orderType === 'subscription').length;
+    const acceptedCount = filtered.filter(o => o.status.toLowerCase() === 'accepted').length;
+    console.log(`[SmartPath] Filtered to ${filtered.length} orders for smart path (${subscriptionCount} subscription, ${acceptedCount} accepted)`);
     return filtered;
   }
 

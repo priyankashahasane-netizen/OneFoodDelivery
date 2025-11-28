@@ -174,23 +174,11 @@ export default function OrdersPage() {
 
   async function updateDeliveryCharge(orderId: string, deliveryCharge: number) {
     try {
-      // Get the current order to preserve other fields
-      const currentOrder = data?.items?.find((o: any) => o.id === orderId);
-      if (!currentOrder) {
-        throw new Error('Order not found');
-      }
-
-      // Include all required fields for the DTO validation
-      await authedFetch(`/api/orders/${orderId}`, {
+      // Use the dedicated endpoint for updating delivery charges
+      await authedFetch(`/api/orders/${orderId}/delivery-charge`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          pickup: currentOrder.pickup || { lat: 0, lng: 0 },
-          dropoff: currentOrder.dropoff || { lat: 0, lng: 0 },
-          paymentType: currentOrder.paymentType || 'cash_on_delivery',
-          status: currentOrder.status || 'created',
-          deliveryCharge: deliveryCharge,
-        })
+        body: JSON.stringify({ deliveryCharge: deliveryCharge })
       });
       mutate();
       setEditingDeliveryCharge(prev => {

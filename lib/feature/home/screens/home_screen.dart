@@ -677,35 +677,37 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 point: _currentLocation!,
                                                 width: 60,
                                                 height: 60,
-                                                alignment: Alignment.bottomCenter,
-                                                child: SizedBox(
-                                                  width: 60,
-                                                  height: 60,
-                                                  child: Center(
-                                                    child: Image.asset(
-                                                      // Show HappyMan icon when offline, DeliveryBike icon when online
-                                                      (profileModel != null && (profileModel.active ?? 0) == 0)
-                                                          ? Images.happyManIcon
-                                                          : Images.deliveryBikeIcon,
-                                                      fit: BoxFit.contain,
-                                                      errorBuilder: (context, error, stackTrace) {
-                                                        // Fallback icons based on online/offline status
-                                                        if (profileModel != null && (profileModel.active ?? 0) == 0) {
-                                                          return Icon(
-                                                            Icons.home,
-                                                            color: Theme.of(context).primaryColor,
-                                                            size: 40,
-                                                          );
-                                                        } else {
-                                                          return Icon(
-                                                            Icons.directions_bike,
-                                                            color: Theme.of(context).primaryColor,
-                                                            size: 40,
-                                                          );
-                                                        }
-                                                      },
+                                                alignment: Alignment.topCenter,
+                                                child: Column(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  mainAxisAlignment: MainAxisAlignment.start,
+                                                  children: [
+                                                    Container(
+                                                      width: 20,
+                                                      height: 20,
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.blue,
+                                                        shape: BoxShape.circle,
+                                                        border: Border.all(color: Colors.white, width: 2),
+                                                      ),
                                                     ),
-                                                  ),
+                                                    const SizedBox(height: 2),
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.black.withOpacity(0.7),
+                                                        borderRadius: BorderRadius.circular(4),
+                                                      ),
+                                                      child: const Text(
+                                                        'Current',
+                                                        style: TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 10,
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
                                               ),
                                             ],

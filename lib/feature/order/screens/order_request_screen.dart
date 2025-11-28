@@ -1,9 +1,14 @@
 import 'dart:async';
 import 'package:stackfood_multivendor_driver/feature/order/controllers/order_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/order/widgets/order_requset_widget.dart';
+import 'package:stackfood_multivendor_driver/feature/order/domain/models/order_model.dart';
 import 'package:stackfood_multivendor_driver/helper/route_helper.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_app_bar_widget.dart';
+import 'package:stackfood_multivendor_driver/common/widgets/custom_bottom_sheet_widget.dart';
+import 'package:stackfood_multivendor_driver/common/widgets/custom_confirmation_bottom_sheet.dart';
+import 'package:stackfood_multivendor_driver/common/widgets/custom_snackbar_widget.dart';
+import 'package:stackfood_multivendor_driver/common/widgets/custom_button_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -127,27 +132,74 @@ class OrderRequestScreenState extends State<OrderRequestScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      if (orderController.isLoadingAssignedOrders)
-                        const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      else if (hasAssignedOrders)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeSmall, vertical: Dimensions.paddingSizeExtraSmall),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).primaryColor,
-                            borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+                      Row(
+                        children: [
+                          // Accept Assigned Subscription Orders Button
+                          Builder(
+                            builder: (context) {
+                              final assignedSubscriptionOrders = assignedOrders.where((order) => 
+                                order.orderType?.toLowerCase().trim() == 'subscription'
+                              ).toList();
+                              
+                              if (assignedSubscriptionOrders.isEmpty || orderController.isLoadingAssignedOrders) {
+                                return const SizedBox.shrink();
+                              }
+                              
+                              return Padding(
+                                padding: const EdgeInsets.only(right: Dimensions.paddingSizeSmall),
+                                child: SizedBox(
+                                  width: 140,
+                                  child: CustomButtonWidget(
+                                    height: 35,
+                                    radius: Dimensions.radiusSmall,
+                                    buttonText: 'Accept Assigned',
+                                    fontSize: Dimensions.fontSizeSmall,
+                                    onPressed: () {
+                                    showCustomBottomSheet(
+                                      child: CustomConfirmationBottomSheet(
+                                        title: 'Accept Assigned Subscription Orders',
+                                        description: 'Are you sure you want to accept all ${assignedSubscriptionOrders.length} assigned subscription order(s)?',
+                                        confirmButtonText: 'Accept All',
+                                        onConfirm: () async {
+                                          try {
+                                            Get.back();
+                                          } catch (_) {
+                                            // Bottom sheet already closed, ignore
+                                          }
+                                          
+                                          await _acceptAllAssignedSubscriptionOrders(orderController, assignedSubscriptionOrders);
+                                        },
+                                      ),
+                                    );
+                                  },
+                                  ),
+                                ),
+                              );
+                            },
                           ),
-                          child: Text(
-                            '${assignedOrders.length}',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                          if (orderController.isLoadingAssignedOrders)
+                            const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          else if (hasAssignedOrders)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeSmall, vertical: Dimensions.paddingSizeExtraSmall),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).primaryColor,
+                                borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+                              ),
+                              child: Text(
+                                '${assignedOrders.length}',
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -197,19 +249,66 @@ class OrderRequestScreenState extends State<OrderRequestScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeSmall, vertical: Dimensions.paddingSizeExtraSmall),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).primaryColor,
-                          borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-                        ),
-                        child: Text(
-                          '${pendingOrders.length}',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                      Row(
+                        children: [
+                          // Accept All Subscription Orders Button
+                          Builder(
+                            builder: (context) {
+                              final subscriptionOrders = pendingOrders.where((order) => 
+                                order.orderType?.toLowerCase().trim() == 'subscription'
+                              ).toList();
+                              
+                              if (subscriptionOrders.isEmpty) {
+                                return const SizedBox.shrink();
+                              }
+                              
+                              return Padding(
+                                padding: const EdgeInsets.only(right: Dimensions.paddingSizeSmall),
+                                child: SizedBox(
+                                  width: 160,
+                                  child: CustomButtonWidget(
+                                    height: 35,
+                                    radius: Dimensions.radiusSmall,
+                                    buttonText: 'Accept All Subscription',
+                                    fontSize: Dimensions.fontSizeSmall,
+                                    onPressed: () {
+                                    showCustomBottomSheet(
+                                      child: CustomConfirmationBottomSheet(
+                                        title: 'Accept All Subscription Orders',
+                                        description: 'Are you sure you want to accept all ${subscriptionOrders.length} subscription order(s)?',
+                                        confirmButtonText: 'Accept All',
+                                        onConfirm: () async {
+                                          try {
+                                            Get.back();
+                                          } catch (_) {
+                                            // Bottom sheet already closed, ignore
+                                          }
+                                          
+                                          await _acceptAllSubscriptionOrders(orderController, subscriptionOrders);
+                                        },
+                                      ),
+                                    );
+                                  },
+                                  ),
+                                ),
+                              );
+                            },
                           ),
-                        ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeSmall, vertical: Dimensions.paddingSizeExtraSmall),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).primaryColor,
+                              borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+                            ),
+                            child: Text(
+                              '${pendingOrders.length}',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -230,5 +329,134 @@ class OrderRequestScreenState extends State<OrderRequestScreen> {
         );
       }),
     );
+  }
+
+  Future<void> _acceptAllSubscriptionOrders(OrderController orderController, List<OrderModel> subscriptionOrders) async {
+    int successCount = 0;
+    int failCount = 0;
+    
+    // Process orders one by one, finding the index dynamically each time
+    // since the list changes as orders are accepted
+    for (final order in subscriptionOrders) {
+      try {
+        // Find the current index of this order in the latestOrderList
+        // We need to find it each time because the list changes as orders are accepted
+        int? orderIndex;
+        if (orderController.latestOrderList != null) {
+          for (int j = 0; j < orderController.latestOrderList!.length; j++) {
+            if (orderController.latestOrderList![j].id == order.id) {
+              orderIndex = j;
+              break;
+            }
+          }
+        }
+        
+        if (orderIndex != null) {
+          bool isSuccess = await orderController.acceptOrder(order.id, orderIndex, order);
+          if (isSuccess) {
+            successCount++;
+          } else {
+            failCount++;
+          }
+        } else {
+          // If index not found, the order might have already been accepted or removed
+          // Try to accept it anyway with index 0 as fallback
+          debugPrint('Order ${order.id} not found in latestOrderList, attempting direct accept');
+          bool isSuccess = await orderController.acceptOrder(order.id, 0, order);
+          if (isSuccess) {
+            successCount++;
+          } else {
+            failCount++;
+          }
+        }
+        
+        // Small delay between accepts to avoid overwhelming the API
+        await Future.delayed(const Duration(milliseconds: 500));
+      } catch (e) {
+        failCount++;
+        debugPrint('Error accepting subscription order ${order.id}: $e');
+      }
+    }
+    
+    // Show summary message
+    if (successCount > 0 && failCount == 0) {
+      showCustomSnackBar('Successfully accepted $successCount subscription order(s)', isError: false);
+    } else if (successCount > 0 && failCount > 0) {
+      showCustomSnackBar('Accepted $successCount order(s), $failCount failed', isError: false);
+    } else if (failCount > 0) {
+      showCustomSnackBar('Failed to accept subscription orders', isError: true);
+    }
+    
+    // Refresh orders list
+    await Future.wait([
+      orderController.getLatestOrders(),
+      orderController.getAssignedOrders(),
+    ]);
+  }
+
+  Future<void> _acceptAllAssignedSubscriptionOrders(OrderController orderController, List<OrderModel> subscriptionOrders) async {
+    int successCount = 0;
+    int failCount = 0;
+    
+    // Process orders one by one, finding the index dynamically each time
+    // since the list changes as orders are accepted
+    for (final order in subscriptionOrders) {
+      try {
+        // Find the current index of this order in the assignedOrderList
+        // We need to find it each time because the list changes as orders are accepted
+        int? orderIndex;
+        if (orderController.assignedOrderList != null) {
+          for (int j = 0; j < orderController.assignedOrderList!.length; j++) {
+            if (orderController.assignedOrderList![j].id == order.id) {
+              orderIndex = j;
+              break;
+            }
+          }
+        }
+        
+        if (orderIndex != null) {
+          // Use UUID if available, otherwise use numeric ID
+          String? orderIdToUse = order.uuid ?? order.id?.toString();
+          bool isSuccess = await orderController.acceptAssignedOrder(order.id, orderIndex, orderIdToUse);
+          if (isSuccess) {
+            successCount++;
+          } else {
+            failCount++;
+          }
+        } else {
+          // If index not found, the order might have already been accepted or removed
+          // Try to accept it anyway with index 0 as fallback
+          debugPrint('Order ${order.id} not found in assignedOrderList, attempting direct accept');
+          String? orderIdToUse = order.uuid ?? order.id?.toString();
+          bool isSuccess = await orderController.acceptAssignedOrder(order.id, 0, orderIdToUse);
+          if (isSuccess) {
+            successCount++;
+          } else {
+            failCount++;
+          }
+        }
+        
+        // Small delay between accepts to avoid overwhelming the API
+        await Future.delayed(const Duration(milliseconds: 500));
+      } catch (e) {
+        failCount++;
+        debugPrint('Error accepting assigned subscription order ${order.id}: $e');
+      }
+    }
+    
+    // Show summary message
+    if (successCount > 0 && failCount == 0) {
+      showCustomSnackBar('Successfully accepted $successCount assigned subscription order(s)', isError: false);
+    } else if (successCount > 0 && failCount > 0) {
+      showCustomSnackBar('Accepted $successCount order(s), $failCount failed', isError: false);
+    } else if (failCount > 0) {
+      showCustomSnackBar('Failed to accept assigned subscription orders', isError: true);
+    }
+    
+    // Refresh orders list
+    await Future.wait([
+      orderController.getLatestOrders(),
+      orderController.getAssignedOrders(),
+    ]);
   }
 }

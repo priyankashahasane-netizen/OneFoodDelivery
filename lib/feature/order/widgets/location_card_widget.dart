@@ -20,6 +20,7 @@ class LocationCardWidget extends StatefulWidget {
   final int index;
   final Function onTap;
   final int? estimatedArrivalMinutes;
+  final ScrollController? scrollController;
   const LocationCardWidget({
     super.key,
     required this.orderModel,
@@ -27,6 +28,7 @@ class LocationCardWidget extends StatefulWidget {
     required this.index,
     required this.onTap,
     this.estimatedArrivalMinutes,
+    this.scrollController,
   });
 
   @override
@@ -110,17 +112,13 @@ class _LocationCardWidgetState extends State<LocationCardWidget> {
           ),
         ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Drag handle
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                isExpanded = !isExpanded;
-              });
-            },
-            child: Container(
+      child: SingleChildScrollView(
+        controller: widget.scrollController,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle
+            Container(
               padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeSmall),
               child: Container(
                 height: 5,
@@ -131,7 +129,6 @@ class _LocationCardWidgetState extends State<LocationCardWidget> {
                 ),
               ),
             ),
-          ),
 
           if (isExpanded) ...[
             // Status Title
@@ -514,6 +511,7 @@ class _LocationCardWidgetState extends State<LocationCardWidget> {
             ),
           ],
         ],
+        ),
       ),
     );
   }

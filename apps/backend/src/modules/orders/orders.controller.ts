@@ -178,6 +178,16 @@ export class OrdersController {
     return this.ordersService.updateOrderType(id, body.orderType);
   }
 
+  @Put(':id/delivery-charge')
+  @UseGuards(JwtAuthGuard)
+  @Roles('admin', 'dispatcher')
+  async updateDeliveryCharge(@Param('id') id: string, @Body() body: { deliveryCharge: number }) {
+    if (typeof body.deliveryCharge !== 'number' || body.deliveryCharge < 0) {
+      throw new HttpException('Invalid deliveryCharge. Must be a non-negative number', HttpStatus.BAD_REQUEST);
+    }
+    return this.ordersService.updateDeliveryCharge(id, body.deliveryCharge);
+  }
+
   @Put(':id/status')
   @UseGuards(JwtAuthGuard)
   async updateStatus(@Param('id') id: string, @Body() body: { status: string; cancellationSource?: string; cancellationReason?: string; reason?: string }, @Request() req: any) {

@@ -21,12 +21,38 @@ export class IpstackClient {
     }
 
     try {
+      // IPStack API uses access_key as query parameter
       const url = `${this.baseUrl}/${ip}?access_key=${this.apiKey}`;
-      const response = await axios.get(url);
+      this.logger.log(`Calling IPStack API: ${url.replace(this.apiKey, '***')}`);
+      
+      const response = await axios.get(url, {
+        timeout: 10000, // 10 second timeout
+      });
+      
+      // Check if response indicates an error
+      if (response.data.error) {
+        this.logger.error(`IPStack API error: ${response.data.error.code} - ${response.data.error.info}`);
+        // Fallback to mock response on API error
+        return this.getMockResponse(ip);
+      }
+      
+      this.logger.log(`IPStack API response received successfully for IP: ${ip}`);
       return response.data;
-    } catch (error) {
-      this.logger.warn(`ipstack lookup failed for ${ip}, falling back to mock`, error as Error);
+    } catch (error: any) {
+      // Log detailed error information
+      if (error.response) {
+        this.logger.error(
+          `IPStack API error: ${error.response.status} ${error.response.statusText}`,
+          JSON.stringify(error.response.data)
+        );
+      } else if (error.request) {
+        this.logger.error(`IPStack API request failed: No response received`, error.message);
+      } else {
+        this.logger.error(`IPStack API error: ${error.message}`);
+      }
+      
       // Fallback to mock response on error
+      this.logger.warn(`Falling back to mock response for IP: ${ip}`);
       return this.getMockResponse(ip);
     }
   }

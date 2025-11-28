@@ -13,7 +13,6 @@ import 'package:stackfood_multivendor_driver/feature/routes/controllers/route_co
 import 'package:stackfood_multivendor_driver/feature/routes/domain/models/route_plan_model.dart' as routes;
 import 'package:stackfood_multivendor_driver/api/api_client.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
-import 'package:stackfood_multivendor_driver/util/images.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
 import 'package:stackfood_multivendor_driver/feature/dashboard/controllers/drawer_controller.dart' as drawer_ctrl;
 import 'dart:async';
@@ -133,7 +132,7 @@ class _TodaysMapScreenState extends State<TodaysMapScreen> {
     });
   }
 
-  Future<void> _loadSmartPath() async {
+  Future<void> _loadSmartPath({bool forceRegenerate = false}) async {
     try {
       print('🗺️ Today\'s Map: Loading Smart Path...');
       
@@ -152,13 +151,49 @@ class _TodaysMapScreenState extends State<TodaysMapScreen> {
       final repository = SmartPathRepository(apiClient: apiClient);
       final service = SmartPathService(smartPathRepository: repository);
       
-      // First, try to get existing Smart Paths
-      var smartPaths = await service.getSmartPath(driverId);
-      print('📦 Today\'s Map: Found ${smartPaths?.length ?? 0} existing Smart Paths');
+      List<SmartPathModel>? smartPaths;
       
-      // If no Smart Paths exist, generate new ones
-      if (smartPaths == null || smartPaths.isEmpty) {
-        print('🔄 Today\'s Map: No existing Smart Paths found, generating new ones...');
+      // Check if we have accepted orders that need to be included in smart path
+      final orderController = Get.find<OrderController>();
+      List<dynamic>? acceptedOrders;
+      
+      try {
+        // Get all active orders to check for accepted ones
+        acceptedOrders = await orderController.orderServiceInterface.getActiveOrders(driverId);
+        // Filter for accepted orders
+        if (acceptedOrders != null) {
+          acceptedOrders = acceptedOrders.where((order) {
+            String? status;
+            if (order is Map) {
+              status = order['order_status']?.toString().toLowerCase() ?? 
+                      order['orderStatus']?.toString().toLowerCase();
+            } else {
+              status = order.orderStatus?.toLowerCase();
+            }
+            return status == 'accepted';
+          }).toList();
+        }
+        print('📦 Today\'s Map: Found ${acceptedOrders?.length ?? 0} accepted orders');
+      } catch (e) {
+        print('⚠️ Today\'s Map: Error checking accepted orders: $e');
+      }
+      
+      // Always regenerate smart paths if:
+      // 1. Force regenerate is requested
+      // 2. No existing smart paths exist
+      // 3. We have accepted orders (to ensure they're included)
+      bool shouldRegenerate = forceRegenerate || 
+                             (acceptedOrders != null && acceptedOrders.isNotEmpty);
+      
+      if (!shouldRegenerate) {
+        // First, try to get existing Smart Paths
+        smartPaths = await service.getSmartPath(driverId);
+        print('📦 Today\'s Map: Found ${smartPaths?.length ?? 0} existing Smart Paths');
+      }
+      
+      // If no Smart Paths exist or we should regenerate, generate new ones
+      if (smartPaths == null || smartPaths.isEmpty || shouldRegenerate) {
+        print('🔄 Today\'s Map: ${shouldRegenerate ? "Regenerating" : "Generating"} Smart Paths to include all accepted orders...');
         smartPaths = await service.generateSmartPath(driverId);
         print('✅ Today\'s Map: Generated ${smartPaths?.length ?? 0} Smart Paths');
       }
@@ -171,7 +206,7 @@ class _TodaysMapScreenState extends State<TodaysMapScreen> {
           _adjustMapBounds();
         });
       } else {
-        print('⚠️ Today\'s Map: No Smart Paths available (no subscription orders for today)');
+        print('⚠️ Today\'s Map: No Smart Paths available (no subscription or accepted orders)');
       }
     } catch (e, stackTrace) {
       print('❌ Today\'s Map: Error loading Smart Path: $e');
@@ -344,20 +379,39 @@ class _TodaysMapScreenState extends State<TodaysMapScreen> {
             smartPath.pickupLocation.lat,
             smartPath.pickupLocation.lng,
           ),
-          width: 40,
-          height: 40,
-          alignment: Alignment.bottomCenter,
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.green,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
-            ),
-            child: const Icon(
-              Icons.restaurant,
-              color: Colors.white,
-              size: 24,
-            ),
+          width: 50,
+          height: 50,
+          alignment: Alignment.topCenter,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'Pickup',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       );
@@ -373,20 +427,39 @@ class _TodaysMapScreenState extends State<TodaysMapScreen> {
         _routeMarkers.add(
           Marker(
             point: ll.LatLng(stop.lat, stop.lng),
-            width: 30,
-            height: 30,
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.red,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-              ),
-              child: const Icon(
-                Icons.location_on,
-                color: Colors.white,
-                size: 20,
-              ),
+            width: 50,
+            height: 50,
+            alignment: Alignment.topCenter,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'Drop',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -440,23 +513,44 @@ class _TodaysMapScreenState extends State<TodaysMapScreen> {
             }
           }
           
+          final markerSize = isPickup ? 16.0 : 14.0;
+          final labelText = isPickup ? 'Pickup' : 'Drop';
           _routeMarkers.add(
             Marker(
               point: ll.LatLng(stop.lat, stop.lng),
-              width: isPickup ? 40 : 30,
-              height: isPickup ? 40 : 30,
-              alignment: Alignment.bottomCenter,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: isPickup ? Colors.green : Colors.red,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-                child: Icon(
-                  isPickup ? Icons.restaurant : Icons.location_on,
-                  color: Colors.white,
-                  size: isPickup ? 24 : 20,
-                ),
+              width: 50,
+              height: 50,
+              alignment: Alignment.topCenter,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  Container(
+                    width: markerSize,
+                    height: markerSize,
+                    decoration: BoxDecoration(
+                      color: isPickup ? Colors.green : Colors.red,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      labelText,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           );
@@ -555,9 +649,6 @@ class _TodaysMapScreenState extends State<TodaysMapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final profileController = Get.find<ProfileController>();
-    final profileModel = profileController.profileModel;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -587,7 +678,7 @@ class _TodaysMapScreenState extends State<TodaysMapScreen> {
             icon: const Icon(Icons.refresh),
             onPressed: () {
               _loadActiveOrdersRoute();
-              _loadSmartPath();
+              _loadSmartPath(forceRegenerate: true);
             },
             tooltip: 'Refresh routes',
           ),
@@ -599,15 +690,17 @@ class _TodaysMapScreenState extends State<TodaysMapScreen> {
                 color: Theme.of(context).primaryColor,
               ),
             )
-          : FlutterMap(
-              mapController: _mapController,
-              options: MapOptions(
-                initialCenter: _currentLocation ?? const ll.LatLng(0.0, 0.0),
-                initialZoom: 15.0,
-                interactionOptions: const InteractionOptions(
-                  flags: InteractiveFlag.all,
+          : SizedBox(
+              height: MediaQuery.of(context).size.height * 0.85, // Driver/courier mode: 80-90% (using 85%)
+              child: FlutterMap(
+                mapController: _mapController,
+                options: MapOptions(
+                  initialCenter: _currentLocation ?? const ll.LatLng(0.0, 0.0),
+                  initialZoom: 15.0,
+                  interactionOptions: const InteractionOptions(
+                    flags: InteractiveFlag.all,
+                  ),
                 ),
-              ),
               children: [
                 TileLayer(
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -629,38 +722,43 @@ class _TodaysMapScreenState extends State<TodaysMapScreen> {
                         point: _currentLocation!,
                         width: 60,
                         height: 60,
-                        alignment: Alignment.bottomCenter,
-                        child: SizedBox(
-                          width: 60,
-                          height: 60,
-                          child: Center(
-                            child: Image.asset(
-                              (profileModel != null && (profileModel.active ?? 0) == 0)
-                                  ? Images.happyManIcon
-                                  : Images.deliveryBikeIcon,
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) {
-                                if (profileModel != null && (profileModel.active ?? 0) == 0) {
-                                  return Icon(
-                                    Icons.home,
-                                    color: Theme.of(context).primaryColor,
-                                    size: 40,
-                                  );
-                                } else {
-                                  return Icon(
-                                    Icons.directions_bike,
-                                    color: Theme.of(context).primaryColor,
-                                    size: 40,
-                                  );
-                                }
-                              },
+                        alignment: Alignment.topCenter,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 20,
+                              height: 20,
+                              decoration: BoxDecoration(
+                                color: Colors.blue,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2),
+                              ),
                             ),
-                          ),
+                            const SizedBox(height: 2),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.7),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'Current',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
               ],
+            ),
             ),
     );
   }
