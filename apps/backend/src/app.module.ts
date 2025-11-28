@@ -20,7 +20,6 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { WebhooksModule } from './modules/webhooks/webhooks.module.js';
 import { DeliveryManModule } from './modules/delivery-man/delivery-man.module.js';
 import { ShiftsModule } from './modules/shifts/shifts.module.js';
-import { SmartPathModule } from './modules/smart-path/smart-path.module.js';
 import { MetricsService } from './common/metrics/metrics.service.js';
 import { MetricsController } from './common/metrics/metrics.controller.js';
 import { RedisClientProvider } from './common/redis/redis.provider.js';
@@ -47,8 +46,7 @@ import { RedisClientProvider } from './common/redis/redis.provider.js';
     NotificationsModule,
     WebhooksModule,
     DeliveryManModule,
-    ShiftsModule,
-    SmartPathModule
+    ShiftsModule
   ],
   controllers: [HealthController, MetricsController, ConfigController],
   providers: [MetricsService, RedisClientProvider]
