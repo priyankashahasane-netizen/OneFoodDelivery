@@ -39,7 +39,10 @@ class _RegistrationStep5ScreenState extends State<RegistrationStep5Screen> {
     if (controller.registrationData.vehicleNumber != null) {
       _vehicleNumberController.text = controller.registrationData.vehicleNumber!;
     }
-    controller.setStep(5);
+    // Defer setStep to avoid calling update during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.setStep(5);
+    });
   }
 
   @override

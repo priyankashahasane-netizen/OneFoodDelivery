@@ -20,7 +20,10 @@ class RegistrationStep7Screen extends StatelessWidget {
       ),
       body: GetBuilder<RegistrationController>(
         builder: (controller) {
-          controller.setStep(7);
+          // Defer setStep to avoid calling update during build
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            controller.setStep(7);
+          });
           return SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),

@@ -46,6 +46,17 @@ export class UpdateDriverDto {
   @IsOptional()
   @IsString()
   zoneId?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isVerified?: boolean;
+
+  @IsOptional()
+  metadata?: Record<string, unknown>;
 }
 
 

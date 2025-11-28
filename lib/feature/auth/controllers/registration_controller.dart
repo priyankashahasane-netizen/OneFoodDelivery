@@ -1,9 +1,11 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:stackfood_multivendor_driver/common/models/response_model.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_snackbar_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/auth/domain/models/registration_model.dart';
 import 'package:stackfood_multivendor_driver/feature/auth/domain/services/registration_service_interface.dart';
+import 'package:stackfood_multivendor_driver/feature/profile/domain/models/profile_model.dart';
 
 class RegistrationController extends GetxController implements GetxService {
   final RegistrationServiceInterface registrationServiceInterface;
@@ -20,9 +22,51 @@ class RegistrationController extends GetxController implements GetxService {
 
   final ImagePicker _imagePicker = ImagePicker();
 
+  // Auto-fill registration data from profile
+  void autoFillFromProfile(ProfileModel? profileModel) {
+    if (profileModel == null) return;
+
+    // Step 1: Personal Information
+    if (profileModel.fName != null && profileModel.fName!.isNotEmpty) {
+      _registrationData.firstName = profileModel.fName;
+    }
+    if (profileModel.lName != null && profileModel.lName!.isNotEmpty) {
+      _registrationData.lastName = profileModel.lName;
+    }
+    if (profileModel.email != null && profileModel.email!.isNotEmpty) {
+      _registrationData.email = profileModel.email;
+    }
+    if (profileModel.phone != null && profileModel.phone!.isNotEmpty) {
+      _registrationData.phone = profileModel.phone;
+    }
+
+    // Step 4: Location (use home address if available)
+    if (profileModel.homeAddressLatitude != null && profileModel.homeAddressLongitude != null) {
+      _registrationData.latitude = profileModel.homeAddressLatitude;
+      _registrationData.longitude = profileModel.homeAddressLongitude;
+      _registrationData.address = profileModel.homeAddress ?? '';
+    }
+
+    // Step 5: Vehicle (from metadata if available)
+    // Note: vehicleType is not directly in ProfileModel, it may be in metadata
+    // We'll leave this for the user to fill in the form
+
+    // Note: State, city, vehicle number, Aadhaar images, selfie, and wallet balance
+    // need to be filled by the user as they may not be in the profile
+    // Defer update to avoid calling during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      update();
+    });
+  }
+
   void setStep(int step) {
+    if (_currentStep != step) {
     _currentStep = step;
+      // Defer update to avoid calling during build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
     update();
+      });
+    }
   }
 
   void nextStep() {

@@ -30,7 +30,10 @@ class _RegistrationStep8ScreenState extends State<RegistrationStep8Screen> {
     if (controller.registrationData.walletBalance != null) {
       _walletBalanceController.text = controller.registrationData.walletBalance!.toStringAsFixed(2);
     }
-    controller.setStep(8);
+    // Defer setStep to avoid calling update during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.setStep(8);
+    });
   }
 
   @override

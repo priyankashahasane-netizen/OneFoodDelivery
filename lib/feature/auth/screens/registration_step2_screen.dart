@@ -24,7 +24,10 @@ class _RegistrationStep2ScreenState extends State<RegistrationStep2Screen> {
     super.initState();
     final controller = Get.find<RegistrationController>();
     _selectedState = controller.registrationData.state;
-    controller.setStep(2);
+    // Defer setStep to avoid calling update during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.setStep(2);
+    });
   }
 
   @override
@@ -63,6 +66,7 @@ class _RegistrationStep2ScreenState extends State<RegistrationStep2Screen> {
                       border: Border.all(color: Theme.of(context).primaryColor.withValues(alpha: 0.3)),
                     ),
                     child: CustomDropdown<String>(
+                      initialValue: _selectedState,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeDefault),
                         child: Text(
@@ -87,10 +91,14 @@ class _RegistrationStep2ScreenState extends State<RegistrationStep2Screen> {
                         );
                       }).toList(),
                       onChange: (String value, int index) {
+                        // Update local state immediately so button becomes enabled
                         setState(() {
                           _selectedState = value;
                         });
-                        controller.setState(value);
+                        // Defer controller update to avoid calling update during build
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          controller.setState(value);
+                        });
                       },
                     ),
                   ),

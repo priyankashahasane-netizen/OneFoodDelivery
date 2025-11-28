@@ -16,6 +16,8 @@ export class DriverProfileResponseDto {
   capacity?: number;
   online: boolean;
   active?: number; // Converted from online
+  is_active?: boolean; // GIS registration status
+  is_verified?: boolean; // Driver verification status
   zone_id?: string | null;
   created_at?: Date | string;
   updated_at?: Date | string;
@@ -152,6 +154,10 @@ export class DriverProfileResponseDto {
       capacity: driver.capacity ?? 5,
       online: driver.online ?? false,
       active: driver.online ? 1 : 0,
+      // Preserve the actual isActive value from database
+      // TypeORM boolean columns always return true/false, never undefined
+      is_active: driver.isActive,
+      is_verified: driver.isVerified,
       zone_id: zoneIdStr,
       created_at: createdAt,
       updated_at: updatedAt,

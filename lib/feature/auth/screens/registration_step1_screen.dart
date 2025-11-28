@@ -29,6 +29,7 @@ class _RegistrationStep1ScreenState extends State<RegistrationStep1Screen> {
   void initState() {
     super.initState();
     final controller = Get.find<RegistrationController>();
+    // Auto-fill from registration data (which may have been auto-filled from profile)
     if (controller.registrationData.firstName != null) {
       _firstNameController.text = controller.registrationData.firstName!;
     }
@@ -38,7 +39,10 @@ class _RegistrationStep1ScreenState extends State<RegistrationStep1Screen> {
     if (controller.registrationData.email != null) {
       _emailController.text = controller.registrationData.email!;
     }
-    controller.setStep(1);
+    // Defer setStep to avoid calling update during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.setStep(1);
+    });
   }
 
   @override

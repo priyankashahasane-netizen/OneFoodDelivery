@@ -9,6 +9,7 @@ import 'package:stackfood_multivendor_driver/feature/order/controllers/order_con
 import 'package:stackfood_multivendor_driver/feature/home/widgets/count_card_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/home/widgets/shift_dialogue_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/controllers/profile_controller.dart';
+import 'package:stackfood_multivendor_driver/feature/auth/controllers/registration_controller.dart';
 import 'package:stackfood_multivendor_driver/helper/price_converter_helper.dart';
 import 'package:stackfood_multivendor_driver/helper/route_helper.dart';
 import 'package:stackfood_multivendor_driver/util/color_resources.dart';
@@ -192,11 +193,22 @@ class _HomeScreenState extends State<HomeScreen> {
       Position position;
       try {
         position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.best,
-          timeLimit: const Duration(seconds: 10), // Timeout after 10 seconds
+          desiredAccuracy: LocationAccuracy.bestForNavigation,
+          timeLimit: const Duration(seconds: 15), // Increased timeout for better accuracy
         ).timeout(
-          const Duration(seconds: 10),
+          const Duration(seconds: 15),
         );
+        // Validate accuracy - reject fixes with accuracy worse than 50 meters
+        if (position.accuracy > 50.0) {
+          if (kDebugMode) {
+            debugPrint('GPS accuracy too poor (${position.accuracy}m), retrying...');
+          }
+          // Retry with high accuracy if first fix is poor
+          position = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high,
+            timeLimit: const Duration(seconds: 10),
+          );
+        }
       } catch (e) {
         // Fallback to lower accuracy if high accuracy times out
         if (kDebugMode) {
@@ -393,30 +405,37 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
-      // Start listening to location updates
+      // Start listening to location updates with best accuracy
       _locationStreamSubscription = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          distanceFilter: 10, // Update every 10 meters
+          accuracy: LocationAccuracy.bestForNavigation,
+          distanceFilter: 0, // Update on every movement for precise tracking
         ),
       ).listen(
         (Position position) {
           if (mounted) {
-            setState(() {
-              _currentLocation = ll.LatLng(position.latitude, position.longitude);
-            });
-            // Smoothly move map to new location
-            try {
-              _mapController.move(_currentLocation!, _mapController.camera.zoom);
-            } catch (e) {
-              // Map not ready yet, ignore
-              if (kDebugMode) {
-                debugPrint('Map not ready for live update: $e');
+            // Only update if accuracy is acceptable (better than 50 meters)
+            if (position.accuracy <= 50.0) {
+              setState(() {
+                _currentLocation = ll.LatLng(position.latitude, position.longitude);
+              });
+              // Smoothly move map to new location
+              try {
+                _mapController.move(_currentLocation!, _mapController.camera.zoom);
+              } catch (e) {
+                // Map not ready yet, ignore
+                if (kDebugMode) {
+                  debugPrint('Map not ready for live update: $e');
+                }
               }
-            }
-            
-            if (kDebugMode) {
-              debugPrint('📍 Live location update: ${position.latitude}, ${position.longitude}');
+              
+              if (kDebugMode) {
+                debugPrint('📍 Live location update: ${position.latitude}, ${position.longitude} (accuracy: ${position.accuracy}m)');
+              }
+            } else {
+              if (kDebugMode) {
+                debugPrint('⚠️ Skipping location update - poor accuracy: ${position.accuracy}m');
+              }
             }
           }
         },
@@ -607,8 +626,63 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
                 child: GetBuilder<ProfileController>(builder: (profileController) {
                   final profileModel = profileController.profileModel;
+                  
+                  // Debug: Log isVerified value to help troubleshoot
+                  if (profileModel != null && kDebugMode) {
+                    debugPrint('🔍 HomeScreen - isVerified: ${profileModel.isVerified}, isActive: ${profileModel.isActive}');
+                  }
 
                   return Column(children: [
+
+                    // Show registration section if driver is not verified (above "Where Next?")
+                    if (profileModel != null && profileModel.isVerified == false)
+                      Column(children: [
+                        Container(
+                          padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
+                          margin: const EdgeInsets.only(bottom: Dimensions.paddingSizeDefault),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                'Start your journey with One Food Delivery now',
+                                style: robotoBold.copyWith(
+                                  fontSize: Dimensions.fontSizeLarge,
+                                  color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: Dimensions.paddingSizeDefault),
+                              Text(
+                                'Complete your registration to start accepting orders',
+                                style: robotoRegular.copyWith(
+                                  fontSize: Dimensions.fontSizeDefault,
+                                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: Dimensions.paddingSizeDefault),
+                              CustomButtonWidget(
+                                buttonText: 'Complete Registration'.tr,
+                                backgroundColor: Theme.of(context).primaryColor,
+                                onPressed: () {
+                                  // Auto-fill registration data from profile
+                                  final registrationController = Get.find<RegistrationController>();
+                                  registrationController.autoFillFromProfile(profileModel);
+                                  // Navigate to registration step 1 with phone from profile
+                                  Get.toNamed(
+                                    RouteHelper.getRegistrationStep1Route(),
+                                    arguments: {'phone': profileModel.phone ?? ''},
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: Dimensions.paddingSizeDefault),
+                      ]),
 
                     GetBuilder<OrderController>(builder: (orderController) {
                       bool hasActiveOrder = orderController.currentOrderList != null && orderController.currentOrderList!.isNotEmpty;
@@ -675,13 +749,22 @@ class _HomeScreenState extends State<HomeScreen> {
                                             markers: [
                                               Marker(
                                                 point: _currentLocation!,
-                                                width: 60,
-                                                height: 60,
-                                                alignment: Alignment.topCenter,
-                                                child: Column(
-                                                  mainAxisSize: MainAxisSize.min,
-                                                  mainAxisAlignment: MainAxisAlignment.start,
+                                                width: 40,
+                                                height: 40,
+                                                alignment: Alignment.center, // Center the GPS point
+                                                child: Stack(
+                                                  alignment: Alignment.center,
                                                   children: [
+                                                    // Outer pulse circle (optional, for better visibility)
+                                                    Container(
+                                                      width: 40,
+                                                      height: 40,
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.blue.withOpacity(0.2),
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                    ),
+                                                    // Main location indicator
                                                     Container(
                                                       width: 20,
                                                       height: 20,
@@ -691,20 +774,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                                         border: Border.all(color: Colors.white, width: 2),
                                                       ),
                                                     ),
-                                                    const SizedBox(height: 2),
+                                                    // Center dot for precise point
                                                     Container(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                                      decoration: BoxDecoration(
-                                                        color: Colors.black.withOpacity(0.7),
-                                                        borderRadius: BorderRadius.circular(4),
-                                                      ),
-                                                      child: const Text(
-                                                        'Current',
-                                                        style: TextStyle(
-                                                          color: Colors.white,
-                                                          fontSize: 10,
-                                                          fontWeight: FontWeight.bold,
-                                                        ),
+                                                      width: 6,
+                                                      height: 6,
+                                                      decoration: const BoxDecoration(
+                                                        color: Colors.white,
+                                                        shape: BoxShape.circle,
                                                       ),
                                                     ),
                                                   ],

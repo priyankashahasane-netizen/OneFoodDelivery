@@ -298,10 +298,20 @@ class ProfileController extends GetxController implements GetxService {
         return;
       }
 
-      // Get current GPS position from device with high accuracy (same as home screen)
-      final Position locationResult = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+      // Get current GPS position from device with best accuracy for navigation
+      Position locationResult = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.bestForNavigation,
+        timeLimit: const Duration(seconds: 15),
       );
+      
+      // Validate accuracy - reject fixes with accuracy worse than 50 meters
+      if (locationResult.accuracy > 50.0) {
+        debugPrint('⚠️ GPS accuracy too poor (${locationResult.accuracy}m), retrying with high accuracy...');
+        locationResult = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 10),
+        );
+      }
       
       String address = await profileServiceInterface.addressPlaceMark(locationResult);
 

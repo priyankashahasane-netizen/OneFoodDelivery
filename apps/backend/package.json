@@ -36,7 +36,8 @@
     "add-customer-fields-to-orders": "node --loader ts-node/esm src/database/seeds/add-customer-fields-to-orders.ts",
     "backfill-customer-data": "node --loader ts-node/esm src/database/seeds/backfill-customer-data.ts",
     "create-navi-mumbai-orders": "node --loader ts-node/esm src/database/seeds/create-navi-mumbai-orders.ts",
-    "fix-orders-items": "node --loader ts-node/esm src/database/seeds/fix-orders-missing-items.ts"
+    "fix-orders-items": "node --loader ts-node/esm src/database/seeds/fix-orders-missing-items.ts",
+    "add-driver-verification-columns": "node --loader ts-node/esm src/database/seeds/add-driver-verification-columns.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.5",

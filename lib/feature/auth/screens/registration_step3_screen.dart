@@ -25,7 +25,10 @@ class _RegistrationStep3ScreenState extends State<RegistrationStep3Screen> {
     super.initState();
     final controller = Get.find<RegistrationController>();
     _selectedCity = controller.registrationData.city;
-    controller.setStep(3);
+    // Defer setStep to avoid calling update during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.setStep(3);
+    });
   }
 
   @override
@@ -75,6 +78,7 @@ class _RegistrationStep3ScreenState extends State<RegistrationStep3Screen> {
                       border: Border.all(color: Theme.of(context).primaryColor.withValues(alpha: 0.3)),
                     ),
                     child: CustomDropdown<String>(
+                      initialValue: _selectedCity,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeDefault),
                         child: Text(
@@ -99,10 +103,14 @@ class _RegistrationStep3ScreenState extends State<RegistrationStep3Screen> {
                         );
                       }).toList(),
                       onChange: (String value, int index) {
+                        // Update local state immediately so button becomes enabled
                         setState(() {
                           _selectedCity = value;
                         });
-                        controller.setCity(value);
+                        // Defer controller update to avoid calling update during build
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          controller.setCity(value);
+                        });
                       },
                     ),
                   ),

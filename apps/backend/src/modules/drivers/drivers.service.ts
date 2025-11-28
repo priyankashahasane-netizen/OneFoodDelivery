@@ -78,8 +78,10 @@ export class DriversService {
   async getProfile(driverId: string): Promise<DriverProfileResponseDto> {
     const driver = await this.findById(driverId);
     
-    // Debug: Log createdAt to verify it's loaded
+    // Debug: Log createdAt, isActive, and isVerified to verify it's loaded
     console.log(`[getProfile] Driver ${driverId} - createdAt:`, driver.createdAt, typeof driver.createdAt);
+    console.log(`[getProfile] Driver ${driverId} - isActive:`, driver.isActive, typeof driver.isActive);
+    console.log(`[getProfile] Driver ${driverId} - isVerified:`, driver.isVerified, typeof driver.isVerified);
     
     // Fetch wallet balance from database
     let walletBalance: number | null = null;
@@ -144,7 +146,18 @@ export class DriversService {
 
   async update(driverId: string, payload: UpdateDriverDto) {
     const driver = await this.findById(driverId);
-    Object.assign(driver, payload);
+    
+    // Handle metadata separately
+    const { metadata, ...driverFields } = payload;
+    
+    // Update driver entity fields
+    Object.assign(driver, driverFields);
+    
+    // Update metadata if provided
+    if (metadata) {
+      driver.metadata = { ...(driver.metadata || {}), ...metadata };
+    }
+    
     return this.driversRepository.save(driver);
   }
 

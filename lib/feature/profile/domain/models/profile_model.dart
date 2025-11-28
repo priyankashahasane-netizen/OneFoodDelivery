@@ -11,6 +11,8 @@ class ProfileModel {
   String? fcmToken;
   int? zoneId;
   int? active;
+  bool? isActive;
+  bool? isVerified;
   double? avgRating;
   int? ratingCount;
   int? memberSinceDays;
@@ -55,6 +57,8 @@ class ProfileModel {
     this.fcmToken,
     this.zoneId,
     this.active,
+    this.isActive,
+    this.isVerified,
     this.avgRating,
     this.memberSinceDays,
     this.orderCount,
@@ -130,6 +134,22 @@ class ProfileModel {
       active = 0;
     }
     
+    // Handle is_active field (GIS registration status)
+    if (json['is_active'] != null) {
+      isActive = json['is_active'] is bool ? json['is_active'] : (json['is_active'] == true || json['is_active'] == 1);
+    } else {
+      // Don't default to true - leave it null so we can check if it's explicitly set
+      isActive = null;
+    }
+    
+    // Handle is_verified field (Driver verification status)
+    if (json['is_verified'] != null) {
+      isVerified = json['is_verified'] is bool ? json['is_verified'] : (json['is_verified'] == true || json['is_verified'] == 1);
+    } else {
+      // Default to true if not provided (as per entity default)
+      isVerified = true;
+    }
+    
     // Ensure numeric fields have defaults
     avgRating = json['avg_rating'] != null ? (json['avg_rating'] is double ? json['avg_rating'] : (json['avg_rating'] as num?)?.toDouble() ?? 4.8) : 4.8;
     ratingCount = json['rating_count'] ?? 125;
@@ -188,6 +208,8 @@ class ProfileModel {
     data['fcm_token'] = fcmToken;
     data['zone_id'] = zoneId;
     data['active'] = active;
+    data['is_active'] = isActive;
+    data['is_verified'] = isVerified;
     data['avg_rating'] = avgRating;
     data['rating_count'] = ratingCount;
     data['member_since_days'] = memberSinceDays;

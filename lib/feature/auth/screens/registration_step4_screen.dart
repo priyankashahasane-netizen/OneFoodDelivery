@@ -36,7 +36,10 @@ class _RegistrationStep4ScreenState extends State<RegistrationStep4Screen> {
       );
       _address = controller.registrationData.address;
     }
-    controller.setStep(4);
+    // Defer setStep to avoid calling update during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.setStep(4);
+    });
     _getCurrentLocation();
   }
 

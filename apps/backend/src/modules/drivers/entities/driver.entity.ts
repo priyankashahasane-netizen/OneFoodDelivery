@@ -83,6 +83,12 @@ export class DriverEntity {
   @Index()
   @Column({ name: 'zone_id', nullable: true })
   zoneId!: string | null;
+
+  @Column({ name: 'is_verified', type: 'boolean', default: true })
+  isVerified!: boolean;
+
+  @Column({ name: 'is_active', type: 'boolean', default: true })
+  isActive!: boolean;
 }
 
 

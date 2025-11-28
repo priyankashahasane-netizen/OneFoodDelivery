@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'dart:math' as math;
@@ -100,8 +101,20 @@ class _TodaysMapScreenState extends State<TodaysMapScreen> {
       }
 
       Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        desiredAccuracy: LocationAccuracy.bestForNavigation,
+        timeLimit: const Duration(seconds: 15),
       );
+      
+      // Validate accuracy - reject fixes with accuracy worse than 50 meters
+      if (position.accuracy > 50.0) {
+        if (kDebugMode) {
+          debugPrint('GPS accuracy too poor (${position.accuracy}m), retrying with high accuracy...');
+        }
+        position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 10),
+        );
+      }
 
       setState(() {
         _currentLocation = ll.LatLng(position.latitude, position.longitude);
@@ -119,15 +132,26 @@ class _TodaysMapScreenState extends State<TodaysMapScreen> {
   void _startLocationTracking() {
     _locationStreamSubscription = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 10,
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 0, // Update on every movement for precise tracking
       ),
     ).listen((Position position) {
       if (mounted) {
-        setState(() {
-          _currentLocation = ll.LatLng(position.latitude, position.longitude);
-        });
-        _mapController.move(_currentLocation!, _mapController.camera.zoom);
+        // Only update if accuracy is acceptable (better than 50 meters)
+        if (position.accuracy <= 50.0) {
+          setState(() {
+            _currentLocation = ll.LatLng(position.latitude, position.longitude);
+          });
+          _mapController.move(_currentLocation!, _mapController.camera.zoom);
+          
+          if (kDebugMode) {
+            debugPrint('📍 Location update: ${position.latitude}, ${position.longitude} (accuracy: ${position.accuracy}m)');
+          }
+        } else {
+          if (kDebugMode) {
+            debugPrint('⚠️ Skipping location update - poor accuracy: ${position.accuracy}m');
+          }
+        }
       }
     });
   }
@@ -381,38 +405,38 @@ class _TodaysMapScreenState extends State<TodaysMapScreen> {
           ),
           width: 50,
           height: 50,
-          alignment: Alignment.topCenter,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              Container(
-                width: 16,
-                height: 16,
-                decoration: BoxDecoration(
-                  color: Colors.green,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-              ),
-              const SizedBox(height: 2),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Text(
-                  'Pickup',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
+          alignment: Alignment.center,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 16,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: Colors.green,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
                   ),
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(height: 2),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'Pickup',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
         ),
       );
 
@@ -429,10 +453,10 @@ class _TodaysMapScreenState extends State<TodaysMapScreen> {
             point: ll.LatLng(stop.lat, stop.lng),
             width: 50,
             height: 50,
-            alignment: Alignment.topCenter,
+            alignment: Alignment.center,
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
                   width: 14,
@@ -520,10 +544,10 @@ class _TodaysMapScreenState extends State<TodaysMapScreen> {
               point: ll.LatLng(stop.lat, stop.lng),
               width: 50,
               height: 50,
-              alignment: Alignment.topCenter,
+              alignment: Alignment.center,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
                     width: markerSize,
@@ -720,13 +744,22 @@ class _TodaysMapScreenState extends State<TodaysMapScreen> {
                     markers: [
                       Marker(
                         point: _currentLocation!,
-                        width: 60,
-                        height: 60,
-                        alignment: Alignment.topCenter,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.start,
+                        width: 40,
+                        height: 40,
+                        alignment: Alignment.center, // Center the GPS point
+                        child: Stack(
+                          alignment: Alignment.center,
                           children: [
+                            // Outer pulse circle (optional, for better visibility)
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: Colors.blue.withOpacity(0.2),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            // Main location indicator
                             Container(
                               width: 20,
                               height: 20,
@@ -736,20 +769,13 @@ class _TodaysMapScreenState extends State<TodaysMapScreen> {
                                 border: Border.all(color: Colors.white, width: 2),
                               ),
                             ),
-                            const SizedBox(height: 2),
+                            // Center dot for precise point
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.7),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: const Text(
-                                'Current',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
                               ),
                             ),
                           ],

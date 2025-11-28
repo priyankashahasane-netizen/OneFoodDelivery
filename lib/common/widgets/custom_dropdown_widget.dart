@@ -21,6 +21,10 @@ class CustomDropdown<T> extends StatefulWidget {
 
   /// if true the dropdown icon will as a leading icon, default to false
   final bool leadingIcon;
+  
+  /// Optional initial selected value to initialize _currentIndex
+  final T? initialValue;
+  
   const CustomDropdown({
     super.key,
     this.hideIcon = false,
@@ -31,6 +35,7 @@ class CustomDropdown<T> extends StatefulWidget {
     this.icon,
     this.leadingIcon = false,
     this.onChange,
+    this.initialValue,
   });
 
   @override
@@ -60,6 +65,33 @@ class CustomDropdownState<T> extends State<CustomDropdown<T?>>
       parent: _animationController,
       curve: Curves.easeInOut,
     ));
+    
+    // Initialize _overlayEntry to avoid null errors
+    _overlayEntry = OverlayEntry(builder: (context) => const SizedBox.shrink());
+    
+    // Initialize _currentIndex if initialValue is provided
+    _updateCurrentIndexFromValue(widget.initialValue);
+  }
+  
+  void _updateCurrentIndexFromValue(T? value) {
+    if (value != null) {
+      for (int i = 0; i < widget.items.length; i++) {
+        if (widget.items[i].value == value) {
+          _currentIndex = i;
+          return;
+        }
+      }
+    }
+    _currentIndex = -1;
+  }
+  
+  @override
+  void didUpdateWidget(CustomDropdown<T?> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Update _currentIndex if initialValue changed
+    if (widget.initialValue != oldWidget.initialValue) {
+      _updateCurrentIndexFromValue(widget.initialValue);
+    }
   }
 
   @override
