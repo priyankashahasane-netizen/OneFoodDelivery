@@ -15,4 +15,5 @@ abstract class AuthRepositoryInterface {
   String getUserToken();
   Future<ResponseModel> sendOtp(String phone);
   Future<ResponseModel> verifyOtp(String phone, String otp, {bool isLogin = true});
+  Future<ResponseModel> logout();
 }

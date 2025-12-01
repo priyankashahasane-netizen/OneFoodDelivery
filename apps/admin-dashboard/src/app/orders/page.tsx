@@ -109,8 +109,9 @@ export default function OrdersPage() {
         body: JSON.stringify({ driverId: selectedDriverId })
       });
       mutate();
-    } catch (error) {
-      alert('Failed to assign order. Please try again.');
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Failed to assign order. Please try again.';
+      alert(errorMessage);
       console.error('Assign error:', error);
     }
   }

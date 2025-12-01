@@ -19,6 +19,7 @@ class AppConstants {
   static const String driverUpdateUri = '/api/drivers'; // /:id
   static const String driverCapacityUri = '/api/drivers'; // /:id/capacity
   static const String driverOnlineStatusUri = '/api/drivers'; // /:id/online
+  static const String driverLogoutUri = '/api/drivers/logout';
   
   // Orders
   static const String availableOrdersUri = '/api/orders/available';

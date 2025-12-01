@@ -79,9 +79,9 @@ export class DriversService {
     const driver = await this.findById(driverId);
     
     // Debug: Log createdAt, isActive, and isVerified to verify it's loaded
-    console.log(`[getProfile] Driver ${driverId} - createdAt:`, driver.createdAt, typeof driver.createdAt);
-    console.log(`[getProfile] Driver ${driverId} - isActive:`, driver.isActive, typeof driver.isActive);
-    console.log(`[getProfile] Driver ${driverId} - isVerified:`, driver.isVerified, typeof driver.isVerified);
+    console.log(`[getProfile] Driver ${driverId} - phone: ${driver.phone}, createdAt:`, driver.createdAt, typeof driver.createdAt);
+    console.log(`[getProfile] Driver ${driverId} - isActive: ${driver.isActive} (${typeof driver.isActive}), isVerified: ${driver.isVerified} (${typeof driver.isVerified})`);
+    console.log(`[getProfile] Driver ${driverId} - Raw entity values:`, JSON.stringify({ id: driver.id, phone: driver.phone, isActive: driver.isActive, isVerified: driver.isVerified }));
     
     // Fetch wallet balance from database
     let walletBalance: number | null = null;

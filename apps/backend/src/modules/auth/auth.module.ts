@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -11,6 +11,8 @@ import { RolesGuard } from './roles.guard.js';
 import { DriverOtpController } from './driver-auth.controller.js';
 import { DriverEntity } from '../drivers/entities/driver.entity.js';
 import { CustomJwtService } from './jwt.service.js';
+import { TokenBlacklistService } from './token-blacklist.service.js';
+import { DriversModule } from '../drivers/drivers.module.js';
 
 @Module({
   imports: [
@@ -20,17 +22,19 @@ import { CustomJwtService } from './jwt.service.js';
         expiresIn: '30d', // Tokens expire in 30 days
       },
     }),
-    TypeOrmModule.forFeature([DriverEntity])
+    TypeOrmModule.forFeature([DriverEntity]),
+    forwardRef(() => DriversModule) // Import DriversModule to use DriversService
   ],
   controllers: [AuthController, DriverOtpController],
   providers: [
     JwtStrategy,
     CustomJwtService,
+    TokenBlacklistService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     RedisClientProvider
   ],
-  exports: [CustomJwtService] // Export so other modules can use it
+  exports: [CustomJwtService, TokenBlacklistService] // Export so other modules can use it
 })
 export class AuthModule {}
 

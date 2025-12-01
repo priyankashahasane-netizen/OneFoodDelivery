@@ -27,6 +27,9 @@ const getWalletService = () => {
 
 @Injectable()
 export class OrdersService {
+  // Minimum wallet balance required for drivers (₹999)
+  private readonly MINIMUM_WALLET_BALANCE = 999.0;
+
   constructor(
     @InjectRepository(OrderEntity)
     private readonly ordersRepository: Repository<OrderEntity>,
@@ -423,6 +426,15 @@ export class OrdersService {
   async assignDriver(orderId: string, driverId: string) {
     const order = await this.findById(orderId);
     
+    // Only subscription orders can be assigned to drivers
+    // Regular orders must be accepted by drivers from pending orders
+    if (order.orderType !== 'subscription') {
+      throw new BadRequestException(
+        `Only subscription orders can be assigned to drivers. This order (${orderId}) has order type "${order.orderType || 'regular'}". ` +
+        `Regular orders must be accepted by drivers from the pending orders list.`
+      );
+    }
+    
     // Trust the JWT token - driverId is already validated by authentication
     // We don't need to fetch the driver entity again since the JWT is trusted
     // This avoids UUID parsing errors and unnecessary database queries
@@ -563,6 +575,50 @@ export class OrdersService {
     
     // If status is being changed to "accepted" and order doesn't have a driver, assign the authenticated driver
     if (status === 'accepted' && order.driverId == null && driverId) {
+      
+      // Check wallet balance for COD orders before accepting
+      if (order.paymentType === 'cash_on_delivery') {
+        try {
+          // Calculate order amount from items
+          const items = (order.items as any[]) || [];
+          const orderAmount = items.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0);
+          
+          if (orderAmount > 0) {
+            // Get driver's current wallet balance
+            const wallet = await this.walletService.getWalletByDriverId(driverId);
+            if (!wallet) {
+              throw new BadRequestException(`Wallet not found for driver. Please contact support.`);
+            }
+            
+            const currentBalance = parseFloat(wallet.balance.toString());
+            const resultingBalance = currentBalance - orderAmount;
+            
+            // Check if accepting this order would bring balance below minimum
+            if (resultingBalance < this.MINIMUM_WALLET_BALANCE) {
+              const amountNeeded = (this.MINIMUM_WALLET_BALANCE - resultingBalance).toFixed(2);
+              throw new BadRequestException(
+                `Cannot accept this COD order. Your current wallet balance is ₹${currentBalance.toFixed(2)}. ` +
+                `After accepting this order (₹${orderAmount.toFixed(2)}), your balance would be ₹${resultingBalance.toFixed(2)}, ` +
+                `which is below the minimum required balance of ₹${this.MINIMUM_WALLET_BALANCE}. ` +
+                `Please add at least ₹${amountNeeded} to your wallet before accepting COD orders.`
+              );
+            }
+            
+            console.log(`Wallet balance check passed for COD order ${orderId}: Current balance ₹${currentBalance}, Order amount ₹${orderAmount}, Resulting balance ₹${resultingBalance}`);
+          }
+        } catch (error) {
+          // If it's already a BadRequestException, re-throw it to prevent order acceptance
+          if (error instanceof BadRequestException) {
+            throw error;
+          }
+          // For other errors, log and re-throw to prevent order acceptance
+          console.error(`Error checking wallet balance for COD order ${orderId}:`, error);
+          throw new BadRequestException(
+            `Unable to verify wallet balance for COD order. Please try again or contact support.`
+          );
+        }
+      }
+      
       order.driverId = driverId;
       if (!order.assignedAt) {
         order.assignedAt = new Date();
@@ -1161,8 +1217,16 @@ export class OrdersService {
     
     const orders = await this.ordersRepository.find();
     let assignedCount = 0;
+    let skippedCount = 0;
     
     for (const order of orders) {
+      // Only subscription orders can be assigned to drivers
+      // Regular orders must be accepted by drivers from pending orders
+      if (order.orderType !== 'subscription') {
+        skippedCount++;
+        continue;
+      }
+      
       order.driverId = demoDriver.id;
       order.status = 'assigned';
       order.assignedAt = new Date();
@@ -1180,10 +1244,15 @@ export class OrdersService {
     // Enqueue route optimization for the demo driver
     await this.routesService.enqueueOptimizationForDriver(demoDriver.id);
     
+    const message = skippedCount > 0
+      ? `Assigned ${assignedCount} subscription orders to demo driver (${demoDriver.name}). Skipped ${skippedCount} regular order(s) (regular orders must be accepted by drivers from pending orders).`
+      : `Assigned ${assignedCount} orders to demo driver (${demoDriver.name})`;
+    
     return {
       success: true,
-      message: `Assigned ${assignedCount} orders to demo driver (${demoDriver.name})`,
+      message,
       count: assignedCount,
+      skipped: skippedCount,
       driverId: demoDriver.id,
       driverName: demoDriver.name
     };

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stackfood_multivendor_driver/api/api_client.dart';
@@ -156,6 +157,37 @@ class AuthRepository implements AuthRepositoryInterface {
         errorMessage = response.body['message'] ?? response.statusText ?? errorMessage;
       }
       return ResponseModel(false, errorMessage);
+    }
+  }
+
+  @override
+  Future<ResponseModel> logout() async {
+    try {
+      debugPrint('====> Calling logout endpoint: ${AppConstants.driverLogoutUri}');
+      Response response = await apiClient.postData(
+        AppConstants.driverLogoutUri,
+        {},
+        handleError: false,
+      );
+      
+      debugPrint('====> Logout response status: ${response.statusCode}');
+      debugPrint('====> Logout response body: ${response.body}');
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return ResponseModel(true, response.body['message'] ?? 'Logged out successfully');
+      } else {
+        String errorMessage = 'Logout failed';
+        if (response.body is Map) {
+          errorMessage = response.body['message'] ?? response.statusText ?? errorMessage;
+        }
+        debugPrint('====> Logout endpoint returned error: $errorMessage');
+        // Log the error but still allow logout to proceed
+        return ResponseModel(false, errorMessage);
+      }
+    } catch (e) {
+      debugPrint('====> Logout endpoint exception: $e');
+      // Log the error but still allow logout to proceed
+      return ResponseModel(false, 'Logout endpoint error: ${e.toString()}');
     }
   }
 }

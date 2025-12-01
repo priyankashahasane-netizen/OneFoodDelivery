@@ -1,6 +1,7 @@
 import 'package:stackfood_multivendor_driver/feature/auth/domain/services/auth_service_interface.dart';
 import 'package:stackfood_multivendor_driver/common/models/response_model.dart';
 import 'package:get/get.dart';
+import 'package:flutter/foundation.dart';
 
 class AuthController extends GetxController implements GetxService {
   final AuthServiceInterface authServiceInterface;
@@ -163,6 +164,14 @@ class AuthController extends GetxController implements GetxService {
   Future<void> logout() async {
     _isLoading = true;
     update();
+    
+    // Call backend logout endpoint to update is_active status
+    try {
+      await authServiceInterface.logout();
+    } catch (e) {
+      // Continue with logout even if backend call fails
+      debugPrint('Logout endpoint error: $e');
+    }
     
     // Clear all shared data (token, user data, etc.)
     await clearSharedData();

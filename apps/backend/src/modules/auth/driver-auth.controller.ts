@@ -1,20 +1,21 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { randomInt } from 'crypto';
-import * as bcrypt from 'bcrypt';
 
 import { InjectRedis } from '../../common/redis/redis.provider.js';
 import { Public } from './public.decorator.js';
 import { DriverEntity } from '../drivers/entities/driver.entity.js';
 import { CustomJwtService } from './jwt.service.js';
+import { DriversService } from '../drivers/drivers.service.js';
 
 @Controller()
 export class DriverOtpController {
   constructor(
     private readonly jwtService: CustomJwtService,
     @InjectRepository(DriverEntity) private readonly drivers: Repository<DriverEntity>,
-    @InjectRedis() private readonly redis
+    @InjectRedis() private readonly redis,
+    @Inject(forwardRef(() => DriversService)) private readonly driversService: DriversService
   ) {}
 
   @Public()
@@ -80,10 +81,79 @@ export class DriverOtpController {
         return { ok: false, message: 'OTP verification unavailable. Redis is required for OTP verification.' };
       }
       
+      // Try to find driver by phone - check multiple phone format variations
       let driver = await this.drivers.findOne({ where: { phone: body.phone } });
+      
+      // If not found, try phone number variations
       if (!driver) {
-        driver = this.drivers.create({ phone: body.phone, name: body.phone, vehicleType: 'unknown', capacity: 1, online: false });
+        const phoneVariations = [
+          body.phone,
+          body.phone.replace('+91', '').replace(/-/g, ''),
+          body.phone.replace('+', ''),
+          `+91${body.phone.replace('+91', '').replace(/-/g, '')}`,
+          `91${body.phone.replace('+91', '').replace(/-/g, '')}`
+        ];
+        
+        for (const phoneVar of phoneVariations) {
+          if (phoneVar !== body.phone) {
+            driver = await this.drivers.findOne({ where: { phone: phoneVar } });
+            if (driver) {
+              console.log(`[OTP verify] Found driver with phone variation: ${phoneVar} (original: ${body.phone})`);
+              break;
+            }
+          }
+        }
+      }
+      
+      if (!driver) {
+        console.log(`[OTP verify] Creating new driver with phone: ${body.phone}`);
+        driver = this.drivers.create({ 
+          phone: body.phone, 
+          name: body.phone, 
+          vehicleType: 'unknown', 
+          capacity: 1, 
+          online: false, 
+          isActive: true 
+        });
         driver = await this.drivers.save(driver);
+        console.log(`[OTP verify] Created new driver ${driver.id} with is_active=${driver.isActive}`);
+      } else {
+        console.log(`[OTP verify] Found existing driver ${driver.id}, current is_active=${driver.isActive}, phone: ${driver.phone}`);
+        // Update is_active to true on login using the service method
+        const previousIsActive = driver.isActive;
+        
+        // Use the service update method to ensure proper persistence
+        const updatedDriver = await this.driversService.update(driver.id, { isActive: true });
+        console.log(`[OTP verify] Updated driver ${updatedDriver.id} via service, previous is_active=${previousIsActive}, new is_active=${updatedDriver.isActive}`);
+        
+        // Reload from database to ensure we have the latest data
+        const reloadedDriver = await this.drivers.findOne({ where: { id: updatedDriver.id } });
+        if (reloadedDriver) {
+          console.log(`[OTP verify] Reloaded driver ${reloadedDriver.id}, is_active=${reloadedDriver.isActive}, phone: ${reloadedDriver.phone}`);
+          // Use the reloaded driver for token generation
+          driver = reloadedDriver;
+          
+          if (reloadedDriver.isActive !== true) {
+            console.error(`[OTP verify] ERROR: is_active update failed! Expected true but got ${reloadedDriver.isActive}`);
+            // Try direct SQL update as last resort
+            await this.drivers
+              .createQueryBuilder()
+              .update(DriverEntity)
+              .set({ isActive: true })
+              .where('id = :id', { id: reloadedDriver.id })
+              .execute();
+            
+            // Reload again
+            const finalDriver = await this.drivers.findOne({ where: { id: reloadedDriver.id } });
+            if (finalDriver) {
+              driver = finalDriver;
+              console.log(`[OTP verify] After SQL update, driver ${driver.id} has is_active=${driver.isActive}`);
+            }
+          }
+        } else {
+          console.error(`[OTP verify] ERROR: Could not reload driver ${updatedDriver.id} after update`);
+          driver = updatedDriver;
+        }
       }
       const tokenResponse = await this.jwtService.generateDriverToken(driver.id, driver.phone);
       return { 
@@ -103,77 +173,6 @@ export class DriverOtpController {
   
   private isRedisAvailable(): boolean {
     return this.redis && (this.redis.status === 'ready' || this.redis.status === 'connecting');
-  }
-
-  // Legacy password-based login endpoint for backward compatibility
-  @Public()
-  @Post('v1/auth/delivery-man/login')
-  async legacyLogin(@Body() body: { phone: string; password: string }) {
-    try {
-      if (!body.phone || !body.password) {
-        return { ok: false, message: 'Phone number and password are required' };
-      }
-
-      // Find driver by phone
-      let driver = await this.drivers.findOne({ where: { phone: body.phone } });
-
-      // For development: if driver doesn't exist, create one with default password
-      // In production, you should require registration or proper password setup
-      if (!driver) {
-        // Create new driver with default password stored in metadata
-        const hashedPassword = await bcrypt.hash('123456', 10); // Default password
-        driver = this.drivers.create({
-          phone: body.phone,
-          name: body.phone,
-          vehicleType: 'unknown',
-          capacity: 1,
-          online: false,
-          metadata: { password: hashedPassword }
-        });
-        driver = await this.drivers.save(driver);
-      }
-
-      // Check password from metadata or use default for development
-      const storedPassword = driver.metadata?.password;
-      let isValidPassword = false;
-
-      if (storedPassword) {
-        isValidPassword = await bcrypt.compare(body.password, storedPassword as string);
-      } else {
-        // For development: accept default password "123456" for existing drivers without password
-        isValidPassword = body.password === '123456';
-        // If password matches, hash and store it
-        if (isValidPassword) {
-          const hashedPassword = await bcrypt.hash(body.password, 10);
-          driver.metadata = { ...driver.metadata, password: hashedPassword };
-          await this.drivers.save(driver);
-        }
-      }
-
-      if (!isValidPassword) {
-        return { ok: false, message: 'Invalid phone number or password' };
-      }
-
-      // Generate JWT token using the new service
-      const tokenResponse = await this.jwtService.generateDriverToken(driver.id, driver.phone);
-
-      // Return response in legacy format
-      return {
-        ok: true,
-        token: tokenResponse.token,
-        access_token: tokenResponse.access_token,
-        expiresIn: tokenResponse.expiresIn,
-        expiresAt: tokenResponse.expiresAt,
-        delivery_man: {
-          id: driver.id,
-          phone: driver.phone,
-          name: driver.name
-        }
-      };
-    } catch (error) {
-      console.error('Legacy login error:', error);
-      return { ok: false, message: 'Login failed', error: error.message };
-    }
   }
 }
 

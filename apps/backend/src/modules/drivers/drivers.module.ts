@@ -7,9 +7,13 @@ import { DriverWalletEntity } from '../wallet/entities/driver-wallet.entity.js';
 import { OrderEntity } from '../orders/entities/order.entity.js';
 import { DriversController } from './drivers.controller.js';
 import { DriversService } from './drivers.service.js';
+import { AuthModule } from '../auth/auth.module.js';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([DriverEntity, DriverBankAccountEntity, DriverWalletEntity, OrderEntity])],
+  imports: [
+    TypeOrmModule.forFeature([DriverEntity, DriverBankAccountEntity, DriverWalletEntity, OrderEntity]),
+    AuthModule // Import AuthModule to access TokenBlacklistService and CustomJwtService
+  ],
   providers: [DriversService],
   controllers: [DriversController],
   exports: [DriversService]

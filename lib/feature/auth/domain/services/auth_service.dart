@@ -73,4 +73,9 @@ class AuthService implements AuthServiceInterface {
   Future<ResponseModel> verifyOtp(String phone, String otp, {bool isLogin = true}) async {
     return await authRepositoryInterface.verifyOtp(phone, otp, isLogin: isLogin);
   }
+
+  @override
+  Future<ResponseModel> logout() async {
+    return await authRepositoryInterface.logout();
+  }
 }

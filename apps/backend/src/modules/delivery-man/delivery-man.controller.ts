@@ -893,9 +893,10 @@ export class DeliveryManController {
     }
   }
 
+  @Post('update-fcm-token')
   @Put('update-fcm-token')
   @UseGuards(JwtAuthGuard)
-  async updateFcmToken(@Body() body: { fcm_token?: string; token?: string }, @Request() req: any) {
+  async updateFcmToken(@Body() body: { fcm_token?: string; token?: string; _method?: string }, @Request() req: any) {
     try {
       // Get driver ID from JWT token
       let driverId = req?.user?.sub || req?.user?.driverId;
