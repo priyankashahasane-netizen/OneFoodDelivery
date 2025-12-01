@@ -82,7 +82,10 @@ class RegistrationStep7Screen extends StatelessWidget {
                             ],
                           )
                         : InkWell(
-                            onTap: () => _showImagePicker(context, controller),
+                            onTap: () {
+                              // Directly open camera for selfie
+                              controller.pickSelfie(isCamera: true);
+                            },
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -131,32 +134,5 @@ class RegistrationStep7Screen extends StatelessWidget {
     );
   }
 
-  void _showImagePicker(BuildContext context, RegistrationController controller) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: Text('Camera'.tr),
-              onTap: () {
-                Get.back();
-                controller.pickSelfie(isCamera: true);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: Text('Gallery'.tr),
-              onTap: () {
-                Get.back();
-                controller.pickSelfie(isCamera: false);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 

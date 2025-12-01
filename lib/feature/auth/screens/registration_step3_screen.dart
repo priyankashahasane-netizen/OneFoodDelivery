@@ -18,13 +18,10 @@ class RegistrationStep3Screen extends StatefulWidget {
 }
 
 class _RegistrationStep3ScreenState extends State<RegistrationStep3Screen> {
-  String? _selectedCity;
-
   @override
   void initState() {
     super.initState();
     final controller = Get.find<RegistrationController>();
-    _selectedCity = controller.registrationData.city;
     // Defer setStep to avoid calling update during build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       controller.setStep(3);
@@ -33,27 +30,27 @@ class _RegistrationStep3ScreenState extends State<RegistrationStep3Screen> {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<RegistrationController>();
-    final selectedState = controller.registrationData.state;
-    
-    if (selectedState == null || selectedState.isEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        showCustomSnackBar('please_select_state_first'.tr);
-        Get.back();
-      });
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
+    return GetBuilder<RegistrationController>(
+      builder: (controller) {
+        final selectedState = controller.registrationData.state;
+        final selectedCity = controller.registrationData.city;
+        
+        if (selectedState == null || selectedState.isEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            showCustomSnackBar('please_select_state_first'.tr);
+            Get.back();
+          });
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
 
-    final cities = IndianStatesCities.getCitiesByState(selectedState);
-    
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Registration - Step 3'.tr),
-        backgroundColor: Theme.of(context).cardColor,
-      ),
-      body: GetBuilder<RegistrationController>(
-        builder: (controller) {
-          return SafeArea(
+        final cities = IndianStatesCities.getCitiesByState(selectedState);
+        
+        return Scaffold(
+          appBar: AppBar(
+            title: Text('Registration - Step 3'.tr),
+            backgroundColor: Theme.of(context).cardColor,
+          ),
+          body: SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
               child: Column(
@@ -66,7 +63,7 @@ class _RegistrationStep3ScreenState extends State<RegistrationStep3Screen> {
                   ),
                   const SizedBox(height: Dimensions.paddingSizeSmall),
                   Text(
-                    'Choose your city in ${controller.registrationData.state}'.tr,
+                    'Choose your city in $selectedState'.tr,
                     style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall),
                   ),
                   const SizedBox(height: Dimensions.paddingSizeExtraLarge),
@@ -78,13 +75,13 @@ class _RegistrationStep3ScreenState extends State<RegistrationStep3Screen> {
                       border: Border.all(color: Theme.of(context).primaryColor.withValues(alpha: 0.3)),
                     ),
                     child: CustomDropdown<String>(
-                      initialValue: _selectedCity,
+                      initialValue: selectedCity,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeDefault),
                         child: Text(
-                          _selectedCity ?? 'select_city'.tr,
+                          selectedCity ?? 'select_city'.tr,
                           style: robotoRegular.copyWith(
-                            color: _selectedCity != null
+                            color: selectedCity != null
                                 ? Theme.of(context).textTheme.bodyLarge?.color
                                 : Theme.of(context).hintColor,
                           ),
@@ -102,15 +99,13 @@ class _RegistrationStep3ScreenState extends State<RegistrationStep3Screen> {
                           ),
                         );
                       }).toList(),
-                      onChange: (String value, int index) {
-                        // Update local state immediately so button becomes enabled
-                        setState(() {
-                          _selectedCity = value;
-                        });
-                        // Defer controller update to avoid calling update during build
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          controller.setCity(value);
-                        });
+                      onChange: (String? value, int index) {
+                        if (value != null) {
+                          // Defer controller update to avoid calling update during build
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            controller.setCity(value);
+                          });
+                        }
                       },
                     ),
                   ),
@@ -129,7 +124,7 @@ class _RegistrationStep3ScreenState extends State<RegistrationStep3Screen> {
                         child: CustomButtonWidget(
                           buttonText: 'next'.tr,
                           isLoading: false,
-                          onPressed: _selectedCity != null
+                          onPressed: selectedCity != null
                               ? () => Get.toNamed(RouteHelper.getRegistrationStep4Route())
                               : null,
                         ),
@@ -139,9 +134,9 @@ class _RegistrationStep3ScreenState extends State<RegistrationStep3Screen> {
                 ],
               ),
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }

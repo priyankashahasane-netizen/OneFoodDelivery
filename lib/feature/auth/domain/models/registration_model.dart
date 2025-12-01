@@ -21,6 +21,8 @@ class RegistrationData {
   // Step 5: Vehicle Information
   String? vehicleType;
   String? vehicleNumber;
+  XFile? driverLicenseFrontImage;
+  XFile? driverLicenseBackImage;
 
   // Step 6: Aadhaar Card
   XFile? aadhaarFrontImage;
@@ -44,6 +46,8 @@ class RegistrationData {
     this.address,
     this.vehicleType,
     this.vehicleNumber,
+    this.driverLicenseFrontImage,
+    this.driverLicenseBackImage,
     this.aadhaarFrontImage,
     this.aadhaarBackImage,
     this.selfieImage,
@@ -91,7 +95,12 @@ class RegistrationData {
   }
 
   bool isStep5Complete() {
-    return vehicleType != null && vehicleType!.isNotEmpty && vehicleNumber != null && vehicleNumber!.isNotEmpty;
+    return vehicleType != null && 
+           vehicleType!.isNotEmpty && 
+           vehicleNumber != null && 
+           vehicleNumber!.isNotEmpty &&
+           driverLicenseFrontImage != null &&
+           driverLicenseBackImage != null;
   }
 
   bool isStep6Complete() {

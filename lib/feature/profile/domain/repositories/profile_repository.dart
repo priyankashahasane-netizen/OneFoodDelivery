@@ -309,7 +309,8 @@ class ProfileRepository implements ProfileRepositoryInterface {
           
           Response response = await apiClient.patchData(
             endpoint,
-            {'online': newOnlineStatus}
+            {'online': newOnlineStatus},
+            handleError: false  // Handle errors manually to extract proper error messages
           );
           
           if (response.statusCode == 200) {
@@ -320,10 +321,16 @@ class ProfileRepository implements ProfileRepositoryInterface {
             responseModel = ResponseModel(true, message);
           } else {
             String errorMessage = 'Failed to update status';
+            // Extract error message from response body (NestJS format: {message: "...", statusCode: 400})
             if (response.body != null && response.body is Map) {
-              errorMessage = response.body['message'] ?? response.body['error'] ?? errorMessage;
+              errorMessage = response.body['message'] ?? 
+                            response.body['error'] ?? 
+                            (response.body['errors'] != null && response.body['errors'] is List && response.body['errors'].isNotEmpty
+                              ? response.body['errors'][0]['message'] ?? errorMessage
+                              : errorMessage);
             }
-            if (response.statusText != null && response.statusText!.isNotEmpty) {
+            // Fallback to statusText if body doesn't have message
+            if (errorMessage == 'Failed to update status' && response.statusText != null && response.statusText!.isNotEmpty) {
               errorMessage = response.statusText!;
             }
             responseModel = ResponseModel(false, errorMessage);

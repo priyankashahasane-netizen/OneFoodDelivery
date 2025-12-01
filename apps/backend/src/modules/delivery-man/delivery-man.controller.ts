@@ -834,6 +834,65 @@ export class DeliveryManController {
     }
   }
 
+  @Post('add-wallet-balance')
+  @UseGuards(JwtAuthGuard)
+  async addWalletBalance(@Body() body: { amount: number; description?: string }, @Request() req: any) {
+    try {
+      // Get driver ID from JWT token
+      let driverId = req?.user?.sub || req?.user?.driverId;
+      const phone = req?.user?.phone;
+      const isDemoAccount = req?.user?.driverId === 'demo-driver-id';
+
+      // Resolve driver ID
+      if (isDemoAccount || !driverId) {
+        const demoPhones = ['9975008124', '+919975008124', '+91-9975008124', '919975008124'];
+        for (const demoPhone of demoPhones) {
+          const demoDriver = await this.driversService.findByPhone(demoPhone);
+          if (demoDriver) {
+            driverId = demoDriver.id;
+            break;
+          }
+        }
+      } else if (phone) {
+        try {
+          await this.driversService.findById(driverId);
+        } catch (error) {
+          const driverByPhone = await this.driversService.findByPhone(phone);
+          if (driverByPhone) {
+            driverId = driverByPhone.id;
+          }
+        }
+      }
+
+      if (!driverId) {
+        throw new UnauthorizedException('Driver ID not found in token');
+      }
+
+      if (!body.amount || body.amount <= 0) {
+        throw new BadRequestException('Amount must be greater than 0');
+      }
+
+      // Add wallet balance
+      const result = await this.walletService.addInitialBalance(
+        driverId,
+        body.amount,
+        body.description || 'Wallet balance added'
+      );
+
+      return {
+        message: result.message,
+        success: result.success
+      };
+    } catch (error: any) {
+      if (error instanceof BadRequestException || error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        error?.message || 'Failed to add wallet balance. Please try again.'
+      );
+    }
+  }
+
   @Put('update-fcm-token')
   @UseGuards(JwtAuthGuard)
   async updateFcmToken(@Body() body: { fcm_token?: string; token?: string }, @Request() req: any) {

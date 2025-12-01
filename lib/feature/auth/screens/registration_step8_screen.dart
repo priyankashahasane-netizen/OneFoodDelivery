@@ -10,6 +10,7 @@ import 'package:stackfood_multivendor_driver/feature/profile/controllers/profile
 import 'package:stackfood_multivendor_driver/helper/route_helper.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class RegistrationStep8Screen extends StatefulWidget {
   const RegistrationStep8Screen({super.key});
@@ -21,15 +22,28 @@ class RegistrationStep8Screen extends StatefulWidget {
 class _RegistrationStep8ScreenState extends State<RegistrationStep8Screen> {
   final TextEditingController _walletBalanceController = TextEditingController();
   final FocusNode _walletBalanceFocus = FocusNode();
-  final double _minBalance = 100.0; // Minimum wallet balance
+  bool _isWalletBalanceFocused = false;
+  final double _minBalance = 999.0; // Minimum wallet balance
 
   @override
   void initState() {
     super.initState();
     final controller = Get.find<RegistrationController>();
+    
     if (controller.registrationData.walletBalance != null) {
       _walletBalanceController.text = controller.registrationData.walletBalance!.toStringAsFixed(2);
+    } else {
+      // Pre-fill with minimum balance
+      _walletBalanceController.text = _minBalance.toStringAsFixed(2);
     }
+    
+    // Add listener to focus node to update border color
+    _walletBalanceFocus.addListener(() {
+      setState(() {
+        _isWalletBalanceFocused = _walletBalanceFocus.hasFocus;
+      });
+    });
+    
     // Defer setStep to avoid calling update during build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       controller.setStep(8);
@@ -84,15 +98,26 @@ class _RegistrationStep8ScreenState extends State<RegistrationStep8Screen> {
                           style: robotoMedium.copyWith(fontSize: 16),
                         ),
                         const SizedBox(height: Dimensions.paddingSizeDefault),
-                        CustomTextFieldWidget(
-                          titleText: 'wallet_balance'.tr,
-                          hintText: 'enter_amount'.tr,
-                          controller: _walletBalanceController,
-                          focusNode: _walletBalanceFocus,
-                          inputType: const TextInputType.numberWithOptions(decimal: true),
-                          showBorder: true,
-                          isRequired: true,
-                          isAmount: true,
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+                            border: Border.all(
+                              color: _isWalletBalanceFocused 
+                                  ? Theme.of(context).primaryColor
+                                  : Theme.of(context).primaryColor.withValues(alpha: 0.5),
+                              width: _isWalletBalanceFocused ? 2 : 1,
+                            ),
+                          ),
+                          child: CustomTextFieldWidget(
+                            titleText: 'wallet_balance'.tr,
+                            hintText: 'enter_amount'.tr,
+                            controller: _walletBalanceController,
+                            focusNode: _walletBalanceFocus,
+                            inputType: const TextInputType.numberWithOptions(decimal: true),
+                            showBorder: false, // We're using container border instead
+                            isRequired: true,
+                            isAmount: true,
+                          ),
                         ),
                       ],
                     ),
@@ -135,20 +160,34 @@ class _RegistrationStep8ScreenState extends State<RegistrationStep8Screen> {
       return;
     }
 
-    double? balance = double.tryParse(balanceText);
-    if (balance == null) {
+    double? amountToAdd = double.tryParse(balanceText);
+    if (amountToAdd == null) {
       showCustomSnackBar('please_enter_valid_amount'.tr);
       _walletBalanceFocus.requestFocus();
       return;
     }
 
-    if (balance < _minBalance) {
+    if (amountToAdd < _minBalance) {
       showCustomSnackBar('minimum_balance_required'.tr + ' ₹$_minBalance');
       _walletBalanceFocus.requestFocus();
       return;
     }
 
-    controller.setWalletBalance(balance);
+    // Get existing wallet balance from profile
+    final profileController = Get.find<ProfileController>();
+    double existingBalance = 0.0;
+    // Use balance or payableBalance from profile (whichever is available)
+    if (profileController.profileModel?.balance != null) {
+      existingBalance = profileController.profileModel!.balance!;
+    } else if (profileController.profileModel?.payableBalance != null) {
+      existingBalance = profileController.profileModel!.payableBalance!;
+    }
+    
+    // Calculate total wallet balance (existing + amount to add)
+    double totalBalance = existingBalance + amountToAdd;
+    
+    // Set the total balance in registration data
+    controller.setWalletBalance(totalBalance);
 
     ResponseModel response = await controller.submitRegistration();
 

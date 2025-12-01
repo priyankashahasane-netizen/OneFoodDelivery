@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:stackfood_multivendor_driver/api/api_client.dart';
 import 'package:stackfood_multivendor_driver/common/models/response_model.dart';
 import 'package:stackfood_multivendor_driver/feature/auth/domain/models/registration_model.dart';
@@ -39,7 +40,8 @@ class RegistrationRepository implements RegistrationRepositoryInterface {
         }
       }
 
-      // Prepare driver update data
+      // Prepare all registration data to be stored in driver table
+      // Basic driver fields (direct columns in driver table)
       Map<String, dynamic> driverUpdateData = {
         'name': '${registrationData.firstName ?? ''} ${registrationData.lastName ?? ''}'.trim(),
         'vehicleType': registrationData.vehicleType ?? '',
@@ -48,39 +50,54 @@ class RegistrationRepository implements RegistrationRepositoryInterface {
         'homeAddressLongitude': registrationData.longitude,
       };
 
-      // Update driver basic fields
-      Response driverResponse = await apiClient.patchData(
-        '${AppConstants.driverUpdateUri}/$driverId',
-        driverUpdateData,
-        handleError: false,
-      );
-
-      if (driverResponse.statusCode != 200) {
-        String errorMessage = 'Failed to update driver information';
-        if (driverResponse.body is Map && driverResponse.body['message'] != null) {
-          errorMessage = driverResponse.body['message'];
-        }
-        return ResponseModel(false, errorMessage);
-      }
-
-      // Prepare metadata update (for fields not in driver entity)
+      // Prepare comprehensive metadata with all registration information
+      // This stores additional fields not in direct driver columns
       Map<String, dynamic> metadataUpdate = {
+        // Personal Information
+        'firstName': registrationData.firstName ?? '',
+        'lastName': registrationData.lastName ?? '',
         'email': registrationData.email ?? '',
+        'phone': registrationData.phone ?? '',
+        
+        // Location Information
         'state': registrationData.state ?? '',
         'city': registrationData.city ?? '',
+        'address': registrationData.address ?? '',
+        'latitude': registrationData.latitude,
+        'longitude': registrationData.longitude,
+        
+        // Vehicle Information
+        'vehicleType': registrationData.vehicleType ?? '',
         'vehicleNumber': registrationData.vehicleNumber ?? '',
+        
+        // Document information (store file names/paths)
+        'driverLicenseFrontImage': registrationData.driverLicenseFrontImage?.name ?? registrationData.driverLicenseFrontImage?.path ?? '',
+        'driverLicenseBackImage': registrationData.driverLicenseBackImage?.name ?? registrationData.driverLicenseBackImage?.path ?? '',
+        'aadhaarFrontImage': registrationData.aadhaarFrontImage?.name ?? registrationData.aadhaarFrontImage?.path ?? '',
+        'aadhaarBackImage': registrationData.aadhaarBackImage?.name ?? registrationData.aadhaarBackImage?.path ?? '',
+        'selfieImage': registrationData.selfieImage?.name ?? registrationData.selfieImage?.path ?? '',
+        'driverLicenseFrontUploaded': registrationData.driverLicenseFrontImage != null,
+        'driverLicenseBackUploaded': registrationData.driverLicenseBackImage != null,
         'aadhaarFrontUploaded': registrationData.aadhaarFrontImage != null,
         'aadhaarBackUploaded': registrationData.aadhaarBackImage != null,
         'selfieUploaded': registrationData.selfieImage != null,
+        
+        // Wallet
+        'walletBalance': registrationData.walletBalance ?? 0,
+        
+        // Registration completion timestamp
+        'registrationCompletedAt': DateTime.now().toIso8601String(),
       };
 
-      // Update driver with metadata and set is_verified to true (registration completed)
+      // Combine all data for single update
       Map<String, dynamic> finalUpdateData = {
+        ...driverUpdateData,
         'metadata': metadataUpdate,
         'isVerified': true,
         'isActive': true,
       };
 
+      // Update driver with all registration data
       Response finalResponse = await apiClient.patchData(
         '${AppConstants.driverUpdateUri}/$driverId',
         finalUpdateData,
@@ -95,10 +112,42 @@ class RegistrationRepository implements RegistrationRepositoryInterface {
         return ResponseModel(false, errorMessage);
       }
 
-      // Handle wallet balance if provided
+      // Handle wallet balance - add amount to wallet
       if (registrationData.walletBalance != null && registrationData.walletBalance! > 0) {
-        // Wallet balance should be handled via wallet service
-        // For now, we'll skip this as it requires wallet service integration
+        try {
+          // Get existing wallet balance from profile
+          double existingBalance = 0.0;
+          if (profileController.profileModel?.balance != null) {
+            existingBalance = profileController.profileModel!.balance!;
+          } else if (profileController.profileModel?.payableBalance != null) {
+            existingBalance = profileController.profileModel!.payableBalance!;
+          }
+          
+          // Calculate amount to add (total balance - existing balance)
+          double amountToAdd = registrationData.walletBalance! - existingBalance;
+          
+          if (amountToAdd > 0) {
+            // Add wallet balance using the new add-wallet-balance endpoint
+            Response walletResponse = await apiClient.postData(
+              AppConstants.addWalletBalanceUri,
+              {
+                'amount': amountToAdd,
+                'description': 'Initial wallet deposit during registration',
+              },
+              handleError: false,
+            );
+            
+            if (walletResponse.statusCode != 200) {
+              // Log error but don't fail registration
+              debugPrint('Failed to add wallet balance: ${walletResponse.body}');
+            } else {
+              debugPrint('Successfully added ${amountToAdd} to wallet balance');
+            }
+          }
+        } catch (e) {
+          // Log error but don't fail registration
+          debugPrint('Error adding wallet balance: $e');
+        }
       }
 
       // Refresh profile after registration

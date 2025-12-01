@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:stackfood_multivendor_driver/common/models/response_model.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_snackbar_widget.dart';
 import 'package:stackfood_multivendor_driver/feature/auth/domain/models/registration_model.dart';
@@ -120,6 +121,80 @@ class RegistrationController extends GetxController implements GetxService {
     update();
   }
 
+  // Step 5: Driver License
+  Future<void> pickDriverLicenseFront({bool isCamera = false}) async {
+    try {
+      // On macOS/desktop, camera is not fully supported, use gallery/file picker instead
+      if (GetPlatform.isDesktop || GetPlatform.isMacOS) {
+        await _pickDriverLicenseFromFile(isFront: true);
+      } else {
+        XFile? image = await _imagePicker.pickImage(
+          source: isCamera ? ImageSource.camera : ImageSource.gallery,
+          imageQuality: 80,
+        );
+        if (image != null) {
+          _registrationData.driverLicenseFrontImage = image;
+          update();
+        }
+      }
+    } catch (e) {
+      showCustomSnackBar('Failed to pick image: ${e.toString()}');
+    }
+  }
+
+  Future<void> pickDriverLicenseBack({bool isCamera = false}) async {
+    try {
+      // On macOS/desktop, camera is not fully supported, use gallery/file picker instead
+      if (GetPlatform.isDesktop || GetPlatform.isMacOS) {
+        await _pickDriverLicenseFromFile(isFront: false);
+      } else {
+        XFile? image = await _imagePicker.pickImage(
+          source: isCamera ? ImageSource.camera : ImageSource.gallery,
+          imageQuality: 80,
+        );
+        if (image != null) {
+          _registrationData.driverLicenseBackImage = image;
+          update();
+        }
+      }
+    } catch (e) {
+      showCustomSnackBar('Failed to pick image: ${e.toString()}');
+    }
+  }
+
+  Future<void> _pickDriverLicenseFromFile({required bool isFront}) async {
+    try {
+      // For macOS/desktop, use file picker to select image
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+      );
+      
+      if (result != null && result.files.single.path != null) {
+        // Create XFile from the selected file path
+        final file = XFile(result.files.single.path!);
+        if (isFront) {
+          _registrationData.driverLicenseFrontImage = file;
+        } else {
+          _registrationData.driverLicenseBackImage = file;
+        }
+        update();
+      }
+    } catch (e) {
+      showCustomSnackBar('Failed to select image: ${e.toString()}');
+    }
+  }
+
+  void removeDriverLicenseFront() {
+    _registrationData.driverLicenseFrontImage = null;
+    update();
+  }
+
+  void removeDriverLicenseBack() {
+    _registrationData.driverLicenseBackImage = null;
+    update();
+  }
+
   // Step 6: Aadhaar
   Future<void> pickAadhaarFront({bool isCamera = false}) async {
     try {
@@ -164,16 +239,42 @@ class RegistrationController extends GetxController implements GetxService {
   // Step 7: Selfie
   Future<void> pickSelfie({bool isCamera = true}) async {
     try {
-      XFile? image = await _imagePicker.pickImage(
-        source: isCamera ? ImageSource.camera : ImageSource.gallery,
-        imageQuality: 80,
-      );
-      if (image != null) {
-        _registrationData.selfieImage = image;
-        update();
+      // On macOS/desktop, camera is not fully supported, use gallery/file picker instead
+      if (GetPlatform.isDesktop || GetPlatform.isMacOS) {
+        // Use file picker for macOS/desktop
+        await _pickSelfieFromFile();
+      } else {
+        // Use image picker for mobile platforms
+        XFile? image = await _imagePicker.pickImage(
+          source: isCamera ? ImageSource.camera : ImageSource.gallery,
+          imageQuality: 80,
+        );
+        if (image != null) {
+          _registrationData.selfieImage = image;
+          update();
+        }
       }
     } catch (e) {
       showCustomSnackBar('Failed to capture selfie: ${e.toString()}');
+    }
+  }
+
+  Future<void> _pickSelfieFromFile() async {
+    try {
+      // For macOS/desktop, use file picker to select image
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+      );
+      
+      if (result != null && result.files.single.path != null) {
+        // Create XFile from the selected file path
+        final file = XFile(result.files.single.path!);
+        _registrationData.selfieImage = file;
+        update();
+      }
+    } catch (e) {
+      showCustomSnackBar('Failed to select image: ${e.toString()}');
     }
   }
 

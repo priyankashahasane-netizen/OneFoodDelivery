@@ -372,5 +372,85 @@ export class WalletService {
       throw error;
     }
   }
+
+  /**
+   * Add initial balance to wallet during registration
+   * Creates a credit transaction without requiring an orderId
+   */
+  async addInitialBalance(
+    driverId: string,
+    amount: number,
+    description?: string
+  ): Promise<{ success: boolean; message: string }> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // Get or create wallet using raw SQL
+      let walletResult = await queryRunner.query(
+        `SELECT id, balance, currency FROM driver_wallets WHERE driver_id = $1 LIMIT 1`,
+        [driverId]
+      );
+      
+      let walletId: string;
+      let currentBalance = 0;
+      let currency = 'INR';
+
+      if (!walletResult || walletResult.length === 0) {
+        // Create wallet if it doesn't exist
+        walletId = randomUUID();
+        await queryRunner.query(
+          `INSERT INTO driver_wallets (id, driver_id, balance, currency, updated_at)
+           VALUES ($1, $2, $3, $4, NOW())`,
+          [walletId, driverId, 0, currency]
+        );
+      } else {
+        walletId = walletResult[0].id;
+        currentBalance = parseFloat(walletResult[0].balance);
+        currency = walletResult[0].currency || 'INR';
+      }
+
+      const newBalance = currentBalance + amount;
+
+      // Create a credit transaction using raw SQL
+      const transactionId = randomUUID();
+      await queryRunner.query(
+        `INSERT INTO wallet_transactions (id, wallet_id, order_id, type, category, amount, description, created_at)
+         VALUES ($1, $2, NULL, $3, $4, $5, $6, NOW())`,
+        [
+          transactionId,
+          walletId,
+          'credit',
+          'initial_deposit',
+          amount,
+          description || `Initial wallet deposit during registration`
+        ]
+      );
+
+      // Update wallet balance using raw SQL
+      await queryRunner.query(
+        `UPDATE driver_wallets SET balance = $1, updated_at = NOW() WHERE id = $2`,
+        [newBalance, walletId]
+      );
+
+      // Commit the transaction
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+
+      return {
+        success: true,
+        message: `Successfully added ${amount} to wallet balance`
+      };
+    } catch (error: any) {
+      // Rollback transaction on error
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
+      await queryRunner.release();
+      console.error('Error in addInitialBalance:', error);
+      throw error;
+    }
+  }
 }
 

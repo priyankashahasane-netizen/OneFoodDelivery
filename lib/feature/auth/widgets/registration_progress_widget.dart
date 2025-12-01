@@ -19,37 +19,52 @@ class RegistrationProgressWidget extends StatelessWidget {
           return Expanded(
             child: Row(
               children: [
-                Expanded(
-                  child: Container(
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: isCompleted || isCurrent
-                          ? Theme.of(context).primaryColor
-                          : Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2),
+                // Line segment before the circle (not shown for first step)
+                if (index > 0)
+                  Expanded(
+                    child: Container(
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isCompleted || isCurrent
+                            ? Theme.of(context).primaryColor
+                            : Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
-                ),
-                if (index < 7)
-                  Container(
-                    width: 20,
-                    height: 20,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: isCompleted || isCurrent
-                          ? Theme.of(context).primaryColor
-                          : Colors.grey[300],
-                    ),
-                    child: Center(
-                      child: isCompleted
-                          ? Icon(Icons.check, size: 12, color: Colors.white)
-                          : Text(
-                              '$step',
-                              style: robotoRegular.copyWith(
-                                fontSize: 10,
-                                color: Colors.white,
-                              ),
+                // Circle for each step
+                Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isCompleted || isCurrent
+                        ? Theme.of(context).primaryColor
+                        : Colors.grey[300],
+                  ),
+                  child: Center(
+                    child: isCompleted
+                        ? Icon(Icons.check, size: 12, color: Colors.white)
+                        : Text(
+                            '$step',
+                            style: robotoRegular.copyWith(
+                              fontSize: 10,
+                              color: Colors.white,
                             ),
+                          ),
+                  ),
+                ),
+                // Line segment after the circle (not shown for last step)
+                if (index < 7)
+                  Expanded(
+                    child: Container(
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isCompleted
+                            ? Theme.of(context).primaryColor
+                            : Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
               ],

@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:stackfood_multivendor_driver/common/models/response_model.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_snackbar_widget.dart';
+import 'package:stackfood_multivendor_driver/common/widgets/custom_alert_dialog_widget.dart';
 import 'package:stackfood_multivendor_driver/common/services/location_permission_service.dart';
 // Auth removed - no longer using AuthController
 import 'package:stackfood_multivendor_driver/feature/profile/domain/models/profile_model.dart';
@@ -12,6 +13,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/domain/models/record_location_body.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:stackfood_multivendor_driver/helper/route_helper.dart';
 
 class ProfileController extends GetxController implements GetxService {
   final ProfileServiceInterface profileServiceInterface;
@@ -167,23 +169,61 @@ class ProfileController extends GetxController implements GetxService {
       bool isSuccess;
       
       if (responseModel == null || !responseModel.isSuccess) {
-        // API call failed - keep local state but show warning
-        // Don't rollback to maintain demo-like experience
-        isSuccess = false;
+        // API call failed - check if it's a verification error
         String errorMsg = responseModel?.message ?? 'Failed to sync with server. Status updated locally.';
-        showCustomSnackBar(errorMsg, isError: true);
         
-        // Silently retry API sync in background (optional) - but don't refresh profile to preserve optimistic update
-        Future.delayed(const Duration(seconds: 2), () async {
-          try {
-            await profileServiceInterface.updateActiveStatus(shiftId: shiftId);
-            // Don't call getProfile() here - it would overwrite optimistic update
-            // The optimistic update remains in place until next successful sync
-          } catch (e) {
-            debugPrint('Background sync failed: $e');
-            // Don't refresh on error - keep optimistic update
+        // Check if error is related to verification/registration
+        bool isVerificationError = errorMsg.toLowerCase().contains('not verified') || 
+                                   errorMsg.toLowerCase().contains('verification') ||
+                                   errorMsg.toLowerCase().contains('registration') ||
+                                   errorMsg.toLowerCase().contains('cannot go online');
+        
+        if (isVerificationError) {
+          // Revert optimistic update since verification failed
+          if (_profileModel != null) {
+            _profileModel!.active = (_profileModel!.active == 1) ? 0 : 1;
           }
-        });
+          
+          // Update UI first to revert the toggle state
+          update();
+          
+          // Show dialog for verification error - use a small delay to ensure UI is stable
+          // and barrierDismissible: false to prevent accidental dismissal
+          await Future.delayed(const Duration(milliseconds: 300));
+          await Get.dialog(
+            CustomAlertDialogWidget(
+              description: 'You cannot go online until your registration is completed. Please complete your registration to continue.',
+              onOkPressed: () {
+                Get.back(); // Close the dialog
+                // Navigate to registration step 1
+                String phone = _profileModel?.phone ?? '';
+                Get.toNamed(
+                  RouteHelper.getRegistrationStep1Route(),
+                  arguments: {'phone': phone},
+                );
+              },
+            ),
+            barrierDismissible: false,  // Prevent dismissing by tapping outside
+          );
+          
+          isSuccess = false;
+        } else {
+          // For other errors, keep local state but show warning
+          showCustomSnackBar(errorMsg, isError: true);
+          
+          // Silently retry API sync in background (optional) - but don't refresh profile to preserve optimistic update
+          Future.delayed(const Duration(seconds: 2), () async {
+            try {
+              await profileServiceInterface.updateActiveStatus(shiftId: shiftId);
+              // Don't call getProfile() here - it would overwrite optimistic update
+              // The optimistic update remains in place until next successful sync
+            } catch (e) {
+              debugPrint('Background sync failed: $e');
+              // Don't refresh on error - keep optimistic update
+            }
+          });
+          isSuccess = false;
+        }
       } else {
         // API call succeeded - refresh from server to ensure consistency
         await getProfile();

@@ -190,6 +190,14 @@ export class DriversController {
         throw new BadRequestException('Invalid online status: must be a boolean');
       }
       
+      // Check if driver is verified before allowing them to go online
+      if (body.online === true) {
+        const driver = await this.driversService.findById(actualDriverId);
+        if (!driver.isVerified) {
+          throw new BadRequestException('You cannot go online. Your account is not verified.');
+        }
+      }
+      
       const updatedDriver = await this.driversService.update(actualDriverId, { online: body.online });
       
       // Return success response with message

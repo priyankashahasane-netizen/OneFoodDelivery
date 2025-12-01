@@ -84,7 +84,7 @@ class _RegistrationStep1ScreenState extends State<RegistrationStep1Screen> {
                   const SizedBox(height: Dimensions.paddingSizeExtraLarge),
                   CustomTextFieldWidget(
                     titleText: 'first_name'.tr,
-                    hintText: 'enter_first_name'.tr,
+                    hintText: 'enter_your_first_name'.tr,
                     controller: _firstNameController,
                     focusNode: _firstNameFocus,
                     nextFocus: _lastNameFocus,
@@ -95,7 +95,7 @@ class _RegistrationStep1ScreenState extends State<RegistrationStep1Screen> {
                   const SizedBox(height: Dimensions.paddingSizeDefault),
                   CustomTextFieldWidget(
                     titleText: 'last_name'.tr,
-                    hintText: 'enter_last_name'.tr,
+                    hintText: 'enter_your_last_name'.tr,
                     controller: _lastNameController,
                     focusNode: _lastNameFocus,
                     nextFocus: _emailFocus,
