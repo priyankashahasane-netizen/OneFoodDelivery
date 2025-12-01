@@ -121,4 +121,12 @@ class AppConstants {
   static const double maxImageSend = 10;
 
   static const double limitOfPickedVideoSizeInMB = 50;
+
+  // CubeOne API
+  static const String cubeOneBaseUrl = 'https://apigw.cubeone.in';
+  static const String cubeOneSearchUserUri = '/v2/hybrid-auth/search-user';
+  static const String cubeOneRegisterUri = '/v2/hybrid-auth/register';
+  static const String cubeOneRequestOtpUri = '/v2/hybrid-auth/request-otp';
+  static const String cubeOneVerifyOtpUri = '/v2/hybrid-auth/verify-mobile-otp';
+  static const String cubeOneLoginUri = '/v2/hybrid-auth/login';
 }

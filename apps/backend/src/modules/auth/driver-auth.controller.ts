@@ -55,12 +55,16 @@ export class DriverOtpController {
 
   @Public()
   @Post('auth/driver/otp/verify')
-  async verify(@Body() body: { phone: string; code: string }) {
+  async verify(@Body() body: { phone: string; code: string; firstName?: string; lastName?: string; email?: string }) {
     try {
       if (!body.phone || !body.code) {
         return { ok: false, message: 'Phone number and code are required' };
       }
       
+      // Note: OTP is already verified by CubeOne API on the frontend
+      // We skip Redis OTP verification here since CubeOne handles it
+      // If you want to keep Redis verification as a fallback, uncomment below:
+      /*
       // Verify OTP from Redis if available
       if (this.isRedisAvailable()) {
         try {
@@ -71,15 +75,13 @@ export class DriverOtpController {
           }
           await this.redis.del(key);
         } catch (redisError) {
-          // Redis unavailable - in production you might want to fail here
-          // For development, we'll allow login without OTP verification
-          console.warn('Redis unavailable for OTP verification. Skipping OTP check (development mode).');
+          console.warn('Redis unavailable for OTP verification.');
           return { ok: false, message: 'OTP verification unavailable. Redis is required for OTP verification.' };
         }
       } else {
-        // Redis not available - cannot verify OTP
         return { ok: false, message: 'OTP verification unavailable. Redis is required for OTP verification.' };
       }
+      */
       
       // Try to find driver by phone - check multiple phone format variations
       let driver = await this.drivers.findOne({ where: { phone: body.phone } });
@@ -107,15 +109,26 @@ export class DriverOtpController {
       
       if (!driver) {
         console.log(`[OTP verify] Creating new driver with phone: ${body.phone}`);
-        driver = this.drivers.create({ 
+        const driverData: Partial<DriverEntity> = { 
           phone: body.phone, 
-          name: body.phone, 
+          name: body.firstName && body.lastName ? `${body.firstName} ${body.lastName}`.trim() : body.phone, 
           vehicleType: 'unknown', 
           capacity: 1, 
           online: false, 
           isActive: true 
-        });
-        driver = await this.drivers.save(driver);
+        };
+
+        // Add metadata if additional info is provided
+        if (body.firstName || body.lastName || body.email) {
+          driverData.metadata = {
+            firstName: body.firstName,
+            lastName: body.lastName,
+            email: body.email,
+          } as Record<string, unknown>;
+        }
+
+        const newDriver = this.drivers.create(driverData);
+        driver = await this.drivers.save(newDriver);
         console.log(`[OTP verify] Created new driver ${driver.id} with is_active=${driver.isActive}`);
       } else {
         console.log(`[OTP verify] Found existing driver ${driver.id}, current is_active=${driver.isActive}, phone: ${driver.phone}`);
@@ -153,6 +166,26 @@ export class DriverOtpController {
         } else {
           console.error(`[OTP verify] ERROR: Could not reload driver ${updatedDriver.id} after update`);
           driver = updatedDriver;
+        }
+
+        // Update driver info if provided
+        if (body.firstName || body.lastName || body.email) {
+          const updateData: any = {};
+          if (body.firstName && body.lastName) {
+            updateData.name = `${body.firstName} ${body.lastName}`.trim();
+          }
+          if (body.email || body.firstName || body.lastName) {
+            const metadata = driver.metadata || {};
+            if (body.email) metadata.email = body.email;
+            if (body.firstName) metadata.firstName = body.firstName;
+            if (body.lastName) metadata.lastName = body.lastName;
+            updateData.metadata = metadata;
+          }
+          
+          if (Object.keys(updateData).length > 0) {
+            await this.driversService.update(driver.id, updateData);
+            driver = await this.drivers.findOne({ where: { id: driver.id } });
+          }
         }
       }
       const tokenResponse = await this.jwtService.generateDriverToken(driver.id, driver.phone);

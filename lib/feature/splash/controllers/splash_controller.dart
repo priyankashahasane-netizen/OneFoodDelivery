@@ -1,6 +1,6 @@
-// Auth removed - no longer using AuthController
 import 'package:stackfood_multivendor_driver/feature/splash/domain/services/splash_service_interface.dart';
 import 'package:stackfood_multivendor_driver/common/models/config_model.dart';
+import 'package:stackfood_multivendor_driver/feature/auth/controllers/auth_controller.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:stackfood_multivendor_driver/helper/route_helper.dart';
@@ -32,8 +32,22 @@ class SplashController extends GetxController implements GetxService {
       if(isInMaintenance) {
         Get.offNamed(RouteHelper.getUpdateRoute(false));
       }else if((Get.currentRoute.contains(RouteHelper.update) && !isMaintenanceMode) || (!isInMaintenance)) {
-        // Auth removed - always go to home screen
-        Get.offAllNamed(RouteHelper.getInitialRoute());
+        // Check if user is logged in (has token)
+        try {
+          AuthController authController = Get.find<AuthController>();
+          String token = authController.getUserToken();
+          
+          // If no token or token is empty, redirect to login screen
+          if (token.isEmpty || !authController.isLoggedIn()) {
+            Get.offAllNamed(RouteHelper.getOtpLoginRoute());
+          } else {
+            // User has token, go to dashboard
+            Get.offAllNamed(RouteHelper.getInitialRoute());
+          }
+        } catch (e) {
+          // If AuthController is not available, redirect to login
+          Get.offAllNamed(RouteHelper.getOtpLoginRoute());
+        }
       }
 
       isSuccess = true;

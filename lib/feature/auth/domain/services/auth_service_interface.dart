@@ -14,6 +14,10 @@ abstract class AuthServiceInterface {
   Future<bool> clearUserNumberAndPassword();
   String getUserToken();
   Future<ResponseModel> sendOtp(String phone);
-  Future<ResponseModel> verifyOtp(String phone, String otp, {bool isLogin = true});
+  Future<ResponseModel> verifyOtp(String phone, String otp, {bool isLogin = true, String? firstName, String? lastName, String? email});
   Future<ResponseModel> logout();
+  Future<ResponseModel> searchUser(String username);
+  Future<ResponseModel> registerUser(String mobile, String firstName, String lastName, String email);
+  Future<ResponseModel> loginCubeOne(String username, String otp);
+  void testPasswordGeneration();
 }

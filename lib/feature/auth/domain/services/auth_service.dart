@@ -70,12 +70,32 @@ class AuthService implements AuthServiceInterface {
   }
 
   @override
-  Future<ResponseModel> verifyOtp(String phone, String otp, {bool isLogin = true}) async {
-    return await authRepositoryInterface.verifyOtp(phone, otp, isLogin: isLogin);
+  Future<ResponseModel> verifyOtp(String phone, String otp, {bool isLogin = true, String? firstName, String? lastName, String? email}) async {
+    return await authRepositoryInterface.verifyOtp(phone, otp, isLogin: isLogin, firstName: firstName, lastName: lastName, email: email);
   }
 
   @override
   Future<ResponseModel> logout() async {
     return await authRepositoryInterface.logout();
+  }
+
+  @override
+  Future<ResponseModel> searchUser(String username) async {
+    return await authRepositoryInterface.searchUser(username);
+  }
+
+  @override
+  Future<ResponseModel> registerUser(String mobile, String firstName, String lastName, String email) async {
+    return await authRepositoryInterface.registerUser(mobile, firstName, lastName, email);
+  }
+
+  @override
+  Future<ResponseModel> loginCubeOne(String username, String otp) async {
+    return await authRepositoryInterface.loginCubeOne(username, otp);
+  }
+
+  @override
+  void testPasswordGeneration() {
+    authRepositoryInterface.testPasswordGeneration();
   }
 }

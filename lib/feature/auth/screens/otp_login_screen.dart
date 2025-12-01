@@ -10,11 +10,46 @@ import 'package:stackfood_multivendor_driver/common/widgets/custom_text_field_wi
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-class OtpLoginScreen extends StatelessWidget {
+class OtpLoginScreen extends StatefulWidget {
   OtpLoginScreen({super.key});
 
+  @override
+  State<OtpLoginScreen> createState() => _OtpLoginScreenState();
+}
+
+class _OtpLoginScreenState extends State<OtpLoginScreen> {
   final FocusNode _phoneFocus = FocusNode();
-  final TextEditingController _phoneController = TextEditingController();
+  late TextEditingController _phoneController;
+
+  @override
+  void initState() {
+    super.initState();
+    // Get phone number from arguments if provided
+    final arguments = Get.arguments as Map<String, dynamic>?;
+    final String? phoneFromArgs = arguments?['phone'] as String?;
+    
+    // Extract phone number without country code if provided
+    String phoneNumber = '';
+    if (phoneFromArgs != null) {
+      // Remove +91 or 91 prefix if present
+      if (phoneFromArgs.startsWith('+91')) {
+        phoneNumber = phoneFromArgs.substring(3);
+      } else if (phoneFromArgs.startsWith('91')) {
+        phoneNumber = phoneFromArgs.substring(2);
+      } else {
+        phoneNumber = phoneFromArgs;
+      }
+    }
+    
+    _phoneController = TextEditingController(text: phoneNumber);
+  }
+
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    _phoneFocus.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -110,7 +145,19 @@ class OtpLoginScreen extends StatelessWidget {
     } else if (!phoneValid.isValid) {
       showCustomSnackBar('invalid_phone_number'.tr);
     } else {
-      authController.sendOtp(numberWithCountryCode).then((status) async {
+      // Format phone for CubeOne API (91<mobile>)
+      String formattedPhone = numberWithCountryCode;
+      if (numberWithCountryCode.startsWith('+91')) {
+        formattedPhone = numberWithCountryCode.substring(1); // Remove +
+      } else if (!numberWithCountryCode.startsWith('91')) {
+        formattedPhone = '91$numberWithCountryCode';
+      }
+
+      // First check if user exists
+      await authController.searchUser(formattedPhone).then((searchStatus) async {
+        if (searchStatus.isSuccess && searchStatus.data != null) {
+          // User exists - send OTP via CubeOne
+          await authController.sendOtp(numberWithCountryCode).then((status) async {
         if (status.isSuccess) {
           Get.toNamed(RouteHelper.getOtpVerificationRoute(), arguments: {
             'phone': numberWithCountryCode,
@@ -118,6 +165,14 @@ class OtpLoginScreen extends StatelessWidget {
           });
         } else {
           showCustomSnackBar(status.message);
+            }
+          });
+        } else {
+          // User does not exist - redirect to signup flow
+          showCustomSnackBar('User not found. Please sign up first.');
+          Get.toNamed(RouteHelper.getDriverInfoRoute(), arguments: {
+            'phone': numberWithCountryCode,
+          });
         }
       });
     }

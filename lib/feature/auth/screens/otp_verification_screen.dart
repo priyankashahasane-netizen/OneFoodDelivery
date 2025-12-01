@@ -24,6 +24,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   bool _canResend = false;
   String? _phone;
   bool _isLogin = true;
+  bool _isFirstOtp = false;
 
   @override
   void initState() {
@@ -31,6 +32,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     final arguments = Get.arguments as Map<String, dynamic>?;
     _phone = arguments?['phone'] as String?;
     _isLogin = arguments?['isLogin'] as bool? ?? true;
+    _isFirstOtp = arguments?['isFirstOtp'] as bool? ?? false;
     _startTimer();
   }
 
@@ -83,7 +85,12 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                           const SizedBox(height: 50),
                           Text('OTP Verification', style: robotoBold.copyWith(fontSize: 24)),
                           const SizedBox(height: 10),
-                          Text('Enter OTP Sent To Your Number', style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall)),
+                          Text(
+                            _isFirstOtp 
+                              ? 'Enter OTP Sent To Your Number' 
+                              : 'Enter OTP for Login',
+                            style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall)
+                          ),
                           const SizedBox(height: 5),
                           Text(_phone ?? '', style: robotoMedium.copyWith(fontSize: 22)),
                         const SizedBox(height: 50),
@@ -159,35 +166,61 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       return;
     }
 
-    // Verify OTP (demo account logic is handled in the repository)
-    await authController.verifyOtp(_phone!, otp, isLogin: _isLogin).then((status) async {
-      if (status.isSuccess) {
-        if (authController.getUserToken().isNotEmpty) {
-          // Check if user is new (for sign up flow)
-          bool isNewUser = false;
-          if (status.data != null && status.data is Map) {
-            isNewUser = status.data['isNewUser'] ?? false;
-          }
-          
-          // If it's sign up and user is new, navigate to registration
-          if (!_isLogin && isNewUser) {
-            Get.offAllNamed(RouteHelper.getRegistrationStep1Route(), arguments: {'phone': _phone!});
-          } else {
-            // Existing user or login - fetch profile and go to dashboard
-            try {
-              await Get.find<ProfileController>().getProfile();
-            } catch (e) {
-              debugPrint('Profile fetch failed: $e');
-            }
-            Get.offAllNamed(RouteHelper.getInitialRoute());
-          }
+    // Get driver info from arguments if available (for new signups)
+    final arguments = Get.arguments as Map<String, dynamic>?;
+    String? firstName = arguments?['firstName'] as String?;
+    String? lastName = arguments?['lastName'] as String?;
+    String? email = arguments?['email'] as String?;
+    bool isFirstOtp = arguments?['isFirstOtp'] as bool? ?? false;
+
+    // Format phone for CubeOne API (91<mobile>)
+    String formattedPhone = _phone!;
+    if (_phone!.startsWith('+91')) {
+      formattedPhone = _phone!.substring(1); // Remove +
+    } else if (!_phone!.startsWith('91')) {
+      formattedPhone = '91${_phone!}';
+    }
+
+    if (isFirstOtp) {
+      // First OTP: Verify registration OTP
+      await authController.verifyOtp(_phone!, otp, isLogin: false, firstName: firstName, lastName: lastName, email: email).then((status) async {
+        if (status.isSuccess) {
+          // After successful first OTP verification, redirect to login screen with the same mobile number
+          showCustomSnackBar('Registration successful! Please login with OTP.', isError: false);
+          Get.offAllNamed(RouteHelper.getOtpLoginRoute(), arguments: {
+            'phone': _phone!,
+          });
         } else {
-          showCustomSnackBar('Verification failed. Please try again.', isError: true);
+          showCustomSnackBar(status.message);
         }
-      } else {
-        showCustomSnackBar(status.message);
-      }
-    });
+      });
+    } else {
+      // Second OTP: Login with CubeOne, then create/update driver in our DB
+      await authController.loginCubeOne(formattedPhone, otp).then((loginStatus) async {
+        if (loginStatus.isSuccess) {
+          // After successful CubeOne login, verify with our backend to create/update driver
+          await authController.verifyOtp(_phone!, otp, isLogin: false, firstName: firstName, lastName: lastName, email: email).then((status) async {
+            if (status.isSuccess) {
+              if (authController.getUserToken().isNotEmpty) {
+                // Fetch profile and go to dashboard
+                try {
+                  await Get.find<ProfileController>().getProfile();
+                } catch (e) {
+                  debugPrint('Profile fetch failed: $e');
+                }
+                Get.offAllNamed(RouteHelper.getInitialRoute());
+              } else {
+                showCustomSnackBar('Verification failed. Please try again.', isError: true);
+              }
+            } else {
+              showCustomSnackBar(status.message);
+            }
+          });
+        } else {
+          showCustomSnackBar(loginStatus.message, isError: true);
+        }
+      });
+    }
   }
 
   void _resendOtp(AuthController authController) {

@@ -110,14 +110,25 @@ class OtpSignupScreen extends StatelessWidget {
     } else if (!phoneValid.isValid) {
       showCustomSnackBar('invalid_phone_number'.tr);
     } else {
-      authController.sendOtp(numberWithCountryCode).then((status) async {
-        if (status.isSuccess) {
-          Get.toNamed(RouteHelper.getOtpVerificationRoute(), arguments: {
-            'phone': numberWithCountryCode,
-            'isLogin': false,
-          });
+      // Format phone for CubeOne API (91<mobile>)
+      String formattedPhone = numberWithCountryCode;
+      if (numberWithCountryCode.startsWith('+91')) {
+        formattedPhone = numberWithCountryCode.substring(1); // Remove +
+      } else if (!numberWithCountryCode.startsWith('91')) {
+        formattedPhone = '91$numberWithCountryCode';
+      }
+
+      // First check if user exists
+      await authController.searchUser(formattedPhone).then((searchStatus) async {
+        if (searchStatus.isSuccess && searchStatus.data != null) {
+          // User exists - show message and redirect to login
+          showCustomSnackBar('User already exists. Please use login instead.');
+          Get.offNamed(RouteHelper.getOtpLoginRoute());
         } else {
-          showCustomSnackBar(status.message);
+          // User does not exist - collect driver info
+          Get.toNamed(RouteHelper.getDriverInfoRoute(), arguments: {
+            'phone': numberWithCountryCode,
+          });
         }
       });
     }

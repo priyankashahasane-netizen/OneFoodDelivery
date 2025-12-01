@@ -152,10 +152,10 @@ class AuthController extends GetxController implements GetxService {
     return responseModel;
   }
 
-  Future<ResponseModel> verifyOtp(String phone, String otp, {bool isLogin = true}) async {
+  Future<ResponseModel> verifyOtp(String phone, String otp, {bool isLogin = true, String? firstName, String? lastName, String? email}) async {
     _isLoading = true;
     update();
-    ResponseModel responseModel = await authServiceInterface.verifyOtp(phone, otp, isLogin: isLogin);
+    ResponseModel responseModel = await authServiceInterface.verifyOtp(phone, otp, isLogin: isLogin, firstName: firstName, lastName: lastName, email: email);
     _isLoading = false;
     update();
     return responseModel;
@@ -179,5 +179,37 @@ class AuthController extends GetxController implements GetxService {
     
     _isLoading = false;
     update();
+  }
+
+  Future<ResponseModel> searchUser(String username) async {
+    _isLoading = true;
+    update();
+    ResponseModel responseModel = await authServiceInterface.searchUser(username);
+    _isLoading = false;
+    update();
+    return responseModel;
+  }
+
+  Future<ResponseModel> registerUser(String mobile, String firstName, String lastName, String email) async {
+    _isLoading = true;
+    update();
+    ResponseModel responseModel = await authServiceInterface.registerUser(mobile, firstName, lastName, email);
+    _isLoading = false;
+    update();
+    return responseModel;
+  }
+
+  Future<ResponseModel> loginCubeOne(String username, String otp) async {
+    _isLoading = true;
+    update();
+    ResponseModel responseModel = await authServiceInterface.loginCubeOne(username, otp);
+    _isLoading = false;
+    update();
+    return responseModel;
+  }
+
+  // Test method to generate 10 passwords
+  void testPasswordGeneration() {
+    authServiceInterface.testPasswordGeneration();
   }
 }

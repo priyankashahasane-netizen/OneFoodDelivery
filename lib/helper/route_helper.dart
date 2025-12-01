@@ -29,6 +29,7 @@ import 'package:stackfood_multivendor_driver/feature/auth/screens/registration_s
 import 'package:stackfood_multivendor_driver/feature/auth/screens/otp_login_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/auth/screens/otp_signup_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/auth/screens/otp_verification_screen.dart';
+import 'package:stackfood_multivendor_driver/feature/auth/screens/driver_info_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/forgot_password/screens/forgot_password_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/forgot_password/screens/verification_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/forgot_password/screens/new_password_screen.dart';
@@ -68,6 +69,7 @@ class RouteHelper {
   static const String forgotPassword = '/forgot-password';
   static const String forgotPasswordVerification = '/forgot-password-verification';
   static const String resetPassword = '/reset-password';
+  static const String driverInfo = '/driver-info';
 
 
   static String getInitialRoute() => initial;
@@ -124,6 +126,7 @@ class RouteHelper {
   static String getForgotPasswordRoute() => forgotPassword;
   static String getForgotPasswordVerificationRoute(String phone, {String? session}) => '$forgotPasswordVerification?phone=$phone${session != null ? '&session=$session' : ''}';
   static String getResetPasswordRoute(String? phone, String? token, String type) => '$resetPassword?phone=$phone&token=$token&type=$type';
+  static String getDriverInfoRoute() => driverInfo;
 
 
   static List<GetPage> routes = [
@@ -194,6 +197,7 @@ class RouteHelper {
     GetPage(name: otpLogin, page: () => OtpLoginScreen()),
     GetPage(name: otpSignup, page: () => OtpSignupScreen()),
     GetPage(name: otpVerification, page: () => const OtpVerificationScreen()),
+    GetPage(name: driverInfo, page: () => DriverInfoScreen()),
     GetPage(name: forgotPassword, page: () => const ForgotPasswordScreen()),
     GetPage(name: forgotPasswordVerification, page: () {
       final phone = Get.parameters['phone'] ?? '';
