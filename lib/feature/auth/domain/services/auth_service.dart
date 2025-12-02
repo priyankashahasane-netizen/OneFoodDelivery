@@ -95,6 +95,26 @@ class AuthService implements AuthServiceInterface {
   }
 
   @override
+  Future<bool> saveCubeOneAccessToken(String token) async {
+    return await authRepositoryInterface.saveCubeOneAccessToken(token);
+  }
+
+  @override
+  String getCubeOneAccessToken() {
+    return authRepositoryInterface.getCubeOneAccessToken();
+  }
+
+  @override
+  Future<bool> clearCubeOneAccessToken() async {
+    return await authRepositoryInterface.clearCubeOneAccessToken();
+  }
+
+  @override
+  Future<ResponseModel> verifyMapper(String cubeOneAccessToken) async {
+    return await authRepositoryInterface.verifyMapper(cubeOneAccessToken);
+  }
+
+  @override
   void testPasswordGeneration() {
     authRepositoryInterface.testPasswordGeneration();
   }

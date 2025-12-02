@@ -1,12 +1,15 @@
-import { Body, Controller, Post, Inject, forwardRef } from '@nestjs/common';
+import { Body, Controller, Post, Inject, forwardRef, UseGuards, Request } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { randomInt } from 'crypto';
+import axios from 'axios';
 
 import { InjectRedis } from '../../common/redis/redis.provider.js';
 import { Public } from './public.decorator.js';
+import { JwtAuthGuard } from './jwt.guard.js';
 import { DriverEntity } from '../drivers/entities/driver.entity.js';
-import { CustomJwtService } from './jwt.service.js';
+import { MapperEntity } from '../drivers/entities/mapper.entity.js';
+import { CustomJwtService, TokenPayload } from './jwt.service.js';
 import { DriversService } from '../drivers/drivers.service.js';
 
 @Controller()
@@ -14,6 +17,7 @@ export class DriverOtpController {
   constructor(
     private readonly jwtService: CustomJwtService,
     @InjectRepository(DriverEntity) private readonly drivers: Repository<DriverEntity>,
+    @InjectRepository(MapperEntity) private readonly mapperRepository: Repository<MapperEntity>,
     @InjectRedis() private readonly redis,
     @Inject(forwardRef(() => DriversService)) private readonly driversService: DriversService
   ) {}
@@ -201,6 +205,244 @@ export class DriverOtpController {
       console.error('OTP verify error:', error);
       // Return a proper error response instead of throwing
       return { ok: false, message: 'Failed to verify OTP', error: error.message };
+    }
+  }
+  
+  @Public()
+  @Post('v2/hybrid-auth/login')
+  async hybridAuthLogin(@Body() body: { 
+    phone: string;
+    otp: string;
+    access_token?: string; // Optional: if frontend already has it from verify-mobile-otp
+  }) {
+    try {
+      if (!body.phone || !body.otp) {
+        return { ok: false, message: 'Phone number and OTP are required' };
+      }
+
+      let cubeOneAccessToken: string | null = null;
+      let userId: string | null = null;
+
+      // If access_token is provided, use it directly
+      if (body.access_token) {
+        cubeOneAccessToken = body.access_token;
+        console.log(`[hybrid-auth/login] Using provided access_token`);
+      } else {
+        // Otherwise, call CubeOne login API to get access_token
+        console.log(`[hybrid-auth/login] Calling CubeOne login API for phone: ${body.phone}`);
+        
+        try {
+          // Format phone for CubeOne (91<mobile>)
+          const formattedPhone = body.phone.startsWith('+91') 
+            ? body.phone.substring(1) 
+            : body.phone.startsWith('91') 
+            ? body.phone 
+            : `91${body.phone}`;
+
+          const cubeOneBaseUrl = process.env.CUBEONE_BASE_URL || 'https://api.cubeone.app';
+          const cubeOneLoginUri = process.env.CUBEONE_LOGIN_URI || '/v2/hybrid-auth/login';
+          
+          const cubeOneResponse = await axios.post(
+            `${cubeOneBaseUrl}${cubeOneLoginUri}`,
+            {
+              username: formattedPhone,
+              login_otp: body.otp,
+            },
+            {
+              headers: {
+                'accept': 'application/json',
+                'Content-Type': 'application/json',
+              },
+              timeout: 30000,
+            }
+          );
+
+          if (cubeOneResponse.data?.success === true && cubeOneResponse.data?.data) {
+            const data = cubeOneResponse.data.data;
+            cubeOneAccessToken = data.token || data.access_token || data.accessToken || data.auth_token || data.authToken;
+            console.log(`[hybrid-auth/login] Received access_token from CubeOne`);
+          } else {
+            return { ok: false, message: cubeOneResponse.data?.message || 'CubeOne login failed' };
+          }
+        } catch (cubeOneError: any) {
+          console.error(`[hybrid-auth/login] CubeOne login error:`, cubeOneError);
+          return { 
+            ok: false, 
+            message: cubeOneError.response?.data?.message || 'Failed to login with CubeOne' 
+          };
+        }
+      }
+
+      if (!cubeOneAccessToken) {
+        return { ok: false, message: 'Failed to obtain access_token from CubeOne' };
+      }
+
+      // Decode the JWT token to get the "sub" field (userId)
+      // Try to verify with our JWT service first
+      let decodedToken: TokenPayload | null = await this.jwtService.verifyToken(cubeOneAccessToken);
+      
+      if (!decodedToken || !decodedToken.sub) {
+        // If our JWT service can't verify it (different secret), try to decode without verification
+        try {
+          userId = this.decodeJwtWithoutVerification(cubeOneAccessToken);
+          if (userId) {
+            console.log(`[hybrid-auth/login] Decoded userId from token (without verification): ${userId}`);
+          }
+        } catch (decodeError) {
+          console.error(`[hybrid-auth/login] Failed to decode token:`, decodeError);
+          return { ok: false, message: 'Invalid access_token or missing sub field' };
+        }
+      } else {
+        userId = decodedToken.sub;
+        console.log(`[hybrid-auth/login] Decoded userId from token: ${userId}`);
+      }
+
+      if (!userId) {
+        return { ok: false, message: 'Could not extract userId from access_token' };
+      }
+
+      // Call newDriverFunc to create a blank driver
+      console.log(`[hybrid-auth/login] Creating driver using newDriverFunc for phone: ${body.phone}`);
+      const driverResult = await this.driversService.newDriverFunc(body.phone);
+      
+      const driverId = driverResult.driver.id;
+      console.log(`[hybrid-auth/login] Created driver with ID: ${driverId}`);
+
+      // Create mapper entry: store userId (sub from token) and driverId
+      try {
+        // Check if mapper entry already exists
+        const existingMapper = await this.mapperRepository.findOne({
+          where: {
+            driverId: driverId,
+            userId: userId
+          }
+        });
+
+        if (!existingMapper) {
+          const mapper = this.mapperRepository.create({
+            driverId: driverId,
+            userId: userId
+          });
+          await this.mapperRepository.save(mapper);
+          console.log(`[hybrid-auth/login] Created mapper entry: driverId=${driverId}, userId=${userId}`);
+        } else {
+          console.log(`[hybrid-auth/login] Mapper entry already exists: driverId=${driverId}, userId=${userId}`);
+        }
+      } catch (mapperError) {
+        console.error(`[hybrid-auth/login] Error creating mapper entry:`, mapperError);
+        // Continue even if mapper creation fails - don't fail the whole request
+      }
+
+      // Generate our own JWT token for the driver (for login)
+      const tokenResponse = await this.jwtService.generateDriverToken(driverId, body.phone);
+      
+      return {
+        ok: true,
+        access_token: tokenResponse.access_token,
+        token: tokenResponse.token,
+        driverId: driverId,
+        expiresIn: tokenResponse.expiresIn,
+        expiresAt: tokenResponse.expiresAt
+      };
+    } catch (error) {
+      console.error('[hybrid-auth/login] Error:', error);
+      return { 
+        ok: false, 
+        message: 'Failed to login', 
+        error: error.message 
+      };
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('v2/hybrid-auth/verify-mapper')
+  async verifyMapper(@Request() req: any, @Body() body: { 
+    access_token: string; // CubeOne access_token
+  }) {
+    try {
+      if (!body.access_token) {
+        return { ok: false, message: 'access_token is required' };
+      }
+
+      // Get driverId from our JWT token
+      const driverId = req.user?.sub || req.user?.driverId;
+      if (!driverId) {
+        return { ok: false, message: 'Driver ID not found in token' };
+      }
+
+      // Decode CubeOne token to get userId (sub)
+      let userId: string | null = null;
+      try {
+        userId = this.decodeJwtWithoutVerification(body.access_token);
+        if (!userId) {
+          return { ok: false, message: 'Could not extract userId from access_token' };
+        }
+      } catch (error) {
+        console.error('[verify-mapper] Failed to decode token:', error);
+        return { ok: false, message: 'Invalid access_token' };
+      }
+
+      // Verify mapper entry exists with matching driverId and userId
+      const mapper = await this.mapperRepository.findOne({
+        where: { 
+          driverId: driverId,
+          userId: userId
+        }
+      });
+
+      if (!mapper) {
+        return { 
+          ok: false, 
+          message: 'Mapper entry not found. Driver ID and User ID do not match.',
+          driverId: driverId,
+          userId: userId
+        };
+      }
+
+      return {
+        ok: true,
+        message: 'Mapper entry verified successfully',
+        driverId: mapper.driverId,
+        userId: mapper.userId
+      };
+    } catch (error) {
+      console.error('[verify-mapper] Error:', error);
+      return { 
+        ok: false, 
+        message: 'Failed to verify mapper', 
+        error: error.message 
+      };
+    }
+  }
+
+  /**
+   * Decode JWT token without verification (for tokens with different secrets)
+   * Extracts the payload and returns the 'sub' field
+   */
+  private decodeJwtWithoutVerification(token: string): string | null {
+    try {
+      const parts = token.split('.');
+      if (parts.length < 2) {
+        return null;
+      }
+
+      // Decode the payload (second part)
+      let payload = parts[1];
+      
+      // Add padding if needed for base64 decoding
+      while (payload.length % 4 !== 0) {
+        payload += '=';
+      }
+
+      // Decode base64
+      const decodedPayload = Buffer.from(payload, 'base64').toString('utf-8');
+      const payloadJson = JSON.parse(decodedPayload);
+
+      // Extract 'sub' field which contains the userId
+      return payloadJson.sub || null;
+    } catch (error) {
+      console.error('[decodeJwtWithoutVerification] Error:', error);
+      return null;
     }
   }
   

@@ -107,6 +107,7 @@ class AppConstants {
   static const String langIntro = 'language_intro';
   static const String maintenanceModeTopic = 'maintenance_mode_deliveryman_app';
   static const String notificationIdList = 'notification_id_list';
+  static const String cubeoneAccessToken = 'cubeone_access_token';
 
   static List<LanguageModel> languages = [
     LanguageModel(imageUrl: Images.english, languageName: 'English', countryCode: 'US', languageCode: 'en'),

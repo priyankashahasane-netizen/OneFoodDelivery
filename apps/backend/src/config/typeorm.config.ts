@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 
 import { DriverEntity } from '../modules/drivers/entities/driver.entity.js';
 import { DriverBankAccountEntity } from '../modules/drivers/entities/driver-bank-account.entity.js';
+import { MapperEntity } from '../modules/drivers/entities/mapper.entity.js';
 import { OrderEntity } from '../modules/orders/entities/order.entity.js';
 import { ProofOfDeliveryEntity } from '../modules/orders/entities/proof-of-delivery.entity.js';
 import { RoutePlanEntity } from '../modules/routes/entities/route-plan.entity.js';
@@ -27,6 +28,7 @@ export const typeOrmDataSource = new DataSource({
   entities: [
     DriverEntity,
     DriverBankAccountEntity,
+    MapperEntity,
     OrderEntity,
     ProofOfDeliveryEntity,
     RoutePlanEntity,

@@ -208,6 +208,27 @@ class AuthController extends GetxController implements GetxService {
     return responseModel;
   }
 
+  Future<bool> saveCubeOneAccessToken(String token) async {
+    return await authServiceInterface.saveCubeOneAccessToken(token);
+  }
+
+  String getCubeOneAccessToken() {
+    return authServiceInterface.getCubeOneAccessToken();
+  }
+
+  Future<bool> clearCubeOneAccessToken() async {
+    return await authServiceInterface.clearCubeOneAccessToken();
+  }
+
+  Future<ResponseModel> verifyMapper(String cubeOneAccessToken) async {
+    _isLoading = true;
+    update();
+    ResponseModel responseModel = await authServiceInterface.verifyMapper(cubeOneAccessToken);
+    _isLoading = false;
+    update();
+    return responseModel;
+  }
+
   // Test method to generate 10 passwords
   void testPasswordGeneration() {
     authServiceInterface.testPasswordGeneration();

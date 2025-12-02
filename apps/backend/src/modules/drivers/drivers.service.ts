@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThanOrEqual } from 'typeorm';
+import { Repository, MoreThanOrEqual, DataSource } from 'typeorm';
+import { InjectDataSource } from '@nestjs/typeorm';
 
 import { PaginationQueryDto } from '../../common/dto/pagination.dto.js';
 import { UpdateDriverDto } from './dto/update-driver.dto.js';
@@ -21,7 +22,9 @@ export class DriversService {
     @InjectRepository(DriverWalletEntity)
     private readonly walletRepository: Repository<DriverWalletEntity>,
     @InjectRepository(OrderEntity)
-    private readonly ordersRepository: Repository<OrderEntity>
+    private readonly ordersRepository: Repository<OrderEntity>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource
   ) {}
 
   async listDrivers(pagination: PaginationQueryDto) {
@@ -317,6 +320,181 @@ export class DriversService {
       const updatedMetadata = { ...(driver.metadata || {}) };
       delete updatedMetadata.defaultBankAccountId;
       await this.updateMetadata(driverId, updatedMetadata);
+    }
+  }
+
+  /**
+   * Creates a new driver and all associated rows in related tables
+   * Called after successful login, so phone number is guaranteed to be available
+   * 
+   * @param phone - Phone number (required, available after login)
+   * @param driverData - Optional driver data to update/create
+   * @param options - Optional configuration for creating associated records
+   * @returns Created/updated driver with all associated records
+   */
+  async newDriverFunc(
+    phone: string,
+    driverData?: {
+      name?: string;
+      vehicleType?: string;
+      capacity?: number;
+      latitude?: number;
+      longitude?: number;
+      homeAddress?: string;
+      homeAddressLatitude?: number;
+      homeAddressLongitude?: number;
+      zoneId?: string;
+    },
+    options?: {
+      bankAccount?: {
+        account_holder_name: string;
+        account_number: string;
+        ifsc_code: string;
+        bank_name: string;
+        branch_name?: string;
+        upi_id?: string;
+      };
+      initialWalletBalance?: number;
+      currency?: string;
+    }
+  ): Promise<{
+    driver: DriverEntity;
+    wallet: DriverWalletEntity;
+    bankAccount?: DriverBankAccountEntity;
+  }> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // 1. Find existing driver by phone (may have been created during OTP verification)
+      let driver = await queryRunner.manager.findOne(DriverEntity, {
+        where: { phone }
+      });
+
+      // Try phone variations if not found
+      if (!driver) {
+        const phoneVariations = [
+          phone,
+          phone.replace('+91', '').replace(/-/g, ''),
+          phone.replace('+', ''),
+          `+91${phone.replace('+91', '').replace(/-/g, '')}`,
+          `91${phone.replace('+91', '').replace(/-/g, '')}`
+        ];
+        
+        for (const phoneVar of phoneVariations) {
+          if (phoneVar !== phone) {
+            driver = await queryRunner.manager.findOne(DriverEntity, {
+              where: { phone: phoneVar }
+            });
+            if (driver) break;
+          }
+        }
+      }
+
+      // 2. Create or update driver
+      if (driver) {
+        // Update existing driver with provided data
+        if (driverData) {
+          if (driverData.name) driver.name = driverData.name;
+          if (driverData.vehicleType) driver.vehicleType = driverData.vehicleType;
+          if (driverData.capacity !== undefined) driver.capacity = driverData.capacity;
+          if (driverData.latitude !== undefined) driver.latitude = driverData.latitude;
+          if (driverData.longitude !== undefined) driver.longitude = driverData.longitude;
+          if (driverData.homeAddress !== undefined) driver.homeAddress = driverData.homeAddress;
+          if (driverData.homeAddressLatitude !== undefined) driver.homeAddressLatitude = driverData.homeAddressLatitude;
+          if (driverData.homeAddressLongitude !== undefined) driver.homeAddressLongitude = driverData.homeAddressLongitude;
+          if (driverData.zoneId !== undefined) driver.zoneId = driverData.zoneId;
+        }
+        driver.isActive = true;
+        driver.isVerified = true;
+        driver = await queryRunner.manager.save(DriverEntity, driver);
+      } else {
+        // Create new driver - use phone as name fallback if name not provided
+        const driverName = driverData?.name?.trim() || phone;
+        
+        driver = queryRunner.manager.create(DriverEntity, {
+          phone,
+          name: driverName,
+          vehicleType: driverData?.vehicleType || 'unknown',
+          capacity: driverData?.capacity ?? 1,
+          online: false,
+          status: 'offline',
+          latitude: driverData?.latitude ?? null,
+          longitude: driverData?.longitude ?? null,
+          homeAddress: driverData?.homeAddress ?? null,
+          homeAddressLatitude: driverData?.homeAddressLatitude ?? null,
+          homeAddressLongitude: driverData?.homeAddressLongitude ?? null,
+          zoneId: driverData?.zoneId ?? null,
+          isVerified: true,
+          isActive: true
+        });
+
+        driver = await queryRunner.manager.save(DriverEntity, driver);
+      }
+
+      // 3. Create or get wallet
+      let wallet = await queryRunner.manager.findOne(DriverWalletEntity, {
+        where: { driverId: driver.id }
+      });
+
+      if (!wallet) {
+        wallet = queryRunner.manager.create(DriverWalletEntity, {
+          driverId: driver.id,
+          balance: options?.initialWalletBalance ?? 0,
+          currency: options?.currency ?? 'INR'
+        });
+        wallet = await queryRunner.manager.save(DriverWalletEntity, wallet);
+      } else if (options?.initialWalletBalance !== undefined) {
+        // Update balance if initial balance is provided
+        wallet.balance = options.initialWalletBalance;
+        wallet = await queryRunner.manager.save(DriverWalletEntity, wallet);
+      }
+
+      // 4. Create bank account if provided
+      let savedBankAccount: DriverBankAccountEntity | undefined;
+      if (options?.bankAccount) {
+        // Check if bank account already exists for this driver
+        const existingBankAccount = await queryRunner.manager.findOne(DriverBankAccountEntity, {
+          where: {
+            driverId: driver.id,
+            accountNumber: options.bankAccount.account_number
+          }
+        });
+
+        if (!existingBankAccount) {
+          const bankAccount = queryRunner.manager.create(DriverBankAccountEntity, {
+            driverId: driver.id,
+            accountHolderName: options.bankAccount.account_holder_name,
+            accountNumber: options.bankAccount.account_number,
+            ifscCode: options.bankAccount.ifsc_code,
+            bankName: options.bankAccount.bank_name,
+            branchName: options.bankAccount.branch_name || null,
+            upiId: options.bankAccount.upi_id || null,
+            isVerified: false
+          });
+
+          savedBankAccount = await queryRunner.manager.save(DriverBankAccountEntity, bankAccount);
+        } else {
+          savedBankAccount = existingBankAccount;
+        }
+      }
+
+      // Commit transaction
+      await queryRunner.commitTransaction();
+
+      return {
+        driver,
+        wallet,
+        bankAccount: savedBankAccount
+      };
+    } catch (error) {
+      // Rollback transaction on error
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      // Release query runner
+      await queryRunner.release();
     }
   }
 }

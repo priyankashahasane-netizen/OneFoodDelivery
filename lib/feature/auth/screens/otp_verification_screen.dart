@@ -202,13 +202,34 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
           await authController.verifyOtp(_phone!, otp, isLogin: false, firstName: firstName, lastName: lastName, email: email).then((status) async {
             if (status.isSuccess) {
               if (authController.getUserToken().isNotEmpty) {
-                // Fetch profile and go to dashboard
+                // Get CubeOne access_token for mapper verification
+                String cubeOneAccessToken = authController.getCubeOneAccessToken();
+                
+                if (cubeOneAccessToken.isNotEmpty) {
+                  // Verify mapper entry exists before fetching profile
+                  await authController.verifyMapper(cubeOneAccessToken).then((mapperStatus) async {
+                    if (mapperStatus.isSuccess) {
+                      // Mapper verified - now fetch profile and redirect to home screen
+                      try {
+                        await Get.find<ProfileController>().getProfile();
+                      } catch (e) {
+                        debugPrint('Profile fetch failed: $e');
+                      }
+                      // Redirect to home screen (dashboard with pageIndex 0)
+                      Get.offAllNamed(RouteHelper.getInitialRoute());
+                    } else {
+                      showCustomSnackBar('Mapper verification failed: ${mapperStatus.message}', isError: true);
+                    }
+                  });
+                } else {
+                  // No access_token - skip mapper verification for demo or proceed anyway
                 try {
                   await Get.find<ProfileController>().getProfile();
                 } catch (e) {
                   debugPrint('Profile fetch failed: $e');
                 }
                 Get.offAllNamed(RouteHelper.getInitialRoute());
+                }
               } else {
                 showCustomSnackBar('Verification failed. Please try again.', isError: true);
               }

@@ -19,5 +19,9 @@ abstract class AuthServiceInterface {
   Future<ResponseModel> searchUser(String username);
   Future<ResponseModel> registerUser(String mobile, String firstName, String lastName, String email);
   Future<ResponseModel> loginCubeOne(String username, String otp);
+  Future<bool> saveCubeOneAccessToken(String token);
+  String getCubeOneAccessToken();
+  Future<bool> clearCubeOneAccessToken();
+  Future<ResponseModel> verifyMapper(String cubeOneAccessToken);
   void testPasswordGeneration();
 }

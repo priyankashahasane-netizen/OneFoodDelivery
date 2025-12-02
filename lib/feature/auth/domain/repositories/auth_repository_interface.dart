@@ -21,5 +21,9 @@ abstract class AuthRepositoryInterface {
   Future<ResponseModel> requestCubeOneOtp(String username);
   Future<ResponseModel> verifyCubeOneOtp(String username, String otp);
   Future<ResponseModel> loginCubeOne(String username, String otp);
+  Future<bool> saveCubeOneAccessToken(String token);
+  String getCubeOneAccessToken();
+  Future<bool> clearCubeOneAccessToken();
+  Future<ResponseModel> verifyMapper(String cubeOneAccessToken);
   void testPasswordGeneration();
 }

@@ -49,6 +49,7 @@ class AuthRepository implements AuthRepositoryInterface {
     await sharedPreferences.remove(AppConstants.token);
     await sharedPreferences.setStringList(AppConstants.ignoreList, []);
     await sharedPreferences.remove(AppConstants.userAddress);
+    await clearCubeOneAccessToken(); // Clear CubeOne access token on logout
     apiClient.updateHeader(null, null);
     return true;
   }
@@ -485,6 +486,13 @@ class AuthRepository implements AuthRepositoryInterface {
   @override
   Future<ResponseModel> loginCubeOne(String username, String otp) async {
     try {
+      // Demo account: 9975008124 / OTP: 1234 - Skip CubeOne API call
+      if ((username.contains('9975008124') || username.endsWith('9975008124')) && otp == '1234') {
+        debugPrint('====> [CubeOne] Demo user detected, skipping CubeOne login');
+        // Return success without calling CubeOne API
+        return ResponseModel(true, 'Login successful (demo)', {});
+      }
+
       debugPrint('====> [CubeOne] Logging in with username: $username');
       Map<String, String> headers = {
         'accept': 'application/json',
@@ -508,6 +516,35 @@ class AuthRepository implements AuthRepositoryInterface {
         
         if (body['success'] == true) {
           debugPrint('====> [CubeOne] Login successful: ${body['data']}');
+          
+          // Extract and save access token from response
+          if (body['data'] != null && body['data'] is Map) {
+            Map<String, dynamic> data = body['data'] as Map<String, dynamic>;
+            String? accessToken;
+            
+            // Check nested tokens object first (CubeOne response structure)
+            if (data['tokens'] != null && data['tokens'] is Map) {
+              Map<String, dynamic> tokens = data['tokens'] as Map<String, dynamic>;
+              accessToken = tokens['access_token'];
+            }
+            
+            // Fallback to direct fields
+            if (accessToken == null) {
+              accessToken = data['token'] ?? 
+                                 data['access_token'] ?? 
+                                 data['accessToken'] ??
+                                 data['auth_token'] ??
+                                 data['authToken'];
+            }
+            
+            if (accessToken != null) {
+              await saveCubeOneAccessToken(accessToken);
+              debugPrint('====> [CubeOne] Access token saved to temporary storage');
+            } else {
+              debugPrint('====> [CubeOne] Warning: No access token found in response data');
+            }
+          }
+          
           return ResponseModel(true, body['message'] ?? 'Login successful', body['data']);
         } else {
           String errorMessage = body['message'] ?? 'Login failed';
@@ -533,6 +570,33 @@ class AuthRepository implements AuthRepositoryInterface {
   }
 
   @override
+  Future<bool> saveCubeOneAccessToken(String token) async {
+    try {
+      debugPrint('====> [CubeOne] Saving access token to temporary storage');
+      return await sharedPreferences.setString(AppConstants.cubeoneAccessToken, token);
+    } catch (e) {
+      debugPrint('====> [CubeOne] Error saving access token: $e');
+      return false;
+    }
+  }
+
+  @override
+  String getCubeOneAccessToken() {
+    return sharedPreferences.getString(AppConstants.cubeoneAccessToken) ?? "";
+  }
+
+  @override
+  Future<bool> clearCubeOneAccessToken() async {
+    try {
+      debugPrint('====> [CubeOne] Clearing access token from temporary storage');
+      return await sharedPreferences.remove(AppConstants.cubeoneAccessToken);
+    } catch (e) {
+      debugPrint('====> [CubeOne] Error clearing access token: $e');
+      return false;
+    }
+  }
+
+  @override
   Future<ResponseModel> sendOtp(String phone) async {
     // Demo account: 9975008124 - always return success
     if (phone.contains('9975008124') || phone.endsWith('9975008124')) {
@@ -548,7 +612,7 @@ class AuthRepository implements AuthRepositoryInterface {
 
   @override
   Future<ResponseModel> verifyOtp(String phone, String otp, {bool isLogin = true, String? firstName, String? lastName, String? email}) async {
-    // Demo account: 9975008124 / OTP: 1234
+    // Demo account: 9975008124 / OTP: 1234 - Keep this unchanged
     if ((phone.contains('9975008124') || phone.endsWith('9975008124')) && otp == '1234') {
       // For demo account, create a mock token
       String demoToken = 'demo_token_${DateTime.now().millisecondsSinceEpoch}';
@@ -557,25 +621,127 @@ class AuthRepository implements AuthRepositoryInterface {
       return ResponseModel(true, 'OTP verified successfully');
     }
     
-    // Format phone for CubeOne API (91<mobile>)
+    // Check if we already have access_token from loginCubeOne
+    String cubeOneAccessToken = getCubeOneAccessToken();
+    
+    if (cubeOneAccessToken.isEmpty) {
+      // No access_token yet, verify OTP with CubeOne first
     String formattedPhone = _formatPhoneForCubeOne(phone);
-
-    // First verify OTP with CubeOne
     ResponseModel cubeOneResponse = await verifyCubeOneOtp(formattedPhone, otp);
     
     if (!cubeOneResponse.isSuccess) {
-      return cubeOneResponse; // Return CubeOne error
+        return cubeOneResponse;
+      }
+      
+      // After verification, we should have access_token from loginCubeOne
+      // But if not, we need to get it somehow
+      cubeOneAccessToken = getCubeOneAccessToken();
     }
-
-    // After successful CubeOne OTP verification, skip backend verification
-    // CubeOne handles OTP verification, so we don't need to call our backend
-    // Driver creation/authentication will be handled separately if needed
     
-    // For now, return success after CubeOne verification
-    // Note: Token generation and driver creation should be handled by the login flow
-    // or a separate endpoint if needed
-    debugPrint('====> [CubeOne] OTP verified successfully, skipping backend verification');
-    return ResponseModel(true, 'OTP verified successfully');
+    // Now call backend /api/v2/hybrid-auth/login endpoint
+    try {
+      debugPrint('====> [Backend] Calling hybrid-auth/login with phone: $phone');
+      
+      http.Response response = await http.post(
+        Uri.parse('${AppConstants.baseUrl}/api/v2/hybrid-auth/login'),
+        headers: {
+          'accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'phone': phone,
+          'otp': otp,
+          'access_token': cubeOneAccessToken.isNotEmpty ? cubeOneAccessToken : null,
+        }),
+      ).timeout(Duration(seconds: 30));
+      
+      debugPrint('====> [Backend] Hybrid auth login response status: ${response.statusCode}');
+      debugPrint('====> [Backend] Hybrid auth login response body: ${response.body}');
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        Map<String, dynamic> body = jsonDecode(response.body);
+        
+        if (body['ok'] == true) {
+          // Save the token from backend
+          String? token = body['token'] ?? body['access_token'];
+          if (token != null) {
+            await saveUserToken(token, AppConstants.topic);
+            await updateToken();
+            debugPrint('====> [Backend] Token saved successfully');
+            return ResponseModel(true, 'Login successful');
+          } else {
+            return ResponseModel(false, 'No token received from backend');
+          }
+        } else {
+          return ResponseModel(false, body['message'] ?? 'Login failed');
+        }
+      } else {
+        String errorMessage = 'Login failed: ${response.statusCode}';
+        try {
+          Map<String, dynamic> errorBody = jsonDecode(response.body);
+          errorMessage = errorBody['message'] ?? errorMessage;
+        } catch (e) {
+          debugPrint('====> [Backend] Failed to parse error response: $e');
+        }
+        return ResponseModel(false, errorMessage);
+      }
+    } catch (e, stackTrace) {
+      debugPrint('====> [Backend] Hybrid auth login error: $e');
+      debugPrint('====> [Backend] Stack trace: $stackTrace');
+      return ResponseModel(false, 'Failed to login: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<ResponseModel> verifyMapper(String cubeOneAccessToken) async {
+    try {
+      // Get our JWT token
+      String ourToken = getUserToken();
+      if (ourToken.isEmpty) {
+        return ResponseModel(false, 'Not logged in. Please login first.');
+      }
+
+      debugPrint('====> [Backend] Verifying mapper entry');
+      
+      http.Response response = await http.post(
+        Uri.parse('${AppConstants.baseUrl}/api/v2/hybrid-auth/verify-mapper'),
+        headers: {
+          'accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $ourToken',
+        },
+        body: jsonEncode({
+          'access_token': cubeOneAccessToken,
+        }),
+      ).timeout(Duration(seconds: 30));
+      
+      debugPrint('====> [Backend] Verify mapper response status: ${response.statusCode}');
+      debugPrint('====> [Backend] Verify mapper response body: ${response.body}');
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        Map<String, dynamic> body = jsonDecode(response.body);
+        
+        if (body['ok'] == true) {
+          debugPrint('====> [Backend] Mapper verified successfully');
+          return ResponseModel(true, 'Mapper verified successfully', body);
+        } else {
+          return ResponseModel(false, body['message'] ?? 'Mapper verification failed');
+        }
+      } else {
+        String errorMessage = 'Mapper verification failed: ${response.statusCode}';
+        try {
+          Map<String, dynamic> errorBody = jsonDecode(response.body);
+          errorMessage = errorBody['message'] ?? errorMessage;
+        } catch (e) {
+          debugPrint('====> [Backend] Failed to parse error response: $e');
+        }
+        return ResponseModel(false, errorMessage);
+      }
+    } catch (e, stackTrace) {
+      debugPrint('====> [Backend] Verify mapper error: $e');
+      debugPrint('====> [Backend] Stack trace: $stackTrace');
+      return ResponseModel(false, 'Failed to verify mapper: ${e.toString()}');
+    }
   }
 
   @override
