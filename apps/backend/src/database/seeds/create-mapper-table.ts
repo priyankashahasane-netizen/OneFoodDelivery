@@ -42,9 +42,30 @@ async function createMapperTable() {
 
     if (tableExists.length > 0) {
       console.log('✅ mapper table already exists');
+      
+      // Check if old_sso_user_id column exists
+      const columnExists = await queryRunner.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'mapper' 
+        AND column_name = 'old_sso_user_id'
+      `);
+      
+      if (columnExists.length === 0) {
+        console.log('📝 Adding old_sso_user_id column to existing mapper table...');
+        await queryRunner.query(`
+          ALTER TABLE mapper 
+          ADD COLUMN old_sso_user_id VARCHAR(255) NULL
+        `);
+        console.log('✅ old_sso_user_id column added successfully');
+      } else {
+        console.log('✅ old_sso_user_id column already exists');
+      }
+      
       await queryRunner.release();
       await AppDataSource.destroy();
-      console.log('✅ Migration already applied');
+      console.log('✅ Migration completed');
       process.exit(0);
       return;
     }
@@ -56,6 +77,7 @@ async function createMapperTable() {
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         driver_id UUID NOT NULL,
         user_id VARCHAR(255) NOT NULL,
+        old_sso_user_id VARCHAR(255) NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         CONSTRAINT fk_mapper_driver 

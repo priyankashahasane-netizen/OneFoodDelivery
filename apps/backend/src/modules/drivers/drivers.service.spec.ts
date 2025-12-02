@@ -113,7 +113,7 @@ describe('DriversService - newDriverFunc', () => {
         capacity: 1,
         online: false,
         status: 'offline',
-        isVerified: true,
+        isVerified: false, // New drivers should be created with isVerified = false
         isActive: true,
       };
 
@@ -152,7 +152,7 @@ describe('DriversService - newDriverFunc', () => {
           name: phone, // Should use phone as name fallback
           vehicleType: 'unknown',
           capacity: 1,
-          isVerified: true,
+          isVerified: false, // New drivers should be created with isVerified = false
           isActive: true,
         })
       );
@@ -178,7 +178,7 @@ describe('DriversService - newDriverFunc', () => {
         name: driverName,
         vehicleType: 'bike',
         capacity: 5,
-        isVerified: true,
+        isVerified: false, // New drivers should be created with isVerified = false
         isActive: true,
       };
 
@@ -368,7 +368,8 @@ describe('DriversService - newDriverFunc', () => {
         vehicleType: 'bike',
         capacity: 5,
         isActive: true,
-        isVerified: true,
+        // isVerified should be preserved from existing driver, not automatically set to true
+        isVerified: false,
       };
 
       const mockWallet: Partial<DriverWalletEntity> = {
@@ -402,7 +403,8 @@ describe('DriversService - newDriverFunc', () => {
           vehicleType: 'bike',
           capacity: 5,
           isActive: true,
-          isVerified: true,
+          // isVerified should be preserved from existing driver, not automatically set to true
+          isVerified: false,
         })
       );
       expect(result.driver.name).toBe('John Doe');
@@ -617,7 +619,7 @@ describe('DriversService - newDriverFunc', () => {
         homeAddressLatitude: 12.9716,
         homeAddressLongitude: 77.5946,
         zoneId: 'zone-123',
-        isVerified: true,
+        isVerified: false, // New drivers should be created with isVerified = false
         isActive: true,
       };
 

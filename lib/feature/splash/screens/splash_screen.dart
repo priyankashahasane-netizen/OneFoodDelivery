@@ -10,7 +10,6 @@ import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/util/images.dart';
 import 'package:stackfood_multivendor_driver/util/styles.dart';
 import 'package:stackfood_multivendor_driver/feature/auth/controllers/auth_controller.dart';
-import 'package:stackfood_multivendor_driver/common/models/response_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -111,75 +110,43 @@ class SplashScreenState extends State<SplashScreen> {
                 Get.toNamed(RouteHelper.getNotificationRoute(fromNotification: true));
               }
             }else{
-              // Auto-login with demo account if not already logged in
+              // Check authentication status based on token
               AuthController authController = Get.find<AuthController>();
               
-              if(!authController.isLoggedIn()) {
-                // Demo account credentials
-                String demoPhone = '+919975008124'; // or '9975008124'
-                String demoPassword = 'Pri@0110';
-                
-                // Attempt auto-login
-                try {
-                  ResponseModel loginResult = await authController.login(demoPhone, demoPassword);
-                  
-                  if(loginResult.isSuccess && authController.getUserToken().isNotEmpty) {
-                    // Login successful - fetch profile
-                    try {
-                      await Get.find<ProfileController>().getProfile();
-                    } catch (e) {
-                      debugPrint('Profile fetch failed: $e');
-                      // Continue anyway
-                    }
-                    // Navigate to home screen
-                    Get.offAllNamed(RouteHelper.getInitialRoute());
-                  } else {
-                    // Login failed - navigate anyway (might work with cached token)
-                    debugPrint('Auto-login failed: ${loginResult.message}');
-                    Get.offAllNamed(RouteHelper.getInitialRoute());
-                  }
-                } catch (e) {
-                  debugPrint('Auto-login error: $e');
-                  // Navigate anyway - might have cached token
-                  Get.offAllNamed(RouteHelper.getInitialRoute());
-                }
-              } else {
-                // Already logged in - just fetch profile and navigate
+              // Check if user has a valid token
+              String token = authController.getUserToken();
+              
+              if(token.isNotEmpty && authController.isLoggedIn()) {
+                // User has valid token - already logged in
                 try {
                   await Get.find<ProfileController>().getProfile();
                 } catch (e) {
                   debugPrint('Profile fetch failed: $e');
                 }
                 Get.offAllNamed(RouteHelper.getInitialRoute());
+              } else {
+                // No token or invalid token - navigate to login screen
+                // Do NOT auto-login with demo account after logout
+                Get.offAllNamed(RouteHelper.getOtpLoginRoute());
               }
             }
           }
         });
       } else {
-        // Config fetch failed - try to auto-login anyway
+        // Config fetch failed - check token and navigate accordingly
         Timer(const Duration(seconds: 1), () async {
           AuthController authController = Get.find<AuthController>();
           
-          if(!authController.isLoggedIn()) {
-            try {
-              String demoPhone = '+919975008124';
-              String demoPassword = 'Pri@0110';
-              ResponseModel loginResult = await authController.login(demoPhone, demoPassword);
-              
-              if(loginResult.isSuccess && authController.getUserToken().isNotEmpty) {
-                try {
-                  await Get.find<ProfileController>().getProfile();
-                } catch (e) {
-                  debugPrint('Profile fetch failed: $e');
-                }
-              }
-            } catch (e) {
-              debugPrint('Auto-login error: $e');
-            }
-          }
+          // Check if user has a valid token
+          String token = authController.getUserToken();
           
-          // Navigate to home regardless
-          Get.offAllNamed(RouteHelper.getInitialRoute());
+          if(token.isNotEmpty && authController.isLoggedIn()) {
+            // User has valid token - navigate to dashboard
+            Get.offAllNamed(RouteHelper.getInitialRoute());
+          } else {
+            // No token - navigate to login screen
+            Get.offAllNamed(RouteHelper.getOtpLoginRoute());
+          }
         });
       }
     });

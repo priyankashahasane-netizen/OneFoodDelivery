@@ -31,6 +31,9 @@ export class MapperEntity {
   @Column({ name: 'user_id', type: 'varchar', length: 255 })
   userId!: string;
 
+  @Column({ name: 'old_sso_user_id', type: 'varchar', length: 255, nullable: true })
+  oldSsoUserId!: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 

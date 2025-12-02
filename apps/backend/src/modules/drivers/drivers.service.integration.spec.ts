@@ -115,7 +115,8 @@ describe('DriversService - newDriverFunc Integration Tests', () => {
       expect(result.driver.vehicleType).toBe('bike');
       expect(result.driver.capacity).toBe(5);
       expect(result.driver.isActive).toBe(true);
-      expect(result.driver.isVerified).toBe(true);
+      // New drivers should be created with isVerified = false
+      expect(result.driver.isVerified).toBe(false);
 
       expect(result.wallet).toBeDefined();
       expect(result.wallet.id).toBeDefined();
@@ -214,7 +215,8 @@ describe('DriversService - newDriverFunc Integration Tests', () => {
       expect(result.driver.vehicleType).toBe('bike');
       expect(result.driver.capacity).toBe(5);
       expect(result.driver.isActive).toBe(true);
-      expect(result.driver.isVerified).toBe(true);
+      // isVerified should be preserved from existing driver, not automatically set to true
+      expect(result.driver.isVerified).toBe(false);
       expect(result.wallet).toBeDefined();
     });
 

@@ -38,7 +38,17 @@ export class DriversService {
   }
 
   async findById(driverId: string) {
-    const driver = await this.driversRepository.findOne({ where: { id: driverId } });
+    // Explicitly select all columns including isVerified and isActive to ensure they're loaded from DB
+    const driver = await this.driversRepository.findOne({ 
+      where: { id: driverId },
+      select: [
+        'id', 'name', 'phone', 'vehicleType', 'capacity', 'online', 'status',
+        'ratingAvg', 'kycStatus', 'latitude', 'longitude', 
+        'homeAddress', 'homeAddressLatitude', 'homeAddressLongitude',
+        'lastSeenAt', 'ipAddress', 'metadata', 'zoneId', 
+        'isVerified', 'isActive', 'createdAt', 'updatedAt'
+      ]
+    });
     if (!driver) {
       throw new NotFoundException(`Driver ${driverId} not found`);
     }
@@ -81,9 +91,27 @@ export class DriversService {
   async getProfile(driverId: string): Promise<DriverProfileResponseDto> {
     const driver = await this.findById(driverId);
     
-    // Debug: Log createdAt, isActive, and isVerified to verify it's loaded
+    // Debug: Verify actual database value with raw query to compare with TypeORM entity
+    try {
+      const rawDriver = await this.dataSource.query(
+        `SELECT id, phone, is_verified, is_active FROM drivers WHERE id = $1`,
+        [driverId]
+      );
+      if (rawDriver && rawDriver.length > 0) {
+        console.log(`[getProfile] 🔍 Raw DB query result:`, {
+          id: rawDriver[0].id,
+          phone: rawDriver[0].phone,
+          is_verified: rawDriver[0].is_verified,
+          is_active: rawDriver[0].is_active
+        });
+      }
+    } catch (error) {
+      console.error(`[getProfile] Error querying raw DB:`, error);
+    }
+    
+    // Debug: Log TypeORM entity values
     console.log(`[getProfile] Driver ${driverId} - phone: ${driver.phone}, createdAt:`, driver.createdAt, typeof driver.createdAt);
-    console.log(`[getProfile] Driver ${driverId} - isActive: ${driver.isActive} (${typeof driver.isActive}), isVerified: ${driver.isVerified} (${typeof driver.isVerified})`);
+    console.log(`[getProfile] Driver ${driverId} - TypeORM entity - isActive: ${driver.isActive} (${typeof driver.isActive}), isVerified: ${driver.isVerified} (${typeof driver.isVerified})`);
     console.log(`[getProfile] Driver ${driverId} - Raw entity values:`, JSON.stringify({ id: driver.id, phone: driver.phone, isActive: driver.isActive, isVerified: driver.isVerified }));
     
     // Fetch wallet balance from database
@@ -394,6 +422,32 @@ export class DriversService {
 
       // 2. Create or update driver
       if (driver) {
+        // Verify actual database value with raw query to compare with TypeORM entity
+        try {
+          const rawDriver = await queryRunner.manager.query(
+            `SELECT id, phone, is_verified, is_active FROM drivers WHERE id = $1`,
+            [driver.id]
+          );
+          if (rawDriver && rawDriver.length > 0) {
+            console.log(`[newDriverFunc] 🔍 Raw DB query result for driver ${driver.id}:`, {
+              id: rawDriver[0].id,
+              phone: rawDriver[0].phone,
+              is_verified: rawDriver[0].is_verified,
+              is_active: rawDriver[0].is_active
+            });
+            // Use the actual database value if TypeORM entity has a different value
+            if (rawDriver[0].is_verified !== driver.isVerified) {
+              console.log(`[newDriverFunc] ⚠️  Mismatch detected! DB has is_verified=${rawDriver[0].is_verified}, but entity has isVerified=${driver.isVerified}. Using DB value.`);
+              driver.isVerified = rawDriver[0].is_verified;
+            }
+          }
+        } catch (error) {
+          console.error(`[newDriverFunc] Error querying raw DB:`, error);
+        }
+        
+        // Log current isVerified value before any changes
+        console.log(`[newDriverFunc] Found existing driver ${driver.id}, current isVerified=${driver.isVerified}, isActive=${driver.isActive}`);
+        
         // Update existing driver with provided data
         if (driverData) {
           if (driverData.name) driver.name = driverData.name;
@@ -407,8 +461,12 @@ export class DriversService {
           if (driverData.zoneId !== undefined) driver.zoneId = driverData.zoneId;
         }
         driver.isActive = true;
-        driver.isVerified = true;
+        // DO NOT automatically set isVerified = true here - verification status should only be set
+        // when driver actually completes registration/verification process, not just by logging in
+        // driver.isVerified should remain as it is in the database
+        console.log(`[newDriverFunc] Saving driver ${driver.id} with isVerified=${driver.isVerified} (preserved from DB), isActive=${driver.isActive}`);
         driver = await queryRunner.manager.save(DriverEntity, driver);
+        console.log(`[newDriverFunc] Saved driver ${driver.id}, final isVerified=${driver.isVerified}, isActive=${driver.isActive}`);
       } else {
         // Create new driver - use phone as name fallback if name not provided
         const driverName = driverData?.name?.trim() || phone;
@@ -426,7 +484,7 @@ export class DriversService {
           homeAddressLatitude: driverData?.homeAddressLatitude ?? null,
           homeAddressLongitude: driverData?.homeAddressLongitude ?? null,
           zoneId: driverData?.zoneId ?? null,
-          isVerified: true,
+          isVerified: false,
           isActive: true
         });
 

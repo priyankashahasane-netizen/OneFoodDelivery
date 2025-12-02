@@ -156,8 +156,8 @@ export class DriverProfileResponseDto {
       active: driver.online ? 1 : 0,
       // Preserve the actual isActive value from database
       // TypeORM boolean columns always return true/false, never undefined
-      is_active: driver.isActive,
-      is_verified: driver.isVerified,
+      is_active: driver.isActive ?? true,  // Default to true if somehow undefined
+      is_verified: driver.isVerified ?? false,  // Default to false if somehow undefined - show registration form
       zone_id: zoneIdStr,
       created_at: createdAt,
       updated_at: updatedAt,

@@ -146,8 +146,8 @@ class ProfileModel {
     if (json['is_verified'] != null) {
       isVerified = json['is_verified'] is bool ? json['is_verified'] : (json['is_verified'] == true || json['is_verified'] == 1);
     } else {
-      // Default to true if not provided (as per entity default)
-      isVerified = true;
+      // Default to false if not provided - show registration form when status is unknown
+      isVerified = false;
     }
     
     // Ensure numeric fields have defaults
