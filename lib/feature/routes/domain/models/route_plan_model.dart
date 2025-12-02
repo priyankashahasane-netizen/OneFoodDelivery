@@ -7,6 +7,9 @@ class RoutePlanModel {
   String? provider;
   DateTime? createdAt;
   Map<String, dynamic>? rawResponse;
+  String? polyline;
+  int? estimatedDurationSec;
+  List<int>? sequence;
 
   RoutePlanModel({
     this.id,
@@ -17,6 +20,9 @@ class RoutePlanModel {
     this.provider,
     this.createdAt,
     this.rawResponse,
+    this.polyline,
+    this.estimatedDurationSec,
+    this.sequence,
   });
 
   RoutePlanModel.fromJson(Map<String, dynamic> json) {
@@ -24,6 +30,12 @@ class RoutePlanModel {
     driverId = json['driverId']?.toString();
     totalDistanceKm = json['totalDistanceKm']?.toDouble();
     provider = json['provider'];
+    polyline = json['polyline']?.toString();
+    estimatedDurationSec = json['estimatedDurationSec'] != null 
+        ? (json['estimatedDurationSec'] is int 
+            ? json['estimatedDurationSec'] as int 
+            : int.tryParse(json['estimatedDurationSec'].toString()))
+        : null;
     if (json['createdAt'] != null) {
       createdAt = DateTime.parse(json['createdAt']);
     }
@@ -36,6 +48,10 @@ class RoutePlanModel {
     if (json['etaPerStop'] != null) {
       etaPerStop = Map<String, int>.from(json['etaPerStop'].map((k, v) => MapEntry(k.toString(), v as int)));
     }
+
+    if (json['sequence'] != null) {
+      sequence = (json['sequence'] as List).map((v) => v as int).toList();
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -44,6 +60,8 @@ class RoutePlanModel {
     data['driverId'] = driverId;
     data['totalDistanceKm'] = totalDistanceKm;
     data['provider'] = provider;
+    data['polyline'] = polyline;
+    data['estimatedDurationSec'] = estimatedDurationSec;
     data['createdAt'] = createdAt?.toIso8601String();
     data['rawResponse'] = rawResponse;
     if (stops != null) {
@@ -51,6 +69,9 @@ class RoutePlanModel {
     }
     if (etaPerStop != null) {
       data['etaPerStop'] = etaPerStop;
+    }
+    if (sequence != null) {
+      data['sequence'] = sequence;
     }
     return data;
   }

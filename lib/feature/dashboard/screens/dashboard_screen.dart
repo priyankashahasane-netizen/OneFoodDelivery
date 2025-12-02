@@ -9,6 +9,7 @@ import 'package:stackfood_multivendor_driver/feature/order/screens/order_screen.
 import 'package:stackfood_multivendor_driver/feature/profile/controllers/profile_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/screens/profile_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/order/screens/order_request_screen.dart';
+import 'package:stackfood_multivendor_driver/feature/routes/screens/subscription_route_map_screen.dart';
 import 'package:stackfood_multivendor_driver/helper/custom_print_helper.dart';
 import 'package:stackfood_multivendor_driver/util/dimensions.dart';
 import 'package:stackfood_multivendor_driver/common/widgets/custom_alert_dialog_widget.dart';
@@ -60,6 +61,7 @@ class DashboardScreenState extends State<DashboardScreen> {
       const HomeScreen(),
       OrderRequestScreen(onTap: () => _setPage(0)),
       const OrderScreen(isActiveOrders: false), // My Orders
+      const SubscriptionRouteMapScreen(), // Subscription Route Map
       const ProfileScreen(),
     ];
 
@@ -168,7 +170,9 @@ class DashboardScreenState extends State<DashboardScreen> {
 
               BottomNavItemWidget(icon: Images.myOrderIcon, isSelected: _pageIndex == 2, onTap: () => _setPage(2)),
 
-              BottomNavItemWidget(icon: Images.personIcon, isSelected: _pageIndex == 3, onTap: () => _setPage(3)),
+              BottomNavItemWidget(iconData: Icons.map_outlined, isSelected: _pageIndex == 3, onTap: () => _setPage(3), iconSize: 22),
+
+              BottomNavItemWidget(icon: Images.personIcon, isSelected: _pageIndex == 4, onTap: () => _setPage(4)),
 
             ]),
           ),

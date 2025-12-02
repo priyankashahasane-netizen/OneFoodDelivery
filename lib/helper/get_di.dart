@@ -58,6 +58,11 @@ import 'package:stackfood_multivendor_driver/feature/splash/domain/repositories/
 import 'package:stackfood_multivendor_driver/feature/splash/domain/repositories/splash_repository_interface.dart';
 import 'package:stackfood_multivendor_driver/feature/splash/domain/services/splash_service.dart';
 import 'package:stackfood_multivendor_driver/feature/splash/domain/services/splash_service_interface.dart';
+import 'package:stackfood_multivendor_driver/feature/routes/controllers/route_controller.dart';
+import 'package:stackfood_multivendor_driver/feature/routes/domain/repositories/route_repository_interface.dart';
+import 'package:stackfood_multivendor_driver/feature/routes/data/repositories/route_repository.dart';
+import 'package:stackfood_multivendor_driver/feature/routes/domain/services/route_service_interface.dart';
+import 'package:stackfood_multivendor_driver/feature/routes/data/services/route_service.dart';
 import 'package:stackfood_multivendor_driver/util/app_constants.dart';
 import 'package:stackfood_multivendor_driver/feature/language/domain/models/language_model.dart';
 import 'package:flutter/services.dart';
@@ -104,6 +109,9 @@ Future<Map<String, Map<String, String>>> init() async {
   RegistrationRepositoryInterface registrationRepositoryInterface = RegistrationRepository(apiClient: Get.find());
   Get.lazyPut(() => registrationRepositoryInterface);
 
+  RouteRepositoryInterface routeRepositoryInterface = RouteRepository(apiClient: Get.find());
+  Get.lazyPut(() => routeRepositoryInterface);
+
   ///Service Interface
   ProfileServiceInterface profileServiceInterface = ProfileService(profileRepositoryInterface: Get.find());
   Get.lazyPut(() => profileServiceInterface);
@@ -138,6 +146,9 @@ Future<Map<String, Map<String, String>>> init() async {
   RegistrationServiceInterface registrationServiceInterface = RegistrationService(registrationRepositoryInterface: Get.find());
   Get.lazyPut(() => registrationServiceInterface);
 
+  RouteServiceInterface routeServiceInterface = RouteService(routeRepository: Get.find());
+  Get.lazyPut(() => routeServiceInterface);
+
 
   ///Controller
   Get.lazyPut(() => ProfileController(profileServiceInterface: Get.find()));
@@ -152,6 +163,7 @@ Future<Map<String, Map<String, String>>> init() async {
   Get.lazyPut(() => AuthController(authServiceInterface: Get.find()));
   Get.lazyPut(() => AddressController(addressServiceInterface: Get.find()));
   Get.lazyPut(() => RegistrationController(registrationServiceInterface: Get.find()));
+  Get.lazyPut(() => RouteController(routeServiceInterface: Get.find()));
   // Initialize AppDrawerController immediately since it's used early in the app lifecycle
   Get.put(drawer_ctrl.AppDrawerController(), permanent: true);
   // Initialize BottomNavController

@@ -33,6 +33,8 @@ class AppConstants {
   // Routes
   static const String optimizeRouteUri = '/api/routes/optimize';
   static const String latestRouteUri = '/api/routes/driver'; // /:driverId/latest
+  static const String optimizeSubscriptionRouteUri = '/api/routes/driver'; // /:driverId/subscription-orders/optimize
+  static const String latestSubscriptionRouteUri = '/api/routes/driver'; // /:driverId/subscription-orders/latest
   
   // Tracking
   static const String recordLocationUri = '/api/track'; // /:orderId

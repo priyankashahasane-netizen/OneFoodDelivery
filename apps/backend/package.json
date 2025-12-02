@@ -39,7 +39,8 @@
     "fix-orders-items": "node --loader ts-node/esm src/database/seeds/fix-orders-missing-items.ts",
     "add-driver-verification-columns": "node --loader ts-node/esm src/database/seeds/add-driver-verification-columns.ts",
     "create-mapper-table": "node --loader ts-node/esm src/database/seeds/create-mapper-table.ts",
-    "test:newDriverFunc": "node --loader ts-node/esm src/modules/drivers/test-newDriverFunc.ts"
+    "test:newDriverFunc": "node --loader ts-node/esm src/modules/drivers/test-newDriverFunc.ts",
+    "export:subscription-orders-today": "node --loader ts-node/esm scripts/export-subscription-orders-today.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.5",

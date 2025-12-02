@@ -31,8 +31,10 @@ export class RoutePlanEntity {
   @JoinColumn({ name: 'order_id' })
   order!: OrderEntity | null;
 
-  @Column({ name: 'order_id', nullable: true })
-  orderId!: string | null;
+  // For single order routes, this is a string
+  // For subscription routes with multiple orders, this is an array of order IDs
+  @Column({ name: 'order_id', type: 'jsonb', nullable: true })
+  orderId!: string | string[] | null;
 
   @Column({ length: 24, default: 'planned' })
   status!: string; // planned, active, completed, cancelled

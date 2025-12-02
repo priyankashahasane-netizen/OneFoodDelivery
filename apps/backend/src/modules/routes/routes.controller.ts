@@ -42,5 +42,36 @@ export class RoutesController {
       return null;
     }
   }
+
+  // POST /api/routes/driver/:driverId/subscription-orders/optimize
+  @Public()
+  @Post('driver/:driverId/subscription-orders/optimize')
+  async optimizeSubscriptionOrders(@Param('driverId') driverId: string) {
+    try {
+      this.logger.log(`Optimizing route for subscription orders for driver ${driverId}`);
+      const plan = await this.routesService.optimizeSubscriptionOrdersRoute(driverId);
+      return plan;
+    } catch (error: any) {
+      this.logger.error(`Failed to optimize subscription orders route for driver ${driverId}:`, error?.message || error);
+      return {
+        error: 'Failed to optimize subscription orders route',
+        message: error?.message || 'Internal server error',
+        driverId: driverId
+      };
+    }
+  }
+
+  // GET /api/routes/driver/:driverId/subscription-orders/latest
+  @Public()
+  @Get('driver/:driverId/subscription-orders/latest')
+  async getLatestSubscriptionRoute(@Param('driverId') driverId: string) {
+    try {
+      const plan = await this.routesService.getLatestSubscriptionRouteForDriver(driverId);
+      return plan || null;
+    } catch (error: any) {
+      this.logger.error(`Failed to get latest subscription route for driver ${driverId}:`, error?.message || error);
+      return null;
+    }
+  }
 }
 

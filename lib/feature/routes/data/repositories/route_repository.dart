@@ -24,5 +24,20 @@ class RouteRepository implements RouteRepositoryInterface {
     );
   }
 
+  @override
+  Future<Response> optimizeSubscriptionRoute(String driverId) async {
+    return await apiClient.postData(
+      '${AppConstants.optimizeSubscriptionRouteUri}/$driverId/subscription-orders/optimize',
+      {},
+    );
+  }
+
+  @override
+  Future<Response> getLatestSubscriptionRoute(String driverId) async {
+    return await apiClient.getData(
+      '${AppConstants.latestSubscriptionRouteUri}/$driverId/subscription-orders/latest',
+    );
+  }
+
 }
 
