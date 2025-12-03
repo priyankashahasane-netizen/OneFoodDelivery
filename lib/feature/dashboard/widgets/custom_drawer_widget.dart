@@ -185,14 +185,6 @@ class CustomDrawerWidget extends StatelessWidget {
                     },
                   ),
                   _DrawerMenuItem(
-                    icon: Icons.inbox,
-                    title: 'inbox'.tr,
-                    onTap: () {
-                      Navigator.pop(context);
-                      Get.toNamed(RouteHelper.getConversationListRoute());
-                    },
-                  ),
-                  _DrawerMenuItem(
                     icon: Icons.language,
                     title: 'language'.tr,
                     onTap: () {

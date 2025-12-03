@@ -12,7 +12,6 @@ import 'order/pod_complete_test.dart' as pod_complete_test;
 import 'profile/profile_controller_test.dart' as profile_controller_test;
 import 'profile/earnings_test.dart' as earnings_test;
 import 'splash/splash_controller_test.dart' as splash_controller_test;
-import 'chat/chat_controller_test.dart' as chat_controller_test;
 import 'cash_in_hand/cash_in_hand_controller_test.dart' as cash_in_hand_controller_test;
 import 'disbursements/disbursement_controller_test.dart' as disbursement_controller_test;
 import 'notification/notification_controller_test.dart' as notification_controller_test;
@@ -87,7 +86,6 @@ void main() {
       profile_controller_test.main();
       earnings_test.main();
       splash_controller_test.main();
-      chat_controller_test.main();
       cash_in_hand_controller_test.main();
       disbursement_controller_test.main();
       notification_controller_test.main();

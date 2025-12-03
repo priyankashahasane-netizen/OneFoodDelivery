@@ -247,11 +247,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: Dimensions.paddingSizeSmall),
 
-              ProfileButtonWidget(icon: Icons.chat_bubble, title: 'conversation'.tr, onTap: () {
-                Get.toNamed(RouteHelper.getConversationListRoute());
-              }),
-              const SizedBox(height: Dimensions.paddingSizeSmall),
-
               ProfileButtonWidget(icon: Icons.language, title: 'language'.tr, onTap: () {
                 _manageLanguageFunctionality();
               }),

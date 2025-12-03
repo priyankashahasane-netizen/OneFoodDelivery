@@ -6,7 +6,6 @@ import 'package:stackfood_multivendor_driver/feature/dashboard/screens/dashboard
 import 'package:stackfood_multivendor_driver/feature/notification/domain/models/notification_body_model.dart';
 import 'package:stackfood_multivendor_driver/helper/custom_print_helper.dart';
 import 'package:stackfood_multivendor_driver/helper/route_helper.dart';
-import 'package:stackfood_multivendor_driver/helper/user_type_helper.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:stackfood_multivendor_driver/util/app_constants.dart';
 import 'package:get/get.dart';
@@ -32,8 +31,6 @@ class NotificationHelper {
           }else if(payload.notificationType == NotificationType.order_request){
             customPrint('order requested------------');
             Get.toNamed(RouteHelper.getMainRoute('order-request'));
-          }else if(payload.notificationType == NotificationType.message){
-            Get.toNamed(RouteHelper.getChatRoute(notificationBody: payload, conversationId: payload.conversationId, fromNotification: true));
           }else if(payload.notificationType == NotificationType.block || payload.notificationType == NotificationType.unblock){
             // Auth removed - navigate to home screen
             Get.offAllNamed(RouteHelper.getInitialRoute());
@@ -132,12 +129,6 @@ class NotificationHelper {
   static NotificationBodyModel? convertNotification(Map<String, dynamic> data){
     if(data['type'] == 'order_status' || data['type'] == 'assign') {
       return NotificationBodyModel(orderId: int.parse(data['order_id']), notificationType: NotificationType.order);
-    }else if(data['type'] == 'message') {
-      return NotificationBodyModel(
-        conversationId: (data['conversation_id'] != null && data['conversation_id'].isNotEmpty) ? int.parse(data['conversation_id']) : null,
-        notificationType: NotificationType.message,
-        type: data['sender_type'] == UserType.user.name ? UserType.user.name : UserType.vendor.name,
-      );
     }else if(data['type'] == 'order_request'){
       return NotificationBodyModel(notificationType: NotificationType.order_request);
     }else if(data['type'] == 'block'){

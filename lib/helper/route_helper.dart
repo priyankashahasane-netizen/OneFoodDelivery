@@ -1,12 +1,9 @@
 import 'dart:convert';
 import 'package:stackfood_multivendor_driver/feature/notification/domain/models/notification_body_model.dart';
-import 'package:stackfood_multivendor_driver/feature/chat/domain/models/conversation_model.dart';
 import 'package:stackfood_multivendor_driver/feature/cash_in_hand/screens/cash_in_hand_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/cash_in_hand/screens/transaction_history_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/cash_in_hand/screens/payment_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/cash_in_hand/screens/payment_successful_screen.dart';
-import 'package:stackfood_multivendor_driver/feature/chat/screens/chat_screen.dart';
-import 'package:stackfood_multivendor_driver/feature/chat/screens/conversation_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/dashboard/screens/dashboard_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/disbursements/screens/add_withdraw_method_screen.dart';
 import 'package:stackfood_multivendor_driver/feature/disbursements/screens/disbursement_screen.dart';
@@ -46,8 +43,6 @@ class RouteHelper {
   static const String privacy = '/privacy-policy';
   static const String language = '/language';
   static const String update = '/update';
-  static const String chatScreen = '/chat-screen';
-  static const String conversationListScreen = '/conversation-list-screen';
   static const String cashInHand = '/cash-in-hand';
   static const String disbursement = '/disbursement';
   static const String withdrawMethod = '/withdraw-method';
@@ -89,20 +84,6 @@ class RouteHelper {
   static String getPrivacyRoute() => privacy;
   static String getLanguageRoute() => language;
   static String getUpdateRoute(bool isUpdate) => '$update?update=${isUpdate.toString()}';
-  static String getChatRoute({required NotificationBodyModel? notificationBody, User? user, int? conversationId, bool fromNotification = false}) {
-
-    String notificationBody0 = 'null';
-    String user0 = 'null';
-
-    if(notificationBody != null) {
-      notificationBody0 = base64Encode(utf8.encode(jsonEncode(notificationBody)));
-    }
-    if(user != null) {
-      user0 = base64Encode(utf8.encode(jsonEncode(user.toJson())));
-    }
-    return '$chatScreen?notification_body=$notificationBody0&user=$user0&conversation_id=$conversationId&from_notification=${fromNotification.toString()}';
-  }
-  static String getConversationListRoute() => conversationListScreen;
   static String getCashInHandRoute() => cashInHand;
   static String getDisbursementRoute() => disbursement;
   static String getWithdrawMethodRoute({bool isFromDashBoard = false}) => '$withdrawMethod?is_from_dashboard=${isFromDashBoard.toString()}';
@@ -155,22 +136,6 @@ class RouteHelper {
     GetPage(name: privacy, page: () => const HtmlViewerScreen(isPrivacyPolicy: true)),
     GetPage(name: language, page: () => ChooseLanguageScreen()),
     GetPage(name: update, page: () => UpdateScreen(isUpdate: Get.parameters['update'] == 'true')),
-    GetPage(name: chatScreen, page: () {
-
-      NotificationBodyModel? notificationBody;
-      if(Get.parameters['notification_body'] != 'null') {
-        notificationBody = NotificationBodyModel.fromJson(jsonDecode(utf8.decode(base64Url.decode(Get.parameters['notification_body']!.replaceAll(' ', '+')))));
-      }
-      User? user;
-      if(Get.parameters['user'] != 'null') {
-        user = User.fromJson(jsonDecode(utf8.decode(base64Url.decode(Get.parameters['user']!.replaceAll(' ', '+')))));
-      }
-      return ChatScreen(
-        notificationBody : notificationBody, user: user,
-        conversationId: Get.parameters['conversation_id'] != null && Get.parameters['conversation_id'] != 'null' ? int.parse(Get.parameters['conversation_id']!) : null,
-      );
-    }),
-    GetPage(name: conversationListScreen, page: () => const ConversationScreen()),
     // Delivery man registration removed - simplified to JWT auth only
     // GetPage(name: deliveryManRegistration, page: () => const DeliveryManRegistrationScreen()),
     GetPage(name: cashInHand, page: () => const CashInHandScreen()),

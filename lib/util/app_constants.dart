@@ -82,12 +82,6 @@ class AppConstants {
   static const String firebaseAuthVerify = '/api/v1/auth/delivery-man/firebase-verify-token';
 
 
-  //chat url
-  static const String getConversationListUri = '/api/v1/delivery-man/message/list';
-  static const String getMessageListUri = '/api/v1/delivery-man/message/details';
-  static const String sendMessageUri = '/api/v1/delivery-man/message/send';
-  static const String searchConversationListUri = '/api/v1/delivery-man/message/search-list';
-
   // Shared Key
   static const String theme = 'theme';
   static const String token = 'stackfood_multivendor_driver_token';

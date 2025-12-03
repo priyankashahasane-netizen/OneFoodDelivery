@@ -27,11 +27,6 @@ import 'package:stackfood_multivendor_driver/feature/order/domain/services/order
 import 'package:stackfood_multivendor_driver/feature/splash/controllers/splash_controller.dart';
 import 'package:stackfood_multivendor_driver/common/controllers/theme_controller.dart';
 import 'package:stackfood_multivendor_driver/api/api_client.dart';
-import 'package:stackfood_multivendor_driver/feature/chat/controllers/chat_controller.dart';
-import 'package:stackfood_multivendor_driver/feature/chat/domain/repositories/chat_repository.dart';
-import 'package:stackfood_multivendor_driver/feature/chat/domain/repositories/chat_repository_interface.dart';
-import 'package:stackfood_multivendor_driver/feature/chat/domain/services/chat_service.dart';
-import 'package:stackfood_multivendor_driver/feature/chat/domain/services/chat_service_interface.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/controllers/profile_controller.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/domain/repositories/profile_repository.dart';
 import 'package:stackfood_multivendor_driver/feature/profile/domain/repositories/profile_repository_interface.dart';
@@ -79,9 +74,6 @@ Future<Map<String, Map<String, String>>> init() async {
   ProfileRepositoryInterface profileRepositoryInterface = ProfileRepository(apiClient: Get.find(), sharedPreferences: Get.find());
   Get.lazyPut(() => profileRepositoryInterface);
 
-  ChatRepositoryInterface chatRepositoryInterface = ChatRepository(apiClient: Get.find(), sharedPreferences: Get.find());
-  Get.lazyPut(() => chatRepositoryInterface);
-
   SplashRepositoryInterface splashRepositoryInterface = SplashRepository(apiClient: Get.find(), sharedPreferences: Get.find());
   Get.lazyPut(() => splashRepositoryInterface);
 
@@ -116,9 +108,6 @@ Future<Map<String, Map<String, String>>> init() async {
   ProfileServiceInterface profileServiceInterface = ProfileService(profileRepositoryInterface: Get.find());
   Get.lazyPut(() => profileServiceInterface);
 
-  ChatServiceInterface chatServiceInterface = ChatService(chatRepositoryInterface: Get.find());
-  Get.lazyPut(() => chatServiceInterface);
-
   SplashServiceInterface splashServiceInterface = SplashService(splashRepositoryInterface: Get.find());
   Get.lazyPut(() => splashServiceInterface);
 
@@ -152,7 +141,6 @@ Future<Map<String, Map<String, String>>> init() async {
 
   ///Controller
   Get.lazyPut(() => ProfileController(profileServiceInterface: Get.find()));
-  Get.lazyPut(() => ChatController(chatServiceInterface: Get.find()));
   Get.lazyPut(() => SplashController(splashServiceInterface: Get.find()));
   Get.lazyPut(() => NotificationController(notificationServiceInterface: Get.find()));
   Get.lazyPut(() => ThemeController(sharedPreferences: Get.find()));

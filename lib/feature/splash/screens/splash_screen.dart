@@ -102,8 +102,6 @@ class SplashScreenState extends State<SplashScreen> {
                 Get.toNamed(RouteHelper.getOrderDetailsRoute(widget.body!.orderId, fromNotification: true));
               }else if(widget.body!.notificationType == NotificationType.order_request){
                 Get.toNamed(RouteHelper.getMainRoute('order-request'));
-              }else if(widget.body!.notificationType == NotificationType.message){
-                Get.toNamed(RouteHelper.getChatRoute(notificationBody: widget.body, conversationId: widget.body!.conversationId, fromNotification: true));
               }else if(widget.body!.notificationType == NotificationType.unassign){
                 Get.to(const DashboardScreen(pageIndex: 1));
               }else{
