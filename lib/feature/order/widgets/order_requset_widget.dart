@@ -274,79 +274,45 @@ class _OrderRequestWidgetState extends State<OrderRequestWidget> {
                   Expanded(
                     flex: 3,
                     child: Row(children: [
-                      // For assigned orders, show Reject button; for available orders, show Ignore button
-                      Expanded(
-                        child: widget.isAssigned ? TextButton(
-                      onPressed: () {
-                        showCustomBottomSheet(
-                          child: CustomConfirmationBottomSheet(
-                            title: 'reject_this_order'.tr,
-                            description: 'are_you_sure_want_to_reject_this_order'.tr,
-                            confirmButtonText: 'reject'.tr,
-                            onConfirm: (){
-                              // Close the bottom sheet immediately when user confirms
-                              try {
-                                Get.back();
-                              } catch (_) {
-                                // Bottom sheet already closed, ignore
-                              }
-                              
-                              orderController.rejectOrder(widget.orderModel.id, widget.index).then((isSuccess) {
-                                if(isSuccess) {
-                                  // Refresh assigned orders list
-                                  orderController.getAssignedOrders();
-                                }
-                              });
+                      // For available orders, show Ignore button; assigned orders only show Accept button
+                      if (!widget.isAssigned) ...[
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () {
+                              showCustomBottomSheet(
+                                child: CustomConfirmationBottomSheet(
+                                  title: 'ignore_this_order'.tr,
+                                  description: 'are_you_sure_want_to_ignore_this_order'.tr,
+                                  confirmButtonText: 'ignore'.tr,
+                                  onConfirm: (){
+                                    // Close the bottom sheet immediately when user confirms
+                                    try {
+                                      Get.back();
+                                    } catch (_) {
+                                      // Bottom sheet already closed, ignore
+                                    }
+                                    
+                                    orderController.ignoreOrder(widget.index);
+                                    showCustomSnackBar('order_ignored'.tr, isError: false);
+                                  },
+                                ),
+                              );
                             },
+                            style: TextButton.styleFrom(
+                              minimumSize: const Size(1170, 45), padding: EdgeInsets.zero,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+                                side: BorderSide(width: 1, color: Theme.of(context).hintColor),
+                              ),
+                            ),
+                            child: Text('ignore'.tr, textAlign: TextAlign.center, style: robotoBold.copyWith(
+                              color: Theme.of(context).textTheme.bodyLarge!.color,
+                              fontSize: Dimensions.fontSizeLarge,
+                            )),
                           ),
-                        );
-                      },
-                      style: TextButton.styleFrom(
-                        minimumSize: const Size(1170, 45), padding: EdgeInsets.zero,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-                          side: BorderSide(width: 1, color: Theme.of(context).colorScheme.error),
                         ),
-                      ),
-                      child: Text('reject'.tr, textAlign: TextAlign.center, style: robotoBold.copyWith(
-                        color: Theme.of(context).colorScheme.error,
-                        fontSize: Dimensions.fontSizeLarge,
-                      )),
-                    ) : TextButton(
-                      onPressed: () {
-                        showCustomBottomSheet(
-                          child: CustomConfirmationBottomSheet(
-                            title: 'ignore_this_order'.tr,
-                            description: 'are_you_sure_want_to_ignore_this_order'.tr,
-                            confirmButtonText: 'ignore'.tr,
-                            onConfirm: (){
-                              // Close the bottom sheet immediately when user confirms
-                              try {
-                                Get.back();
-                              } catch (_) {
-                                // Bottom sheet already closed, ignore
-                              }
-                              
-                              orderController.ignoreOrder(widget.index);
-                              showCustomSnackBar('order_ignored'.tr, isError: false);
-                            },
-                          ),
-                        );
-                      },
-                      style: TextButton.styleFrom(
-                        minimumSize: const Size(1170, 45), padding: EdgeInsets.zero,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-                          side: BorderSide(width: 1, color: Theme.of(context).hintColor),
-                        ),
-                      ),
-                      child: Text('ignore'.tr, textAlign: TextAlign.center, style: robotoBold.copyWith(
-                        color: Theme.of(context).textTheme.bodyLarge!.color,
-                        fontSize: Dimensions.fontSizeLarge,
-                      )),
-                    ),
-                  ),
-                  const SizedBox(width: Dimensions.paddingSizeSmall + 2),
+                        const SizedBox(width: Dimensions.paddingSizeSmall + 2),
+                      ],
 
                   Expanded(
                     child: CustomButtonWidget(

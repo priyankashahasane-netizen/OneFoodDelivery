@@ -422,51 +422,6 @@ class OrderController extends GetxController implements GetxService {
     }
   }
 
-  Future<bool> rejectOrder(int? orderID, int index) async {
-    _isLoading = true;
-    update();
-    
-    try {
-      // Get order UUID if available
-      String? orderUuid;
-      if (_assignedOrderList != null && index < _assignedOrderList!.length) {
-        orderUuid = _assignedOrderList![index].uuid;
-      }
-      
-      // Use status update to change order back to pending (effectively unassigns it)
-      String orderId = orderUuid ?? orderID.toString();
-      debugPrint('====> Rejecting order with ID: $orderId (UUID: ${orderUuid != null}, numeric: ${orderID?.toString()})');
-      ResponseModel responseModel = await orderServiceInterface.updateOrderStatusNew(orderId, 'pending');
-      
-      debugPrint('====> Reject order response: success=${responseModel.isSuccess}, message=${responseModel.message}');
-      
-      if(responseModel.isSuccess) {
-        // Remove from assigned orders list
-        if (_assignedOrderList != null && index < _assignedOrderList!.length) {
-          _assignedOrderList!.removeAt(index);
-        }
-        // Refresh assigned orders list to get updated data
-        await getAssignedOrders();
-        // Refresh completed orders to reflect status changes in My Orders page
-        await getCompletedOrders(offset: 1, status: selectedMyOrderStatus ?? 'all', isUpdate: true);
-        showCustomSnackBar('Order rejected successfully', isError: false);
-      } else {
-        debugPrint('====> Failed to reject order: ${responseModel.message}');
-        showCustomSnackBar(responseModel.message, isError: true);
-      }
-      
-      _isLoading = false;
-      update();
-      return responseModel.isSuccess;
-    } catch (e) {
-      debugPrint('====> Exception rejecting order: $e');
-      _isLoading = false;
-      update();
-      showCustomSnackBar('Failed to reject order: ${e.toString()}', isError: true);
-      return false;
-    }
-  }
-
   Future<bool> updateOrderStatus(int? orderId, String status, {bool back = false,  String? reason}) async {
     _isLoading = true;
     update();
