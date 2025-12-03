@@ -48,9 +48,27 @@ curl -X POST http://localhost:3000/api/webhooks/test
 ### 4. Run Flutter App
 
 ```bash
+flutter clean
 flutter pub get
-flutter run
+flutter run -d macos
+# For Android device:
+# flutter run -d 10BD4Q0GXB000FC
 # Login: +1234567890 / OTP: 123456
+```
+
+### 5. Run Admin Dashboard
+
+```bash
+cd apps/admin-dashboard
+npm run build
+PORT=3001 npm run dev
+```
+
+### 6. Run Tracking Web
+
+```bash
+cd apps/tracking-web
+npm run dev
 ```
 
 ---
@@ -68,6 +86,122 @@ flutter run
 - **Password**: `Admin@123`
 
 See [DEMO_CREDENTIALS.md](./DEMO_CREDENTIALS.md) for all test accounts.
+
+---
+
+## Development Commands
+
+### Flutter App
+```bash
+# Clean and rebuild
+flutter clean
+flutter pub get
+
+# Run on macOS
+flutter run -d macos
+
+# Run on Android device
+flutter run -d 10BD4Q0GXB000FC
+```
+
+### Backend
+```bash
+cd apps/backend
+
+# Development mode
+npm run start:dev
+
+# Generate JWT secret
+node scripts/generate-jwt-secret.js
+
+# Export subscription orders for today
+npm run export:subscription-orders-today
+```
+
+### Admin Dashboard
+```bash
+cd apps/admin-dashboard
+
+# Build
+npm run build
+
+# Run on custom port
+PORT=3001 npm run dev
+```
+
+### Database Operations
+```bash
+# Create database backup
+docker-compose exec postgres pg_dump -U postgres -Fc stack_delivery > backup_$(date +%Y%m%d_%H%M%S).dump
+```
+
+---
+
+## Order Status Flow
+
+### Active Order Statuses (Running Orders)
+
+1. **`created`** — Initial state when order is first created
+2. **`pending`** — Awaiting assignment to a driver
+3. **`assigned`** — Assigned to driver (not yet accepted)
+4. **`accepted`** — Driver has accepted the order
+5. **`confirmed`** — Restaurant has confirmed the order
+6. **`processing`** — Restaurant is preparing the order
+7. **`handover`** — Order is ready for pickup
+8. **`picked_up`** — Driver has collected the order from restaurant
+9. **`in_transit`** — Driver is en route to customer
+
+### Completed Order Statuses
+
+1. **`delivered`** — Successfully delivered to customer
+2. **`canceled`** / **`cancelled`** — Order was cancelled
+3. **`refund_requested`** — Customer requested a refund
+4. **`refunded`** — Refund has been processed
+5. **`refund_request_canceled`** — Refund request was cancelled
+
+---
+
+## Map Display Logic
+
+The map display changes based on the order status:
+
+| Status | Map Display |
+|--------|-------------|
+| `created` | Nothing displayed |
+| `pending` | Nothing displayed |
+| `assigned` | Driver's location → Restaurant → Delivery location |
+| `accepted` | Driver's location → Restaurant → Delivery location |
+| `confirmed` | Driver's location → Restaurant → Delivery location |
+| `processing` | Driver's location → Restaurant → Delivery location |
+| `handover` | Restaurant location → Delivery location |
+| `picked_up` | Restaurant location → Delivery location |
+| `in_transit` | Restaurant location → Delivery location |
+| `delivered` | Restaurant location → Delivery location |
+| `cancelled` | Delivery location → Restaurant location |
+| `refund_requested` | Restaurant location → Delivery location |
+| `refunded` | Restaurant location → Delivery location |
+| `refund_request_canceled` | Restaurant location → Delivery location |
+
+---
+
+## Database Connection Strings
+
+### PostgreSQL Connection URLs
+
+**Node.js/Backend:**
+```bash
+DATABASE_URL=postgres://futurescapetechnology-priyanka:12345678@localhost:5432/stack_delivery
+```
+
+**JDBC (Java/Spring):**
+```
+jdbc:postgresql://localhost:5432/stack_delivery?user=postgres&password=postgres
+```
+
+**Standard PostgreSQL:**
+```
+postgres://postgres:postgres@localhost:5432/stack_delivery
+```
 
 ---
 
@@ -184,6 +318,7 @@ See deployment configs in `/k8s` and `/docker-compose.prod.yml`.
 ### Backend (.env)
 ```bash
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/stack_delivery
+# Alternative: postgres://futurescapetechnology-priyanka:12345678@localhost:5432/stack_delivery
 REDIS_URL=redis://localhost:6379
 JWT_SECRET=your-secret-key
 OPTIMOROUTE_API_KEY=your-key (optional - uses mock)
