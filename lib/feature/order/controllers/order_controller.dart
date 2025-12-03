@@ -561,6 +561,60 @@ class OrderController extends GetxController implements GetxService {
     }
   }
 
+  /// Accept an assigned order by updating its status to "accepted" (without UI updates)
+  /// This is used for batch operations to avoid multiple screen refreshes
+  Future<bool> acceptAssignedOrderSilent(int? orderId, [String? orderIdStr]) async {
+    try {
+      // Use provided orderIdStr if available
+      String? orderUuid = orderIdStr;
+      
+      // Use UUID if available, otherwise fall back to numeric ID
+      String finalOrderId = orderUuid ?? orderId.toString();
+      
+      // Use updateOrderStatusNew which accepts string (UUID or numeric ID)
+      debugPrint('====> Accepting order silently with ID: $finalOrderId');
+      ResponseModel responseModel = await orderServiceInterface.updateOrderStatusNew(finalOrderId, 'accepted');
+      
+      debugPrint('====> Accept order response: success=${responseModel.isSuccess}, message=${responseModel.message}');
+      
+      return responseModel.isSuccess;
+    } catch (e) {
+      debugPrint('====> Exception accepting assigned order silently: $e');
+      return false;
+    }
+  }
+
+  /// Batch accept multiple assigned orders without triggering UI updates for each
+  Future<Map<String, int>> batchAcceptAssignedOrders(List<OrderModel> orders) async {
+    int successCount = 0;
+    int failCount = 0;
+    
+    // Process all accepts in parallel
+    final results = await Future.wait(
+      orders.map((order) async {
+        try {
+          String? orderIdToUse = order.uuid ?? order.id?.toString();
+          bool isSuccess = await acceptAssignedOrderSilent(order.id, orderIdToUse);
+          return isSuccess;
+        } catch (e) {
+          debugPrint('Error accepting assigned order ${order.id}: $e');
+          return false;
+        }
+      }),
+    );
+    
+    // Count successes and failures
+    for (bool success in results) {
+      if (success) {
+        successCount++;
+      } else {
+        failCount++;
+      }
+    }
+    
+    return {'success': successCount, 'fail': failCount};
+  }
+
   Future<void> getOrderDetails(dynamic orderID) async {
     _orderDetailsModel = null;
     update(); // Show loading state

@@ -395,68 +395,67 @@ class OrderRequestScreenState extends State<OrderRequestScreen> {
   }
 
   Future<void> _acceptAllAssignedSubscriptionOrders(OrderController orderController, List<OrderModel> subscriptionOrders) async {
-    int successCount = 0;
-    int failCount = 0;
+    // Show loading overlay
+    Get.dialog(
+      PopScope(
+        canPop: false, // Prevent closing during processing
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
+            decoration: BoxDecoration(
+              color: Theme.of(Get.context!).cardColor,
+              borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: Dimensions.paddingSizeDefault),
+                Text(
+                  'Accepting ${subscriptionOrders.length} order(s)...',
+                  style: Theme.of(Get.context!).textTheme.bodyLarge,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      barrierDismissible: false,
+    );
     
-    // Process orders one by one, finding the index dynamically each time
-    // since the list changes as orders are accepted
-    for (final order in subscriptionOrders) {
-      try {
-        // Find the current index of this order in the assignedOrderList
-        // We need to find it each time because the list changes as orders are accepted
-        int? orderIndex;
-        if (orderController.assignedOrderList != null) {
-          for (int j = 0; j < orderController.assignedOrderList!.length; j++) {
-            if (orderController.assignedOrderList![j].id == order.id) {
-              orderIndex = j;
-              break;
-            }
-          }
-        }
-        
-        if (orderIndex != null) {
-          // Use UUID if available, otherwise use numeric ID
-          String? orderIdToUse = order.uuid ?? order.id?.toString();
-          bool isSuccess = await orderController.acceptAssignedOrder(order.id, orderIndex, orderIdToUse);
-          if (isSuccess) {
-            successCount++;
-          } else {
-            failCount++;
-          }
-        } else {
-          // If index not found, the order might have already been accepted or removed
-          // Try to accept it anyway with index 0 as fallback
-          debugPrint('Order ${order.id} not found in assignedOrderList, attempting direct accept');
-          String? orderIdToUse = order.uuid ?? order.id?.toString();
-          bool isSuccess = await orderController.acceptAssignedOrder(order.id, 0, orderIdToUse);
-          if (isSuccess) {
-            successCount++;
-          } else {
-            failCount++;
-          }
-        }
-        
-        // Small delay between accepts to avoid overwhelming the API
-        await Future.delayed(const Duration(milliseconds: 500));
-      } catch (e) {
-        failCount++;
-        debugPrint('Error accepting assigned subscription order ${order.id}: $e');
+    try {
+      // Batch accept all orders in parallel without UI updates
+      final results = await orderController.batchAcceptAssignedOrders(subscriptionOrders);
+      final successCount = results['success'] ?? 0;
+      final failCount = results['fail'] ?? 0;
+      
+      // Close loading overlay
+      if (Get.isDialogOpen ?? false) {
+        Get.back();
       }
+      
+      // Refresh all lists once at the end
+      await Future.wait([
+        orderController.getAssignedOrders(),
+        orderController.getCurrentOrders(status: orderController.selectedRunningOrderStatus ?? 'all'),
+        orderController.getCompletedOrders(offset: 1, status: orderController.selectedMyOrderStatus ?? 'all', isUpdate: true),
+      ]);
+      
+      // Show summary message
+      if (successCount > 0 && failCount == 0) {
+        showCustomSnackBar('Successfully accepted $successCount assigned subscription order(s)', isError: false);
+      } else if (successCount > 0 && failCount > 0) {
+        showCustomSnackBar('Accepted $successCount order(s), $failCount failed', isError: false);
+      } else if (failCount > 0) {
+        showCustomSnackBar('Failed to accept assigned subscription orders', isError: true);
+      }
+    } catch (e) {
+      // Close loading overlay if still open
+      if (Get.isDialogOpen ?? false) {
+        Get.back();
+      }
+      debugPrint('Error in batch accepting assigned subscription orders: $e');
+      showCustomSnackBar('An error occurred while accepting orders', isError: true);
     }
-    
-    // Show summary message
-    if (successCount > 0 && failCount == 0) {
-      showCustomSnackBar('Successfully accepted $successCount assigned subscription order(s)', isError: false);
-    } else if (successCount > 0 && failCount > 0) {
-      showCustomSnackBar('Accepted $successCount order(s), $failCount failed', isError: false);
-    } else if (failCount > 0) {
-      showCustomSnackBar('Failed to accept assigned subscription orders', isError: true);
-    }
-    
-    // Refresh orders list
-    await Future.wait([
-      orderController.getLatestOrders(),
-      orderController.getAssignedOrders(),
-    ]);
   }
 }
