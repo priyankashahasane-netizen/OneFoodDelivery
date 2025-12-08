@@ -7,6 +7,7 @@ export interface TokenPayload {
   username?: string;
   phone?: string;
   role: 'admin' | 'driver';
+  isAdmin?: boolean; // Flag to indicate if user has admin privileges
   iat?: number;
   exp?: number;
 }
@@ -58,11 +59,12 @@ export class CustomJwtService {
   /**
    * Generate token for admin user
    */
-  async generateAdminToken(username: string): Promise<TokenResponse> {
+  async generateAdminToken(username: string, isAdmin: boolean = true): Promise<TokenResponse> {
     return this.generateToken({
       sub: 'admin',
       username,
       role: 'admin',
+      isAdmin,
     });
   }
 

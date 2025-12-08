@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter } from 'next/navigation';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import useSWR from 'swr';
 import RequireAuth from '../../components/RequireAuth';
-import { authedFetch } from '../../lib/auth';
+import Header from '../../components/Header';
+import { authedFetch, isAdmin } from '../../lib/auth';
 
 const fetcher = async (url: string) => {
   try {
@@ -18,6 +19,7 @@ const fetcher = async (url: string) => {
 
 export default function OrdersPage() {
   const router = useRouter();
+  const [adminStatus, setAdminStatus] = useState(false);
   const [filters, setFilters] = useState({
     status: '',
     paymentType: '',
@@ -84,6 +86,10 @@ export default function OrdersPage() {
     'regular',
     'subscription'
   ];
+
+  useEffect(() => {
+    setAdminStatus(isAdmin());
+  }, []);
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
@@ -277,7 +283,22 @@ export default function OrdersPage() {
 
   return (
     <RequireAuth>
-      <main style={{ padding: 16 }}>
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <Header />
+        <main style={{ padding: 16, flex: 1 }}>
+          {!adminStatus ? (
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              minHeight: '400px',
+              color: '#6b7280',
+              fontSize: 16
+            }}>
+              Access restricted. Admin privileges required.
+            </div>
+          ) : (
+            <>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
             <h1 style={{ margin: 0, marginBottom: 4 }}>Orders</h1>
@@ -840,7 +861,10 @@ export default function OrdersPage() {
           )}
         </>
       )}
-      </main>
+            </>
+          )}
+        </main>
+      </div>
     </RequireAuth>
   );
 }

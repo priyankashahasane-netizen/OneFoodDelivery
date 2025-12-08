@@ -41,6 +41,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       username: payload.username || payload.phone, 
       phone: payload.phone,
       role: payload.role,
+      isAdmin: payload.isAdmin ?? false, // Default to false if not set
       driverId: payload.sub // For backward compatibility
     };
   }

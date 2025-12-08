@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
-import { clearToken, authedFetch, getToken } from '../lib/auth';
+import { clearToken, authedFetch, getToken, isAdmin } from '../lib/auth';
 
 const fetcher = async (url: string) => {
   try {
@@ -19,7 +19,10 @@ const fetcher = async (url: string) => {
 
 export default function Home() {
   const router = useRouter();
-  const [hasToken, setHasToken] = useState<boolean>(() => !!getToken());
+  // Initialize to false to avoid hydration mismatch (localStorage not available on server)
+  const [hasToken, setHasToken] = useState<boolean>(false);
+  const [mounted, setMounted] = useState<boolean>(false);
+  const [adminStatus, setAdminStatus] = useState<boolean>(false);
   const [timeRange, setTimeRange] = useState<'today' | 'week' | 'month'>('today');
   const [location, setLocation] = useState('Mumbai');
   const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
@@ -39,8 +42,11 @@ export default function Home() {
     'Nagpur', 'Nashik', 'Pune', 'Surat', 'Trivandrum', 'Vadodara'
   ];
 
+  // Check token only on client-side after mount to avoid hydration mismatch
   useEffect(() => {
+    setMounted(true);
     setHasToken(!!getToken());
+    setAdminStatus(isAdmin());
   }, []);
 
   // Close dropdown when clicking outside
@@ -224,47 +230,51 @@ export default function Home() {
           </h1>
         </div>
         <nav style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <Link 
-            href="/enterprise"
-            style={{
-              padding: '8px 16px',
-              borderRadius: 6,
-              textDecoration: 'none',
-              color: '#111827',
-              fontSize: 14,
-              fontWeight: 700,
-              transition: 'all 0.2s',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#f3f4f6';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent';
-            }}
-          >
-            For Enterprise
-          </Link>
-          <Link 
-            href="/driver-partner"
-            style={{
-              padding: '8px 16px',
-              borderRadius: 6,
-              textDecoration: 'none',
-              color: '#111827',
-              fontSize: 14,
-              fontWeight: 700,
-              transition: 'all 0.2s',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#f3f4f6';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent';
-            }}
-          >
-            Driver Partner
-          </Link>
-          {hasToken && (
+          {(!mounted || !hasToken) && (
+            <>
+              <Link 
+                href="/enterprise"
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: 6,
+                  textDecoration: 'none',
+                  color: '#111827',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#f3f4f6';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                }}
+              >
+                For Enterprise
+              </Link>
+              <Link 
+                href="/driver-partner"
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: 6,
+                  textDecoration: 'none',
+                  color: '#111827',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#f3f4f6';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                }}
+              >
+                Driver Partner
+              </Link>
+            </>
+          )}
+          {mounted && hasToken && adminStatus && (
             <>
               <Link 
                 href="/live-ops"
@@ -356,7 +366,7 @@ export default function Home() {
               </Link>
             </>
           )}
-          {hasToken ? (
+          {mounted && hasToken ? (
             <button 
               onClick={handleLogout}
               style={{
@@ -411,6 +421,10 @@ export default function Home() {
       </header>
 
       <main style={{ padding: 0, maxWidth: '1000%', margin: 0 }}>
+          {/* Public Sections - Only visible when NOT logged in */}
+          {/* Show public sections if: not mounted yet (initial render) OR mounted and no token */}
+          {(!mounted || !hasToken) && (
+            <>
           {/* Hero Section */}
           <section style={{
             position: 'relative',
@@ -1555,9 +1569,11 @@ export default function Home() {
               </div>
             </div>
           </section>
+          </>
+          )}
 
-          {/* Dashboard Content - Only visible when logged in */}
-          {hasToken && (
+          {/* Dashboard Content - Only visible when logged in as admin */}
+          {mounted && hasToken && adminStatus && (
           <div style={{ padding: 24, maxWidth: 1400, margin: '0 auto' }}>
             <style dangerouslySetInnerHTML={{__html: `
               @media (max-width: 768px) {
@@ -2252,7 +2268,8 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Domestic Cities Section */}
+          {/* Domestic Cities Section - Only visible when NOT logged in */}
+          {(!mounted || !hasToken) && (
           <div style={{
             maxWidth: 1400,
             margin: '0 auto 40px auto',
@@ -2345,6 +2362,7 @@ export default function Home() {
               </div>
             </div>
           </div>
+          )}
         </footer>
       </div>
   );

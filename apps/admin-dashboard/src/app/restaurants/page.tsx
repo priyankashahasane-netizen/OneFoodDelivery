@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import useSWR from 'swr';
 import RequireAuth from '../../components/RequireAuth';
-import { authedFetch } from '../../lib/auth';
+import Header from '../../components/Header';
+import { authedFetch, isAdmin } from '../../lib/auth';
 
 const fetcher = async (url: string) => {
   try {
@@ -16,6 +17,7 @@ const fetcher = async (url: string) => {
 };
 
 export default function RestaurantsPage() {
+  const [adminStatus, setAdminStatus] = useState(false);
   const [filters, setFilters] = useState({
     status: '',
   });
@@ -111,9 +113,28 @@ export default function RestaurantsPage() {
     };
   };
 
+  useEffect(() => {
+    setAdminStatus(isAdmin());
+  }, []);
+
   return (
     <RequireAuth>
-      <main style={{ padding: 16 }}>
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <Header />
+        <main style={{ padding: 16, flex: 1 }}>
+          {!adminStatus ? (
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              minHeight: '400px',
+              color: '#6b7280',
+              fontSize: 16
+            }}>
+              Access restricted. Admin privileges required.
+            </div>
+          ) : (
+            <>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
             <h1 style={{ margin: 0, marginBottom: 4 }}>Restaurant Orders</h1>
@@ -355,7 +376,10 @@ export default function RestaurantsPage() {
             )}
           </>
         )}
-      </main>
+            </>
+          )}
+        </main>
+      </div>
     </RequireAuth>
   );
 }

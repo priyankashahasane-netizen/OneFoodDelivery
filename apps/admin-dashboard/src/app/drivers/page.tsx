@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import RequireAuth from '../../components/RequireAuth';
-import { authedFetch } from '../../lib/auth';
+import Header from '../../components/Header';
+import { authedFetch, isAdmin } from '../../lib/auth';
 
 const fetcher = (url: string) => authedFetch(url).then((r) => r.json());
 
 export default function DriversPage() {
   const { data, mutate, isLoading } = useSWR('/api/drivers', fetcher);
+  const [adminStatus, setAdminStatus] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -101,9 +103,28 @@ export default function DriversPage() {
     }
   };
 
+  useEffect(() => {
+    setAdminStatus(isAdmin());
+  }, []);
+
   return (
     <RequireAuth>
-      <main style={{ padding: 16 }}>
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <Header />
+        <main style={{ padding: 16, flex: 1 }}>
+          {!adminStatus ? (
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              minHeight: '400px',
+              color: '#6b7280',
+              fontSize: 16
+            }}>
+              Access restricted. Admin privileges required.
+            </div>
+          ) : (
+            <>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <h1 style={{ margin: 0 }}>Drivers</h1>
           <button
@@ -442,7 +463,10 @@ export default function DriversPage() {
             </tbody>
           </table>
         )}
-      </main>
+            </>
+          )}
+        </main>
+      </div>
     </RequireAuth>
   );
 }

@@ -11,6 +11,59 @@ export function setToken(token: string) {
 
 export function clearToken() {
   localStorage.removeItem('adm_token');
+  localStorage.removeItem('is_admin');
+}
+
+/**
+ * Decode JWT token to get payload (without verification)
+ */
+function decodeJwtPayload(token: string): any {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Check if current user is admin
+ */
+export function isAdmin(): boolean {
+  if (typeof window === 'undefined') return false;
+  
+  // Check cached value first
+  const cached = localStorage.getItem('is_admin');
+  if (cached !== null) {
+    return cached === 'true';
+  }
+  
+  // Decode token to check isAdmin flag
+  const token = getToken();
+  if (!token) return false;
+  
+  const payload = decodeJwtPayload(token);
+  const adminStatus = payload?.isAdmin ?? false;
+  
+  // Cache the result
+  localStorage.setItem('is_admin', adminStatus.toString());
+  
+  return adminStatus;
+}
+
+/**
+ * Set admin status (called after login)
+ */
+export function setAdminStatus(isAdmin: boolean) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('is_admin', isAdmin.toString());
 }
 
 export async function authedFetch(input: string, init: RequestInit = {}) {
