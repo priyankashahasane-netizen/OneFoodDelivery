@@ -1,4 +1,4 @@
-export const metadata = { title: 'Admin Dashboard' };
+export const metadata = { title: 'One Delivery' };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
