@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import useSWR from 'swr';
 import RequireAuth from '../../components/RequireAuth';
 import Header from '../../components/Header';
-import { authedFetch, isAdmin } from '../../lib/auth';
+import { authedFetch } from '../../lib/auth';
 
 const fetcher = async (url: string) => {
   try {
@@ -17,7 +17,6 @@ const fetcher = async (url: string) => {
 };
 
 export default function RestaurantsPage() {
-  const [adminStatus, setAdminStatus] = useState(false);
   const [filters, setFilters] = useState({
     status: '',
   });
@@ -26,7 +25,8 @@ export default function RestaurantsPage() {
   // Build query string from filters - focus on restaurant-relevant statuses
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
-    params.append('pageSize', '10000');
+    // Keep within backend pageSize limit
+    params.append('pageSize', '200');
     if (filters.status) params.append('status', filters.status);
     return params.toString();
   }, [filters]);
@@ -113,28 +113,11 @@ export default function RestaurantsPage() {
     };
   };
 
-  useEffect(() => {
-    setAdminStatus(isAdmin());
-  }, []);
-
   return (
     <RequireAuth>
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
         <Header />
         <main style={{ padding: 16, flex: 1 }}>
-          {!adminStatus ? (
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              minHeight: '400px',
-              color: '#6b7280',
-              fontSize: 16
-            }}>
-              Access restricted. Admin privileges required.
-            </div>
-          ) : (
-            <>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
             <h1 style={{ margin: 0, marginBottom: 4 }}>Restaurant Orders</h1>
@@ -376,8 +359,6 @@ export default function RestaurantsPage() {
             )}
           </>
         )}
-            </>
-          )}
         </main>
       </div>
     </RequireAuth>

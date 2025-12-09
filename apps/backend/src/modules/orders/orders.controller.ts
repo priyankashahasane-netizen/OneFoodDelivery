@@ -20,11 +20,12 @@ export class OrdersController {
   @Get()
   @UseGuards(JwtAuthGuard)
   @Roles('admin', 'dispatcher', 'support')
-  async list(@Query() filters: ListOrdersDto, @Query('assigned') rawAssigned?: string) {
+  async list(@Query() filters: ListOrdersDto, @Query('assigned') rawAssigned?: string, @Request() req?: any) {
     // Log raw query parameter before transformation
     console.log('[OrdersController] Raw assigned query param:', rawAssigned, 'type:', typeof rawAssigned);
     console.log('[OrdersController] Transformed filters.assigned:', filters.assigned, 'type:', typeof filters.assigned);
-    return this.ordersService.listOrders(filters);
+    const adminId = req?.user?.adminId || req?.user?.sub;
+    return this.ordersService.listOrders(filters, adminId);
   }
 
   @Get('driver/:driverId/active')
@@ -143,15 +144,17 @@ export class OrdersController {
   @Post()
   @UseGuards(JwtAuthGuard)
   @Roles('admin', 'dispatcher')
-  async create(@Body() payload: UpsertOrderDto) {
-    return this.ordersService.create(payload);
+  async create(@Body() payload: UpsertOrderDto, @Request() req: any) {
+    const adminId = req?.user?.adminId || req?.user?.sub;
+    return this.ordersService.create(payload, adminId);
   }
 
   @Put(':id')
   @UseGuards(JwtAuthGuard)
   @Roles('admin', 'dispatcher')
-  async upsert(@Param('id') id: string, @Body() payload: UpsertOrderDto) {
-    return this.ordersService.upsert(id, payload);
+  async upsert(@Param('id') id: string, @Body() payload: UpsertOrderDto, @Request() req: any) {
+    const adminId = req?.user?.adminId || req?.user?.sub;
+    return this.ordersService.upsert(id, payload, adminId);
   }
 
   @Put(':id/assign')

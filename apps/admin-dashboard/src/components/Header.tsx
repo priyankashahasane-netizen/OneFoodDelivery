@@ -3,14 +3,20 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type MouseEvent } from 'react';
 import { clearToken, getToken, isAdmin } from '../lib/auth';
+import DriverAppModal from './DriverAppModal';
 
 export default function Header() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [hasToken, setHasToken] = useState(false);
   const [adminStatus, setAdminStatus] = useState(false);
+  const [showDriverAppModal, setShowDriverAppModal] = useState(false);
+
+  const driverAppDownloadUrl =
+    process.env.NEXT_PUBLIC_DRIVER_APP_URL ??
+    'https://play.google.com/store/apps/details?id=com.sixamtech.stack_food_delivery';
 
   useEffect(() => {
     setMounted(true);
@@ -22,6 +28,11 @@ export default function Header() {
     clearToken();
     setHasToken(false);
     router.push('/login');
+  };
+
+  const handleDriverPartnerClick = (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setShowDriverAppModal(true);
   };
 
   return (
@@ -74,8 +85,9 @@ export default function Header() {
             >
               For Enterprise
             </Link>
-            <Link 
-              href="/driver-partner"
+            <button
+              type="button"
+              onClick={handleDriverPartnerClick}
               style={{
                 padding: '8px 16px',
                 borderRadius: 6,
@@ -84,6 +96,9 @@ export default function Header() {
                 fontSize: 14,
                 fontWeight: 700,
                 transition: 'all 0.2s',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = '#f3f4f6';
@@ -93,11 +108,37 @@ export default function Header() {
               }}
             >
               Driver Partner
-            </Link>
+            </button>
           </>
         )}
-        {mounted && hasToken && adminStatus && (
+        {mounted && hasToken && (
           <>
+            <button
+              type="button"
+              onClick={handleDriverPartnerClick}
+              style={{
+                padding: '8px 16px',
+                borderRadius: 6,
+                textDecoration: 'none',
+                color: '#374151',
+                fontSize: 14,
+                fontWeight: 500,
+                transition: 'all 0.2s',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#f3f4f6';
+                e.currentTarget.style.color = '#111827';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = '#374151';
+              }}
+            >
+              Driver Partner
+            </button>
             <Link 
               href="/live-ops"
               style={{
@@ -240,6 +281,11 @@ export default function Header() {
           </Link>
         )}
       </nav>
+      <DriverAppModal
+        open={showDriverAppModal}
+        downloadUrl={driverAppDownloadUrl}
+        onClose={() => setShowDriverAppModal(false)}
+      />
     </header>
   );
 }

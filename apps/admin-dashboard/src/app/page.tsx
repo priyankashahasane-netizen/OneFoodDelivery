@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { clearToken, authedFetch, getToken, isAdmin } from '../lib/auth';
+import DriverAppModal from '../components/DriverAppModal';
 
 const fetcher = async (url: string) => {
   try {
@@ -34,6 +35,7 @@ export default function Home() {
     userType: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDriverAppModal, setShowDriverAppModal] = useState(false);
 
   const cities = [
     'Ahmedabad', 'Bangalore', 'Chandigarh', 'Chennai', 'Coimbatore',
@@ -41,6 +43,10 @@ export default function Home() {
     'Kochi', 'Kolkata', 'Lucknow', 'Ludhiana', 'Mumbai',
     'Nagpur', 'Nashik', 'Pune', 'Surat', 'Trivandrum', 'Vadodara'
   ];
+
+  const driverAppDownloadUrl =
+    process.env.NEXT_PUBLIC_DRIVER_APP_URL ??
+    'https://play.google.com/store/apps/details?id=com.sixamtech.stack_food_delivery';
 
   // Check token only on client-side after mount to avoid hydration mismatch
   useEffect(() => {
@@ -67,9 +73,11 @@ export default function Home() {
   }, [isLocationDropdownOpen]);
 
   // Fetch data for statistics
-  const ordersKey = hasToken ? '/api/orders?pageSize=10000' : null;
-  const driversKey = hasToken ? '/api/drivers?page=1&pageSize=1000' : null;
-  const restaurantsKey = hasToken ? '/api/restaurants?page=1&pageSize=1000' : null;
+  // Backend caps pageSize at 200; stay within that limit.
+  const ordersKey = hasToken ? '/api/orders?pageSize=200' : null;
+  const driversKey = hasToken ? '/api/drivers?page=1&pageSize=200' : null;
+  // Restaurants API is optional/absent right now; skip to avoid 404 spam
+  const restaurantsKey = null;
   const recentOrdersKey = hasToken ? '/api/orders?pageSize=10&sort=createdAt:desc' : null;
 
   const { data: ordersData, isLoading: ordersLoading } = useSWR(ordersKey, fetcher);
@@ -202,6 +210,14 @@ export default function Home() {
     }).format(date);
   };
 
+  // Allow admins to see dashboard controls even when there are no orders yet.
+  // If there are zero orders, we still surface the dashboard so they can start
+  // onboarding drivers/restaurants instead of seeing an empty shell.
+  const ordersList = ordersData?.items || ordersData || [];
+  const hasOrders = Array.isArray(ordersList) && ordersList.length > 0;
+  // Show dashboard for any logged-in user; adminStatus is best-effort
+  const canShowAdminExperience = mounted && hasToken;
+
   return (
     <div style={{ minHeight: '100vh', background: '#f9fafb' }}>
       {/* Header */}
@@ -252,8 +268,9 @@ export default function Home() {
               >
                 For Enterprise
               </Link>
-              <Link 
-                href="/driver-partner"
+              <button
+                type="button"
+                onClick={() => setShowDriverAppModal(true)}
                 style={{
                   padding: '8px 16px',
                   borderRadius: 6,
@@ -262,6 +279,9 @@ export default function Home() {
                   fontSize: 14,
                   fontWeight: 700,
                   transition: 'all 0.2s',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = '#f3f4f6';
@@ -271,11 +291,37 @@ export default function Home() {
                 }}
               >
                 Driver Partner
-              </Link>
+              </button>
             </>
           )}
-          {mounted && hasToken && adminStatus && (
+          {canShowAdminExperience && (
             <>
+              <button
+                type="button"
+                onClick={() => setShowDriverAppModal(true)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: 6,
+                  textDecoration: 'none',
+                  color: '#374151',
+                  fontSize: 14,
+                  fontWeight: 500,
+                  transition: 'all 0.2s',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#f3f4f6';
+                  e.currentTarget.style.color = '#111827';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = '#374151';
+                }}
+              >
+                Driver Partner
+              </button>
               <Link 
                 href="/live-ops"
                 style={{
@@ -418,6 +464,11 @@ export default function Home() {
             </Link>
           )}
         </nav>
+        <DriverAppModal
+          open={showDriverAppModal}
+          downloadUrl={driverAppDownloadUrl}
+          onClose={() => setShowDriverAppModal(false)}
+        />
       </header>
 
       <main style={{ padding: 0, maxWidth: '1000%', margin: 0 }}>
@@ -1573,7 +1624,7 @@ export default function Home() {
           )}
 
           {/* Dashboard Content - Only visible when logged in as admin */}
-          {mounted && hasToken && adminStatus && (
+          {canShowAdminExperience && (
           <div style={{ padding: 24, maxWidth: 1400, margin: '0 auto' }}>
             <style dangerouslySetInnerHTML={{__html: `
               @media (max-width: 768px) {
@@ -1958,6 +2009,38 @@ export default function Home() {
               </Link>
 
               <Link
+                href="/drivers?create=1"
+                style={{
+                  display: 'block',
+                  padding: 20,
+                  background: '#ffffff',
+                  borderRadius: 12,
+                  border: '1px solid #e5e7eb',
+                  textDecoration: 'none',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = '#3b82f6';
+                  e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#e5e7eb';
+                  e.currentTarget.style.boxShadow = '0 1px 3px 0 rgba(0, 0, 0, 0.1)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                <div style={{ fontSize: 24, marginBottom: 8 }}>👤</div>
+                <h3 style={{ margin: '0 0 4px 0', fontSize: 16, fontWeight: 600, color: '#111827' }}>
+                  Add Driver
+                </h3>
+                <p style={{ margin: 0, fontSize: 14, color: '#6b7280' }}>
+                  Open driver form to onboard
+                </p>
+              </Link>
+
+              <Link
                 href="/live-ops"
                 style={{
                   display: 'block',
@@ -2050,6 +2133,38 @@ export default function Home() {
                 </h3>
                 <p style={{ margin: 0, fontSize: 14, color: '#6b7280' }}>
                   View and manage restaurant data
+                </p>
+              </Link>
+
+              <Link
+                href="/restaurants"
+                style={{
+                  display: 'block',
+                  padding: 20,
+                  background: '#ffffff',
+                  borderRadius: 12,
+                  border: '1px solid #e5e7eb',
+                  textDecoration: 'none',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = '#3b82f6';
+                  e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#e5e7eb';
+                  e.currentTarget.style.boxShadow = '0 1px 3px 0 rgba(0, 0, 0, 0.1)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                <div style={{ fontSize: 24, marginBottom: 8 }}>➕</div>
+                <h3 style={{ margin: '0 0 4px 0', fontSize: 16, fontWeight: 600, color: '#111827' }}>
+                  Add Restaurant
+                </h3>
+                <p style={{ margin: 0, fontSize: 14, color: '#6b7280' }}>
+                  Go to restaurant management
                 </p>
               </Link>
             </div>

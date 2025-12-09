@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import RequireAuth from '../../components/RequireAuth';
 import Header from '../../components/Header';
-import { authedFetch, isAdmin } from '../../lib/auth';
+import { authedFetch } from '../../lib/auth';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:3000';
 const TILES = process.env.NEXT_PUBLIC_OSM_TILES ?? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
@@ -15,11 +15,9 @@ export default function LiveOps() {
   const mapRef = useRef<any>(null);
   const markersRef = useRef<Record<string, any>>({});
   const [isClient, setIsClient] = useState(false);
-  const [adminStatus, setAdminStatus] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
-    setAdminStatus(isAdmin());
   }, []);
 
   useEffect(() => {
@@ -79,20 +77,7 @@ export default function LiveOps() {
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
         <Header />
         <main style={{ flex: 1, width: '100vw', overflow: 'hidden' }}>
-          {adminStatus ? (
-            <div id="map" style={{ height: '100%', width: '100%' }} />
-          ) : (
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              height: '100%',
-              color: '#6b7280',
-              fontSize: 16
-            }}>
-              Access restricted. Admin privileges required.
-            </div>
-          )}
+          <div id="map" style={{ height: '100%', width: '100%' }} />
         </main>
       </div>
     </RequireAuth>

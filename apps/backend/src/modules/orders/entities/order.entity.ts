@@ -24,6 +24,11 @@ export class OrderEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
+  // Nullable to avoid breaking existing rows during sync; set when available.
+  @Index()
+  @Column({ name: 'admin_id', nullable: true })
+  adminId!: string | null;
+
   @Column({ name: 'external_ref', length: 120, nullable: true })
   externalRef!: string | null;
 

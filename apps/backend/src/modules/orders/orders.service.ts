@@ -42,7 +42,7 @@ export class OrdersService {
     private readonly walletService: WalletService
   ) {}
 
-  async listOrders(filters: ListOrdersDto) {
+  async listOrders(filters: ListOrdersDto, adminId?: string) {
     const { page = 1, pageSize = 25, status, paymentType, driverId, assigned, orderType } = filters;
     
     // Debug logging for assigned filter - log the entire filters object
@@ -65,6 +65,11 @@ export class OrdersService {
     const queryBuilder = this.ordersRepository.createQueryBuilder('order')
       .leftJoinAndSelect('order.driver', 'driver')
       .orderBy('order.createdAt', 'DESC');
+
+    // Restrict to the requesting admin
+    if (adminId) {
+      queryBuilder.andWhere('order.adminId = :adminId', { adminId });
+    }
 
     // Apply filters
     if (status) {
@@ -109,6 +114,9 @@ export class OrdersService {
     
     // Create a separate count query without the join to get accurate count
     const countQueryBuilder = this.ordersRepository.createQueryBuilder('order');
+    if (adminId) {
+      countQueryBuilder.andWhere('order.adminId = :adminId', { adminId });
+    }
     
     // Apply the same filters to the count query (but without the join)
     if (status) {
@@ -387,7 +395,7 @@ export class OrdersService {
     return result;
   }
 
-  async create(payload: UpsertOrderDto) {
+  async create(payload: UpsertOrderDto, adminId: string) {
     // Validate that items are provided and not empty
     if (!payload.items || (Array.isArray(payload.items) && payload.items.length === 0)) {
       throw new BadRequestException('Order must have at least one item');
@@ -399,14 +407,18 @@ export class OrdersService {
       status: payload.status || 'created',
       orderType: payload.orderType || 'regular',
       deliveryCharge: payload.deliveryCharge || 0,
+      adminId,
     };
     const entity = this.ordersRepository.create(orderData);
     return this.ordersRepository.save(entity);
   }
 
-  async upsert(orderId: string, payload: UpsertOrderDto) {
+  async upsert(orderId: string, payload: UpsertOrderDto, adminId?: string) {
     const existing = await this.ordersRepository.findOne({ where: { id: orderId } });
     const partial: DeepPartial<OrderEntity> = { id: orderId, ...payload };
+    if (adminId && !partial.adminId) {
+      partial.adminId = adminId;
+    }
     const entity = this.ordersRepository.merge(existing ?? this.ordersRepository.create(), partial);
     return this.ordersRepository.save(entity);
   }
