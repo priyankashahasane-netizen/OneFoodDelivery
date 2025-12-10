@@ -24,6 +24,17 @@ export enum OrderType {
   Subscription = 'subscription'
 }
 
+export class OrderItemDto {
+  @IsString()
+  name!: string;
+
+  @IsNumber()
+  price!: number;
+
+  @IsNumber()
+  quantity!: number;
+}
+
 export class UpsertOrderDto {
   @IsOptional()
   @IsString()
@@ -45,8 +56,9 @@ export class UpsertOrderDto {
 
   @IsArray()
   @ArrayMinSize(1, { message: 'Order must have at least one item' })
-  @IsOptional()
-  items?: unknown[];
+  @ValidateNested({ each: true })
+  @Type(() => OrderItemDto)
+  items!: OrderItemDto[];
 
   @IsOptional()
   slaSeconds?: number;
@@ -87,6 +99,7 @@ export class UpsertOrderDto {
   customerEmail?: string;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   deliveryCharge?: number;
 }

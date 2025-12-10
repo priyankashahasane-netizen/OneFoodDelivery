@@ -33,6 +33,7 @@
     "add-active-order-demo": "node --loader ts-node/esm src/database/seeds/add-active-order-demo.ts",
     "add-order-type-column": "node --loader ts-node/esm src/database/seeds/add-order-type-column.ts",
     "add-delivery-charge-column": "node --loader ts-node/esm src/database/seeds/add-delivery-charge-column.ts",
+    "add-admin-id-to-mapper": "node --loader ts-node/esm src/database/seeds/add-admin-id-to-mapper.ts",
     "add-customer-fields-to-orders": "node --loader ts-node/esm src/database/seeds/add-customer-fields-to-orders.ts",
     "backfill-customer-data": "node --loader ts-node/esm src/database/seeds/backfill-customer-data.ts",
     "create-navi-mumbai-orders": "node --loader ts-node/esm src/database/seeds/create-navi-mumbai-orders.ts",

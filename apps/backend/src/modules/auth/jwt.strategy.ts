@@ -45,6 +45,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const decrypted = token ? await this.decryptToken(token) : null;
     const decryptedUserId = decrypted?.userId || decrypted?.user_id || decrypted?.id || decrypted?.sub;
     const role = decrypted?.role || payload.role;
+    const adminId = decrypted?.adminId || payload.adminId || decryptedUserId || payload.sub;
     
     // Check if token is blacklisted
     if (token) {
@@ -63,7 +64,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       role: role,
       isAdmin: decrypted?.isAdmin ?? payload.isAdmin ?? role === 'admin',
       driverId: role === 'driver' ? (decrypted?.driverId || decryptedUserId || payload.sub) : undefined,
-      adminId: role === 'admin' ? (decryptedUserId || payload.sub) : undefined
+      adminId: role === 'admin' ? adminId : undefined
     };
   }
 }

@@ -66,7 +66,7 @@ export default function Header() {
         {(!mounted || !hasToken) && (
           <>
             <Link 
-              href="/enterprise"
+              href="https://onebiz.cubeone.in/products/onedelivery"
               style={{
                 padding: '8px 16px',
                 borderRadius: 6,
@@ -139,28 +139,6 @@ export default function Header() {
             >
               Driver Partner
             </button>
-            <Link 
-              href="/live-ops"
-              style={{
-                padding: '8px 16px',
-                borderRadius: 6,
-                textDecoration: 'none',
-                color: '#374151',
-                fontSize: 14,
-                fontWeight: 500,
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#f3f4f6';
-                e.currentTarget.style.color = '#111827';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.color = '#374151';
-              }}
-            >
-              Live Ops
-            </Link>
             <Link 
               href="/orders"
               style={{

@@ -15,6 +15,7 @@ export class AuthController {
     const adminPassword = 'Admin@123';
     const adminUser = process.env.ADMIN_USER ?? adminEmail;
     const adminPass = process.env.ADMIN_PASS ?? adminPassword;
+    const adminId = process.env.ADMIN_ID ?? 'demo-admin-id';
     
     // Support both email and username
     const isEmail = body.username.includes('@');
@@ -27,7 +28,7 @@ export class AuthController {
     }
     
     // Generate admin token with isAdmin flag
-    const tokenResponse = await this.jwtService.generateAdminToken(body.username, true);
+    const tokenResponse = await this.jwtService.generateAdminToken(body.username, true, adminId);
     return { 
       ok: true, 
       access_token: tokenResponse.access_token,
@@ -178,7 +179,11 @@ export class AuthController {
       
       // If not admin phone, still allow login but mark as non-admin
       // Generate token with isAdmin flag based on phone whitelist
-      const tokenResponse = await this.jwtService.generateAdminToken(body.phone, isAdminPhone);
+      const tokenResponse = await this.jwtService.generateAdminToken(
+        body.phone,
+        isAdminPhone,
+        process.env.ADMIN_ID
+      );
       
       return {
         ok: true,

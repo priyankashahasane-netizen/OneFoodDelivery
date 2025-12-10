@@ -249,7 +249,7 @@ export default function Home() {
           {(!mounted || !hasToken) && (
             <>
               <Link 
-                href="/enterprise"
+                href="https://onebiz.cubeone.in/products/onedelivery"
                 style={{
                   padding: '8px 16px',
                   borderRadius: 6,
@@ -322,28 +322,6 @@ export default function Home() {
               >
                 Driver Partner
               </button>
-              <Link 
-                href="/live-ops"
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: 6,
-                  textDecoration: 'none',
-                  color: '#374151',
-                  fontSize: 14,
-                  fontWeight: 500,
-                  transition: 'all 0.2s',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#f3f4f6';
-                  e.currentTarget.style.color = '#111827';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'transparent';
-                  e.currentTarget.style.color = '#374151';
-                }}
-              >
-                Live Ops
-              </Link>
               <Link 
                 href="/orders"
                 style={{
@@ -2040,37 +2018,6 @@ export default function Home() {
                 </p>
               </Link>
 
-              <Link
-                href="/live-ops"
-                style={{
-                  display: 'block',
-                  padding: 20,
-                  background: '#ffffff',
-                  borderRadius: 12,
-                  border: '1px solid #e5e7eb',
-                  textDecoration: 'none',
-                  transition: 'all 0.2s',
-                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = '#3b82f6';
-                  e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = '#e5e7eb';
-                  e.currentTarget.style.boxShadow = '0 1px 3px 0 rgba(0, 0, 0, 0.1)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                <div style={{ fontSize: 24, marginBottom: 8 }}>📍</div>
-                <h3 style={{ margin: '0 0 4px 0', fontSize: 16, fontWeight: 600, color: '#111827' }}>
-                  Live Operations
-                </h3>
-                <p style={{ margin: 0, fontSize: 14, color: '#6b7280' }}>
-                  View real-time driver locations
-                </p>
-              </Link>
 
               <Link
                 href="/drivers"

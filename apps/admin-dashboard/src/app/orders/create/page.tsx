@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import RequireAuth from '../../../components/RequireAuth';
+import MapPicker from '../../../components/MapPicker';
 import { authedFetch } from '../../../lib/auth';
 
 interface OrderItem {
@@ -15,6 +16,28 @@ export default function CreateOrderPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [drivers, setDrivers] = useState<{ id: string; name?: string; online?: boolean }[]>([]);
+  const [driversLoading, setDriversLoading] = useState(false);
+  const [driversError, setDriversError] = useState<string | null>(null);
+
+  const statusOptions = [
+    'created',
+    'pending',
+    'assigned',
+    'accepted',
+    'confirmed',
+    'processing',
+    'handover',
+    'picked_up',
+    'in_transit',
+    'delivered',
+    'cancelled',
+    'refund_requested',
+    'refunded',
+    'refund_request_cancelled'
+  ] as const;
+
+  const orderTypeOptions = ['regular', 'subscription'] as const;
 
   const [formData, setFormData] = useState({
     externalRef: '',
@@ -25,18 +48,36 @@ export default function CreateOrderPage() {
     dropoffLng: '',
     dropoffAddress: '',
     paymentType: 'cash_on_delivery' as 'cash_on_delivery' | 'prepaid' | 'partial',
-    status: 'created',
+    status: 'created' as typeof statusOptions[number],
     slaMinutes: '',
-    zoneId: '',
-    subscriptionId: '',
-    cancellationSource: '',
-    cancellationReason: '',
-    trackingUrl: '',
     deliveryCharge: '',
+    orderType: 'regular' as typeof orderTypeOptions[number],
+    driverId: '',
+    assignedAt: '',
+    deliveredAt: '',
+    customerName: '',
+    customerPhone: '',
+    customerEmail: '',
+    adminId: '',
     items: [] as OrderItem[],
   });
 
   const [newItem, setNewItem] = useState({ name: '', quantity: '1', price: '' });
+
+  const haversineDistanceKm = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+    const toRad = (value: number) => (value * Math.PI) / 180;
+    const R = 6371; // Earth radius in km
+    const dLat = toRad(b.lat - a.lat);
+    const dLng = toRad(b.lng - a.lng);
+    const lat1 = toRad(a.lat);
+    const lat2 = toRad(b.lat);
+
+    const sinLat = Math.sin(dLat / 2);
+    const sinLng = Math.sin(dLng / 2);
+    const aVal = sinLat * sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLng * sinLng;
+    const c = 2 * Math.atan2(Math.sqrt(aVal), Math.sqrt(1 - aVal));
+    return R * c;
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -95,12 +136,15 @@ export default function CreateOrderPage() {
         status: formData.status,
         items: formData.items.length > 0 ? formData.items : undefined,
         slaSeconds: formData.slaMinutes ? parseInt(formData.slaMinutes) * 60 : undefined,
-        zoneId: formData.zoneId || undefined,
-        subscriptionId: formData.subscriptionId || undefined,
-        cancellationSource: formData.cancellationSource || undefined,
-        cancellationReason: formData.cancellationReason || undefined,
-        trackingUrl: formData.trackingUrl || undefined,
         deliveryCharge: formData.deliveryCharge ? parseFloat(formData.deliveryCharge) : undefined,
+        orderType: formData.orderType || undefined,
+        driverId: formData.driverId || undefined,
+        assignedAt: formData.assignedAt ? new Date(formData.assignedAt).toISOString() : undefined,
+        deliveredAt: formData.deliveredAt ? new Date(formData.deliveredAt).toISOString() : undefined,
+        customerName: formData.customerName || undefined,
+        customerPhone: formData.customerPhone || undefined,
+        customerEmail: formData.customerEmail || undefined,
+        adminId: formData.adminId || undefined,
       };
 
       const response = await authedFetch('/api/orders', {
@@ -123,6 +167,72 @@ export default function CreateOrderPage() {
       setLoading(false);
     }
   };
+
+  const pickupCoords = (() => {
+    const lat = parseFloat(formData.pickupLat);
+    const lng = parseFloat(formData.pickupLng);
+    if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
+      return { lat, lng };
+    }
+    return undefined;
+  })();
+
+  const dropoffCoords = (() => {
+    const lat = parseFloat(formData.dropoffLat);
+    const lng = parseFloat(formData.dropoffLng);
+    if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
+      return { lat, lng };
+    }
+    return undefined;
+  })();
+
+  const showAssignmentSection = formData.orderType !== 'regular';
+
+  const loadDrivers = async () => {
+    if (driversLoading) return;
+    setDriversLoading(true);
+    setDriversError(null);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    try {
+      const res = await authedFetch('/api/drivers?page=1&pageSize=100', {
+        signal: controller.signal,
+      });
+      const data = await res.json();
+      setDrivers(data?.items ?? []);
+    } catch (err: any) {
+      const message =
+        err?.name === 'AbortError'
+          ? 'Timed out loading drivers. Please retry.'
+          : err?.message || 'Failed to load drivers';
+      setDriversError(message);
+    } finally {
+      clearTimeout(timeout);
+      setDriversLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!showAssignmentSection || drivers.length > 0) return;
+    loadDrivers();
+  }, [showAssignmentSection, drivers.length]);
+
+  // Auto-calculate SLA minutes from distance between pickup and dropoff.
+  useEffect(() => {
+    if (!pickupCoords || !dropoffCoords) {
+      if (formData.slaMinutes !== '') {
+        setFormData((prev) => ({ ...prev, slaMinutes: '' }));
+      }
+      return;
+    }
+
+    const distanceKm = haversineDistanceKm(pickupCoords, dropoffCoords);
+    // Assume ~30 km/h average speed => ~2 minutes per km, add 5-min buffer.
+    const computedMinutes = Math.max(5, Math.ceil(distanceKm * 2 + 5));
+    if (formData.slaMinutes !== computedMinutes.toString()) {
+      setFormData((prev) => ({ ...prev, slaMinutes: computedMinutes.toString() }));
+    }
+  }, [pickupCoords, dropoffCoords, formData.slaMinutes]);
 
   return (
     <RequireAuth>
@@ -181,30 +291,50 @@ export default function CreateOrderPage() {
               />
             </div>
 
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>
-                Status
-              </label>
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleInputChange}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: 6,
-                  fontSize: 14,
-                }}
-              >
-                <option value="created">Created</option>
-                <option value="pending">Pending</option>
-                <option value="assigned">Assigned</option>
-                <option value="picked_up">Picked Up</option>
-                <option value="out_for_delivery">Out for Delivery</option>
-                <option value="delivered">Delivered</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <label style={{ fontSize: 14, fontWeight: 500 }}>
+                  Status
+                </label>
+                <select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleInputChange}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: 6,
+                    fontSize: 14,
+                  }}
+                >
+                  {statusOptions.map((status) => (
+                    <option key={status} value={status}>{status.replace(/_/g, ' ')}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <label style={{ fontSize: 14, fontWeight: 500 }}>
+                  Order Type
+                </label>
+                <select
+                  name="orderType"
+                  value={formData.orderType}
+                  onChange={handleInputChange}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: 6,
+                    fontSize: 14,
+                  }}
+                >
+                  {orderTypeOptions.map((type) => (
+                    <option key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div style={{ marginBottom: 12 }}>
@@ -232,15 +362,14 @@ export default function CreateOrderPage() {
 
             <div style={{ marginBottom: 12 }}>
               <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>
-                SLA (Minutes, Optional)
+                SLA (Minutes, Auto)
               </label>
               <input
                 type="number"
                 name="slaMinutes"
                 value={formData.slaMinutes}
-                onChange={handleInputChange}
-                placeholder="e.g., 45"
-                min="1"
+                readOnly
+                placeholder="Will auto-calc after setting pickup & dropoff"
                 style={{
                   width: '100%',
                   padding: '8px 12px',
@@ -249,66 +378,9 @@ export default function CreateOrderPage() {
                   fontSize: 14,
                 }}
               />
-            </div>
-
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>
-                Zone ID (Optional)
-              </label>
-              <input
-                type="text"
-                name="zoneId"
-                value={formData.zoneId}
-                onChange={handleInputChange}
-                placeholder="Zone identifier"
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: 6,
-                  fontSize: 14,
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>
-                Subscription ID (Optional)
-              </label>
-              <input
-                type="text"
-                name="subscriptionId"
-                value={formData.subscriptionId}
-                onChange={handleInputChange}
-                placeholder="Subscription identifier"
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: 6,
-                  fontSize: 14,
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>
-                Tracking URL (Optional)
-              </label>
-              <input
-                type="url"
-                name="trackingUrl"
-                value={formData.trackingUrl}
-                onChange={handleInputChange}
-                placeholder="https://example.com/track/order-id"
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: 6,
-                  fontSize: 14,
-                }}
-              />
+              <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>
+                Auto-calculated from map distance (includes small buffer).
+              </div>
             </div>
 
             <div style={{ marginBottom: 12 }}>
@@ -337,60 +409,26 @@ export default function CreateOrderPage() {
             </div>
           </div>
 
-          {/* Cancellation Information (Optional) */}
-          <div style={{ background: '#f9fafb', padding: 16, borderRadius: 8 }}>
-            <h2 style={{ marginTop: 0, marginBottom: 16, fontSize: 18 }}>Cancellation Information (Optional)</h2>
-            
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>
-                Cancellation Source (Optional)
-              </label>
-              <select
-                name="cancellationSource"
-                value={formData.cancellationSource}
-                onChange={handleInputChange}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: 6,
-                  fontSize: 14,
-                }}
-              >
-                <option value="">Select source...</option>
-                <option value="customer">Customer</option>
-                <option value="restaurant">Restaurant</option>
-                <option value="admin">Admin</option>
-                <option value="system">System</option>
-              </select>
-            </div>
-
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>
-                Cancellation Reason (Optional)
-              </label>
-              <textarea
-                name="cancellationReason"
-                value={formData.cancellationReason}
-                onChange={(e) => setFormData(prev => ({ ...prev, cancellationReason: e.target.value }))}
-                placeholder="Reason for cancellation"
-                rows={3}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: 6,
-                  fontSize: 14,
-                  fontFamily: 'inherit',
-                  resize: 'vertical',
-                }}
-              />
-            </div>
-          </div>
-
           {/* Pickup Location */}
           <div style={{ background: '#f9fafb', padding: 16, borderRadius: 8 }}>
             <h2 style={{ marginTop: 0, marginBottom: 16, fontSize: 18 }}>Pickup Location *</h2>
+
+            <div style={{ marginBottom: 12 }}>
+              <MapPicker
+                value={pickupCoords}
+                onSelect={({ lat, lng }: { lat: number; lng: number }) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    pickupLat: lat.toString(),
+                    pickupLng: lng.toString(),
+                  }));
+                }}
+                height={280}
+              />
+              <div style={{ fontSize: 12, color: '#6b7280', marginTop: 6 }}>
+                Tap on the map to set pickup coordinates.
+              </div>
+            </div>
             
             <div style={{ marginBottom: 12 }}>
               <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>
@@ -460,6 +498,23 @@ export default function CreateOrderPage() {
           {/* Dropoff Location */}
           <div style={{ background: '#f9fafb', padding: 16, borderRadius: 8 }}>
             <h2 style={{ marginTop: 0, marginBottom: 16, fontSize: 18 }}>Dropoff Location *</h2>
+
+            <div style={{ marginBottom: 12 }}>
+              <MapPicker
+                value={dropoffCoords}
+                onSelect={({ lat, lng }: { lat: number; lng: number }) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    dropoffLat: lat.toString(),
+                    dropoffLng: lng.toString(),
+                  }));
+                }}
+                height={280}
+              />
+              <div style={{ fontSize: 12, color: '#6b7280', marginTop: 6 }}>
+                Tap on the map to set dropoff coordinates.
+              </div>
+            </div>
             
             <div style={{ marginBottom: 12 }}>
               <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>
@@ -525,6 +580,166 @@ export default function CreateOrderPage() {
               />
             </div>
           </div>
+
+          {/* Customer Details */}
+          <div style={{ background: '#f9fafb', padding: 16, borderRadius: 8 }}>
+            <h2 style={{ marginTop: 0, marginBottom: 16, fontSize: 18 }}>Customer Details</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <label style={{ fontSize: 14, fontWeight: 500 }}>Name</label>
+                <input
+                  type="text"
+                  name="customerName"
+                  value={formData.customerName}
+                  onChange={handleInputChange}
+                  placeholder="Customer name"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: 6,
+                    fontSize: 14,
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <label style={{ fontSize: 14, fontWeight: 500 }}>Phone</label>
+                <input
+                  type="tel"
+                  name="customerPhone"
+                  value={formData.customerPhone}
+                  onChange={handleInputChange}
+                  placeholder="e.g., 9876543210"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: 6,
+                    fontSize: 14,
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <label style={{ fontSize: 14, fontWeight: 500 }}>Email</label>
+                <input
+                  type="email"
+                  name="customerEmail"
+                  value={formData.customerEmail}
+                  onChange={handleInputChange}
+                  placeholder="customer@example.com"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: 6,
+                    fontSize: 14,
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {showAssignmentSection && (
+            <div style={{ background: '#f9fafb', padding: 16, borderRadius: 8 }}>
+              <h2 style={{ marginTop: 0, marginBottom: 16, fontSize: 18 }}>Assignment & Admin (Optional)</h2>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 14, fontWeight: 500 }}>Driver</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <select
+                      name="driverId"
+                      value={formData.driverId}
+                      onChange={handleInputChange}
+                      disabled={driversLoading}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: 6,
+                        fontSize: 14,
+                        background: driversLoading ? '#f3f4f6' : '#fff',
+                      }}
+                    >
+                      <option value="">{driversLoading ? 'Loading drivers…' : 'Select driver (optional)'}</option>
+                      {drivers.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name || 'Unnamed'} {d.online ? '(online)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                    {driversError && (
+                      <div style={{ fontSize: 12, color: '#b91c1c', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                        <span>{driversError}</span>
+                        <button
+                          type="button"
+                          onClick={loadDrivers}
+                          style={{
+                            border: '1px solid #d1d5db',
+                            background: '#fff',
+                            borderRadius: 4,
+                            padding: '4px 8px',
+                            cursor: 'pointer',
+                            fontSize: 12,
+                          }}
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 14, fontWeight: 500 }}>Assigned At</label>
+                  <input
+                    type="datetime-local"
+                    name="assignedAt"
+                    value={formData.assignedAt}
+                    onChange={handleInputChange}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: 6,
+                      fontSize: 14,
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 14, fontWeight: 500 }}>Delivered At</label>
+                  <input
+                    type="datetime-local"
+                    name="deliveredAt"
+                    value={formData.deliveredAt}
+                    onChange={handleInputChange}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: 6,
+                      fontSize: 14,
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 14, fontWeight: 500 }}>Admin ID</label>
+                  <input
+                    type="text"
+                    name="adminId"
+                    value={formData.adminId}
+                    onChange={handleInputChange}
+                    placeholder="Admin identifier"
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: 6,
+                      fontSize: 14,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Order Items */}
           <div style={{ background: '#f9fafb', padding: 16, borderRadius: 8 }}>

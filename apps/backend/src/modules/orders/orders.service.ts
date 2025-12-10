@@ -401,12 +401,14 @@ export class OrdersService {
       throw new BadRequestException('Order must have at least one item');
     }
 
+    const deliveryCharge = payload.deliveryCharge ?? 0;
+
     // Set default status and orderType if not provided
     const orderData: DeepPartial<OrderEntity> = {
       ...payload,
       status: payload.status || 'created',
       orderType: payload.orderType || 'regular',
-      deliveryCharge: payload.deliveryCharge || 0,
+      deliveryCharge,
       adminId,
     };
     const entity = this.ordersRepository.create(orderData);
@@ -415,7 +417,11 @@ export class OrdersService {
 
   async upsert(orderId: string, payload: UpsertOrderDto, adminId?: string) {
     const existing = await this.ordersRepository.findOne({ where: { id: orderId } });
-    const partial: DeepPartial<OrderEntity> = { id: orderId, ...payload };
+    const partial: DeepPartial<OrderEntity> = {
+      id: orderId,
+      ...payload,
+      deliveryCharge: payload.deliveryCharge ?? existing?.deliveryCharge ?? 0,
+    };
     if (adminId && !partial.adminId) {
       partial.adminId = adminId;
     }
