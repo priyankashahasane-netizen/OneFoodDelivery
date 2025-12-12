@@ -23,6 +23,7 @@ import { ShiftsModule } from './modules/shifts/shifts.module.js';
 import { MetricsService } from './common/metrics/metrics.service.js';
 import { MetricsController } from './common/metrics/metrics.controller.js';
 import { RedisClientProvider } from './common/redis/redis.provider.js';
+import { RestaurantsModule } from './modules/restaurants/restaurants.module.js';
 
 @Module({
   imports: [
@@ -46,7 +47,8 @@ import { RedisClientProvider } from './common/redis/redis.provider.js';
     NotificationsModule,
     WebhooksModule,
     DeliveryManModule,
-    ShiftsModule
+    ShiftsModule,
+    RestaurantsModule
   ],
   controllers: [HealthController, MetricsController, ConfigController],
   providers: [MetricsService, RedisClientProvider]

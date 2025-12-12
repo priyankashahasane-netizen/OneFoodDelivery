@@ -41,3 +41,23 @@ export async function loginWithOtp(phone: string, otp: string, accessToken?: str
   const data = await res.json();
   return data;
 }
+
+/**
+ * Admin signup/registration via CubeOne
+ */
+export async function signup(data: {
+  email: string;
+  mobile: string;
+  password: string;
+  password_confirmation: string;
+  first_name: string;
+  last_name: string;
+}) {
+  const res = await fetch(`${API_BASE}/api/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  const result = await res.json();
+  return result;
+}

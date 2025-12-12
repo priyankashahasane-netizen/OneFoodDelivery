@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import RequireAuth from '../../components/RequireAuth';
 import Header from '../../components/Header';
@@ -16,352 +17,604 @@ const fetcher = async (url: string) => {
   }
 };
 
-export default function RestaurantsPage() {
-  const [filters, setFilters] = useState({
-    status: '',
-  });
-  const [pendingStatuses, setPendingStatuses] = useState<Record<string, string>>({});
+type RestaurantForm = {
+  name: string;
+  slug: string;
+  phone: string;
+  email: string;
+  address: string;
+  city: string;
+  state: string;
+  country: string;
+  postalCode: string;
+  latitude: string;
+  longitude: string;
+  status: string;
+  isVerified: boolean;
+  cuisines: string;
+  dietaryTags: string;
+  logoUrl: string;
+  bannerUrl: string;
+  commissionRate: string;
+  minOrderValue: string;
+  maxDeliveryDistanceKm: string;
+  payoutCycle: string;
+  zoneId: string;
+};
 
-  // Build query string from filters - focus on restaurant-relevant statuses
+function RestaurantsPageContent() {
+  const searchParams = useSearchParams();
+  const [showForm, setShowForm] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [filters, setFilters] = useState({ status: '' });
+
+  const [formData, setFormData] = useState<RestaurantForm>({
+    name: '',
+    slug: '',
+    phone: '',
+    email: '',
+    address: '',
+    city: '',
+    state: '',
+    country: '',
+    postalCode: '',
+    latitude: '',
+    longitude: '',
+    status: 'active',
+    isVerified: false,
+    cuisines: '',
+    dietaryTags: '',
+    logoUrl: '',
+    bannerUrl: '',
+    commissionRate: '',
+    minOrderValue: '',
+    maxDeliveryDistanceKm: '',
+    payoutCycle: 'weekly',
+    zoneId: '',
+  });
+
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
-    // Keep within backend pageSize limit
     params.append('pageSize', '200');
     if (filters.status) params.append('status', filters.status);
     return params.toString();
   }, [filters]);
 
-  const apiUrl = `/api/orders?${queryString}`;
-  const { data, mutate, isLoading, error } = useSWR(apiUrl, fetcher);
+  const apiUrl = `/api/restaurants?${queryString}`;
+  const { data, mutate, isLoading, error: fetchError } = useSWR(apiUrl, fetcher, {
+    revalidateOnFocus: false,
+  });
 
-  // Restaurant-relevant statuses
-  const restaurantStatuses = [
-    'created',
-    'accepted',
-    'confirmed',
-    'processing',
-    'handover',
-    'picked_up',
-  ];
+  const restaurants = useMemo(() => data?.items || data || [], [data]);
 
-  const handleFilterChange = (key: string, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    const checked = (e.target as HTMLInputElement).checked;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
   };
 
-  const clearFilters = () => {
-    setFilters({ status: '' });
-  };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setFormLoading(true);
 
-  async function updateStatus(orderId: string, newStatus: string) {
-    // Optimistically update UI
-    setPendingStatuses(prev => ({ ...prev, [orderId]: newStatus }));
-    try {
-      await authedFetch(`/api/orders/${orderId}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
-      });
-      // Clear pending state and refetch
-      setPendingStatuses(prev => {
-        const updated = { ...prev };
-        delete updated[orderId];
-        return updated;
-      });
-      mutate();
-    } catch (error) {
-      // Revert on error
-      setPendingStatuses(prev => {
-        const updated = { ...prev };
-        delete updated[orderId];
-        return updated;
-      });
-      alert('Failed to update order status. Please try again.');
-      console.error('Update status error:', error);
+    if (!formData.name || !formData.phone || !formData.address) {
+      setError('Name, phone, and address are required.');
+      setFormLoading(false);
+      return;
     }
-  }
 
-  // Filter orders to show only restaurant-relevant ones (exclude delivered, cancelled, etc.)
-  const restaurantOrders = useMemo(() => {
-    if (!data?.items) return [];
-    return data.items.filter((o: any) => 
-      restaurantStatuses.includes(o.status?.toLowerCase()) || 
-      !o.status || 
-      o.status === 'pending'
-    );
-  }, [data?.items]);
+    // Auto-fill slug if not provided
+    const slug = formData.slug || formData.name.trim().toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '');
 
-  const getStatusColor = (status: string) => {
-    const s = status?.toLowerCase();
-    if (s === 'confirmed') return '#166534'; // green
-    if (s === 'processing') return '#92400e'; // amber
-    if (s === 'handover') return '#1e40af'; // blue
-    if (s === 'picked_up') return '#7c3aed'; // purple
-    if (s === 'accepted') return '#059669'; // emerald
-    return '#6b7280'; // gray
-  };
-
-  const getStatusBadgeStyle = (status: string) => {
-    const color = getStatusColor(status);
-    return {
-      padding: '4px 12px',
-      borderRadius: 12,
-      fontSize: 12,
-      fontWeight: 600,
-      color: '#fff',
-      background: color,
-      display: 'inline-block',
+    const payload: any = {
+      name: formData.name,
+      slug,
+      phone: formData.phone,
+      email: formData.email || null,
+      address: formData.address,
+      city: formData.city || null,
+      state: formData.state || null,
+      country: formData.country || null,
+      postalCode: formData.postalCode || null,
+      status: formData.status || 'active',
+      isVerified: formData.isVerified,
+      payoutCycle: formData.payoutCycle || 'weekly',
+      zoneId: formData.zoneId || null,
     };
+
+    // Optional numeric fields
+    if (formData.latitude) payload.latitude = parseFloat(formData.latitude);
+    if (formData.longitude) payload.longitude = parseFloat(formData.longitude);
+    if (formData.commissionRate) payload.commissionRate = parseFloat(formData.commissionRate);
+    if (formData.minOrderValue) payload.minOrderValue = parseFloat(formData.minOrderValue);
+    if (formData.maxDeliveryDistanceKm) payload.maxDeliveryDistanceKm = parseFloat(formData.maxDeliveryDistanceKm);
+
+    // Optional arrays
+    if (formData.cuisines) payload.cuisines = formData.cuisines.split(',').map((c) => c.trim()).filter(Boolean);
+    if (formData.dietaryTags) payload.dietaryTags = formData.dietaryTags.split(',').map((c) => c.trim()).filter(Boolean);
+
+    if (formData.logoUrl) payload.logoUrl = formData.logoUrl;
+    if (formData.bannerUrl) payload.bannerUrl = formData.bannerUrl;
+
+    try {
+      const response = await authedFetch('/api/restaurants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Failed to create restaurant' }));
+        throw new Error(errorData.message || 'Failed to create restaurant');
+      }
+
+      setFormData({
+        name: '',
+        slug: '',
+        phone: '',
+        email: '',
+        address: '',
+        city: '',
+        state: '',
+        country: '',
+        postalCode: '',
+        latitude: '',
+        longitude: '',
+        status: 'active',
+        isVerified: false,
+        cuisines: '',
+        dietaryTags: '',
+        logoUrl: '',
+        bannerUrl: '',
+        commissionRate: '',
+        minOrderValue: '',
+        maxDeliveryDistanceKm: '',
+        payoutCycle: 'weekly',
+        zoneId: '',
+      });
+      setShowForm(false);
+      mutate();
+    } catch (err: any) {
+      setError(err.message || 'Failed to create restaurant');
+      console.error('Create restaurant error:', err);
+    } finally {
+      setFormLoading(false);
+    }
   };
+
+  useEffect(() => {
+    if (searchParams.get('create') === '1') {
+      setShowForm(true);
+    }
+  }, [searchParams]);
 
   return (
     <RequireAuth>
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
         <Header />
         <main style={{ padding: 16, flex: 1 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div>
-            <h1 style={{ margin: 0, marginBottom: 4 }}>Restaurant Orders</h1>
-            <div style={{ fontSize: 14, color: '#6b7280', fontWeight: 500 }}>
-              Active Orders: <span style={{ color: '#111827', fontWeight: 600 }}>{restaurantOrders.length}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <div>
+              <h1 style={{ margin: 0, marginBottom: 4 }}>Restaurants</h1>
+              <div style={{ fontSize: 14, color: '#6b7280', fontWeight: 500 }}>
+                Total: <span style={{ color: '#111827', fontWeight: 600 }}>{restaurants?.length || 0}</span>
+              </div>
             </div>
-          </div>
-        </div>
-        
-        {/* Filters Section */}
-        <div style={{ 
-          background: '#f9fafb', 
-          padding: 16, 
-          borderRadius: 8, 
-          marginBottom: 16,
-          border: '1px solid #e5e7eb'
-        }}>
-          <div style={{ 
-            display: 'flex', 
-            gap: 16,
-            alignItems: 'end'
-          }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
-              <label style={{ fontSize: 12, fontWeight: 500, color: '#374151' }}>Status</label>
-              <select
-                value={filters.status}
-                onChange={(e) => handleFilterChange('status', e.target.value)}
-                style={{ 
-                  padding: '8px 12px', 
-                  borderRadius: 6, 
-                  border: '1px solid #d1d5db', 
-                  fontSize: 14,
-                  width: '100%',
-                  background: '#fff'
-                }}
-              >
-                <option value="">All Statuses</option>
-                {restaurantStatuses.map((status: string) => (
-                  <option key={status} value={status}>{status.replace(/_/g, ' ')}</option>
-                ))}
-              </select>
-            </div>
-
             <button
-              onClick={clearFilters}
+              onClick={() => setShowForm(!showForm)}
               style={{
-                padding: '8px 16px',
+                background: showForm ? '#6b7280' : '#2563eb',
+                color: '#fff',
+                border: 0,
+                padding: '10px 20px',
                 borderRadius: 6,
-                border: '1px solid #d1d5db',
-                background: '#fff',
-                color: '#374151',
                 cursor: 'pointer',
                 fontSize: 14,
                 fontWeight: 500,
-                whiteSpace: 'nowrap',
-                height: 'fit-content'
               }}
             >
-              Clear Filters
+              {showForm ? 'Cancel' : '+ Add Restaurant'}
             </button>
           </div>
-        </div>
 
-        {isLoading ? (
-          <p>Loading…</p>
-        ) : error ? (
-          <div style={{ padding: 16, background: '#fee2e2', borderRadius: 8, color: '#991b1b' }}>
-            <strong>Error loading orders:</strong> {error.message || 'Unknown error'}
-          </div>
-        ) : (
-          <>
-            {restaurantOrders.length === 0 ? (
-              <div style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>
-                <p>No active orders found.</p>
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gap: 16 }}>
-                {restaurantOrders.map((order: any) => {
-                  const currentStatus = pendingStatuses[order.id] || order.status || 'created';
-                  const isPending = !!pendingStatuses[order.id];
-                  
-                  return (
-                    <div
-                      key={order.id}
-                      style={{
-                        background: '#fff',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: 8,
-                        padding: 20,
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-                      }}
+          {showForm && (
+            <div style={{
+              background: '#f9fafb',
+              padding: 20,
+              borderRadius: 8,
+              marginBottom: 24,
+              border: '1px solid #e5e7eb'
+            }}>
+              <h2 style={{ marginTop: 0, marginBottom: 16, fontSize: 18 }}>Add New Restaurant</h2>
+
+              {error && (
+                <div style={{
+                  background: '#fee2e2',
+                  color: '#991b1b',
+                  padding: 12,
+                  borderRadius: 6,
+                  marginBottom: 16,
+                }}>
+                  {error}
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>Name *</label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="Restaurant name"
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>Slug</label>
+                    <input
+                      type="text"
+                      name="slug"
+                      value={formData.slug}
+                      onChange={handleInputChange}
+                      placeholder="auto-generated if empty"
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>Phone *</label>
+                    <input
+                      type="text"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="Primary phone"
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>Email</label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="contact@email.com"
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }}
+                    />
+                  </div>
+
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>Address *</label>
+                    <textarea
+                      name="address"
+                      value={formData.address}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="Street, area, city"
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14, minHeight: 60 }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>City</label>
+                    <input
+                      type="text"
+                      name="city"
+                      value={formData.city}
+                      onChange={handleInputChange}
+                      placeholder="City"
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>State</label>
+                    <input
+                      type="text"
+                      name="state"
+                      value={formData.state}
+                      onChange={handleInputChange}
+                      placeholder="State"
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>Country</label>
+                    <input
+                      type="text"
+                      name="country"
+                      value={formData.country}
+                      onChange={handleInputChange}
+                      placeholder="Country"
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>Postal Code</label>
+                    <input
+                      type="text"
+                      name="postalCode"
+                      value={formData.postalCode}
+                      onChange={handleInputChange}
+                      placeholder="Postal code"
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>Latitude</label>
+                    <input
+                      type="text"
+                      name="latitude"
+                      value={formData.latitude}
+                      onChange={handleInputChange}
+                      placeholder="e.g., 19.0760"
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>Longitude</label>
+                    <input
+                      type="text"
+                      name="longitude"
+                      value={formData.longitude}
+                      onChange={handleInputChange}
+                      placeholder="e.g., 72.8777"
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>Zone ID</label>
+                    <input
+                      type="text"
+                      name="zoneId"
+                      value={formData.zoneId}
+                      onChange={handleInputChange}
+                      placeholder="Zone identifier"
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>Status</label>
+                    <select
+                      name="status"
+                      value={formData.status}
+                      onChange={handleInputChange}
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14, background: '#fff' }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 8 }}>
-                            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#111827' }}>
-                              Order {order.externalRef || order.id.substring(0, 8)}
-                            </h3>
-                            <span style={getStatusBadgeStyle(currentStatus)}>
-                              {currentStatus.replace(/_/g, ' ').toUpperCase()}
-                            </span>
-                            {isPending && (
-                              <span style={{ fontSize: 12, color: '#6b7280', fontStyle: 'italic' }}>
-                                Updating...
-                              </span>
-                            )}
-                          </div>
-                          
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginTop: 12 }}>
-                            <div>
-                              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Pickup Location</div>
-                              <div style={{ fontSize: 14, color: '#111827', fontWeight: 500 }}>
-                                {order.pickup?.address || `${order.pickup?.lat?.toFixed(4)}, ${order.pickup?.lng?.toFixed(4)}`}
-                              </div>
-                            </div>
-                            <div>
-                              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Delivery Location</div>
-                              <div style={{ fontSize: 14, color: '#111827', fontWeight: 500 }}>
-                                {order.dropoff?.address || `${order.dropoff?.lat?.toFixed(4)}, ${order.dropoff?.lng?.toFixed(4)}`}
-                              </div>
-                            </div>
-                            <div>
-                              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Payment Type</div>
-                              <div style={{ fontSize: 14, color: '#111827', fontWeight: 500 }}>
-                                {order.paymentType || 'N/A'}
-                              </div>
-                            </div>
-                            <div>
-                              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Created At</div>
-                              <div style={{ fontSize: 14, color: '#111827', fontWeight: 500 }}>
-                                {order.createdAt ? new Date(order.createdAt).toLocaleString() : 'N/A'}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                      <option value="active">active</option>
+                      <option value="inactive">inactive</option>
+                      <option value="suspended">suspended</option>
+                    </select>
+                  </div>
 
-                      {/* Action Buttons */}
-                      <div style={{ 
-                        display: 'flex', 
-                        gap: 8, 
-                        flexWrap: 'wrap',
-                        paddingTop: 16,
-                        borderTop: '1px solid #e5e7eb'
-                      }}>
-                        {currentStatus === 'created' || currentStatus === 'accepted' || currentStatus === 'pending' ? (
-                          <button
-                            onClick={() => updateStatus(order.id, 'confirmed')}
-                            disabled={isPending}
-                            style={{
-                              background: '#166534',
-                              color: '#fff',
-                              border: 0,
-                              padding: '10px 20px',
-                              borderRadius: 6,
-                              cursor: isPending ? 'not-allowed' : 'pointer',
-                              fontSize: 14,
-                              fontWeight: 600,
-                              opacity: isPending ? 0.6 : 1,
-                              transition: 'opacity 0.2s'
-                            }}
-                          >
-                            ✓ Confirm Order
-                          </button>
-                        ) : null}
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>Payout Cycle</label>
+                    <select
+                      name="payoutCycle"
+                      value={formData.payoutCycle}
+                      onChange={handleInputChange}
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14, background: '#fff' }}
+                    >
+                      <option value="weekly">weekly</option>
+                      <option value="biweekly">biweekly</option>
+                      <option value="monthly">monthly</option>
+                    </select>
+                  </div>
 
-                        {currentStatus === 'confirmed' ? (
-                          <button
-                            onClick={() => updateStatus(order.id, 'processing')}
-                            disabled={isPending}
-                            style={{
-                              background: '#92400e',
-                              color: '#fff',
-                              border: 0,
-                              padding: '10px 20px',
-                              borderRadius: 6,
-                              cursor: isPending ? 'not-allowed' : 'pointer',
-                              fontSize: 14,
-                              fontWeight: 600,
-                              opacity: isPending ? 0.6 : 1,
-                              transition: 'opacity 0.2s'
-                            }}
-                          >
-                            🍳 Mark as Cooking
-                          </button>
-                        ) : null}
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>Commission %</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      name="commissionRate"
+                      value={formData.commissionRate}
+                      onChange={handleInputChange}
+                      placeholder="e.g., 15"
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }}
+                    />
+                  </div>
 
-                        {currentStatus === 'processing' ? (
-                          <button
-                            onClick={() => updateStatus(order.id, 'handover')}
-                            disabled={isPending}
-                            style={{
-                              background: '#1e40af',
-                              color: '#fff',
-                              border: 0,
-                              padding: '10px 20px',
-                              borderRadius: 6,
-                              cursor: isPending ? 'not-allowed' : 'pointer',
-                              fontSize: 14,
-                              fontWeight: 600,
-                              opacity: isPending ? 0.6 : 1,
-                              transition: 'opacity 0.2s'
-                            }}
-                          >
-                            📦 Ready for Handover
-                          </button>
-                        ) : null}
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>Min Order Value</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      name="minOrderValue"
+                      value={formData.minOrderValue}
+                      onChange={handleInputChange}
+                      placeholder="₹"
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }}
+                    />
+                  </div>
 
-                        {currentStatus === 'handover' && (
-                          <div style={{ 
-                            padding: '10px 16px', 
-                            background: '#dbeafe', 
-                            borderRadius: 6,
-                            color: '#1e40af',
-                            fontSize: 14,
-                            fontWeight: 500
-                          }}>
-                            ✓ Order ready - waiting for driver pickup
-                          </div>
-                        )}
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>Max Delivery Distance (km)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      name="maxDeliveryDistanceKm"
+                      value={formData.maxDeliveryDistanceKm}
+                      onChange={handleInputChange}
+                      placeholder="e.g., 5"
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }}
+                    />
+                  </div>
 
-                        {currentStatus === 'picked_up' && (
-                          <div style={{ 
-                            padding: '10px 16px', 
-                            background: '#ede9fe', 
-                            borderRadius: 6,
-                            color: '#7c3aed',
-                            fontSize: 14,
-                            fontWeight: 500
-                          }}>
-                            ✓ Order picked up by driver
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </>
-        )}
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>Cuisines (comma separated)</label>
+                    <input
+                      type="text"
+                      name="cuisines"
+                      value={formData.cuisines}
+                      onChange={handleInputChange}
+                      placeholder="Indian, Chinese"
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>Dietary Tags (comma separated)</label>
+                    <input
+                      type="text"
+                      name="dietaryTags"
+                      value={formData.dietaryTags}
+                      onChange={handleInputChange}
+                      placeholder="Vegan, Halal"
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>Logo URL</label>
+                    <input
+                      type="text"
+                      name="logoUrl"
+                      value={formData.logoUrl}
+                      onChange={handleInputChange}
+                      placeholder="https://..."
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>Banner URL</label>
+                    <input
+                      type="text"
+                      name="bannerUrl"
+                      value={formData.bannerUrl}
+                      onChange={handleInputChange}
+                      placeholder="https://..."
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input
+                      type="checkbox"
+                      id="isVerified"
+                      name="isVerified"
+                      checked={formData.isVerified}
+                      onChange={handleInputChange}
+                    />
+                    <label htmlFor="isVerified" style={{ fontSize: 14, fontWeight: 500 }}>Verified</label>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={formLoading}
+                  style={{
+                    background: '#2563eb',
+                    color: '#fff',
+                    border: 0,
+                    padding: '12px 20px',
+                    borderRadius: 8,
+                    cursor: formLoading ? 'not-allowed' : 'pointer',
+                    fontSize: 15,
+                    fontWeight: 600,
+                    alignSelf: 'flex-start',
+                    opacity: formLoading ? 0.7 : 1,
+                  }}
+                >
+                  {formLoading ? 'Saving...' : 'Save Restaurant'}
+                </button>
+              </form>
+            </div>
+          )}
+
+          {isLoading ? (
+            <p>Loading…</p>
+          ) : fetchError ? (
+            <div style={{ padding: 16, background: '#fee2e2', borderRadius: 8, color: '#991b1b' }}>
+              <strong>Error loading restaurants:</strong> {fetchError.message || 'Unknown error'}
+            </div>
+          ) : restaurants?.length === 0 ? (
+            <div style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>
+              <p>No restaurants yet.</p>
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+                <thead>
+                  <tr style={{ background: '#f9fafb' }}>
+                    <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: 600, fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Name
+                    </th>
+                    <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: 600, fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Phone
+                    </th>
+                    <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: 600, fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Email
+                    </th>
+                    <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: 600, fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      City
+                    </th>
+                    <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: 600, fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Status
+                    </th>
+                    <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: 600, fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Verified
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {restaurants.map((r: any) => (
+                    <tr key={r.id} style={{ borderTop: '1px solid #e5e7eb' }}>
+                      <td style={{ padding: '12px 16px', fontSize: 14, color: '#111827', fontWeight: 600 }}>{r.name}</td>
+                      <td style={{ padding: '12px 16px', fontSize: 14, color: '#374151' }}>{r.phone || '—'}</td>
+                      <td style={{ padding: '12px 16px', fontSize: 14, color: '#374151' }}>{r.email || '—'}</td>
+                      <td style={{ padding: '12px 16px', fontSize: 14, color: '#374151' }}>{r.city || r.state || '—'}</td>
+                      <td style={{ padding: '12px 16px', fontSize: 14, color: '#111827' }}>{r.status || '—'}</td>
+                      <td style={{ padding: '12px 16px', fontSize: 14, color: '#111827' }}>
+                        {r.isVerified ? 'Yes' : 'No'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </main>
       </div>
     </RequireAuth>
+  );
+}
+
+export default function RestaurantsPage() {
+  return (
+    <Suspense fallback={
+      <RequireAuth>
+        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+          <Header />
+          <main style={{ padding: 16, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div>Loading...</div>
+          </main>
+        </div>
+      </RequireAuth>
+    }>
+      <RestaurantsPageContent />
+    </Suspense>
   );
 }
 

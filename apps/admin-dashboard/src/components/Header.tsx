@@ -27,7 +27,7 @@ export default function Header() {
   const handleLogout = () => {
     clearToken();
     setHasToken(false);
-    router.push('/login');
+    router.push('/');
   };
 
   const handleDriverPartnerClick = (e: MouseEvent<HTMLButtonElement>) => {
@@ -58,7 +58,7 @@ export default function Header() {
             style={{ objectFit: 'contain' }}
           />
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#111827' }}>
-            One Delivery
+            OneDelivery
           </h1>
         </Link>
       </div>
@@ -233,30 +233,56 @@ export default function Header() {
             Logout
           </button>
         ) : (
-          <Link 
-            href="/login"
-            style={{
-              padding: '8px 16px',
-              borderRadius: 6,
-              border: '1px solid #e5e7eb',
-              background: '#ffffff',
-              color: '#374151',
-              fontSize: 14,
-              fontWeight: 500,
-              textDecoration: 'none',
-              transition: 'all 0.2s',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#f3f4f6';
-              e.currentTarget.style.borderColor = '#d1d5db';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = '#ffffff';
-              e.currentTarget.style.borderColor = '#e5e7eb';
-            }}
-          >
-            Login
-          </Link>
+          <>
+            <Link 
+              href="/signup"
+              style={{
+                padding: '8px 16px',
+                borderRadius: 6,
+                border: '1px solid #3b82f6',
+                background: '#3b82f6',
+                color: '#ffffff',
+                fontSize: 14,
+                fontWeight: 500,
+                textDecoration: 'none',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#2563eb';
+                e.currentTarget.style.borderColor = '#2563eb';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#3b82f6';
+                e.currentTarget.style.borderColor = '#3b82f6';
+              }}
+            >
+              Sign Up
+            </Link>
+            <Link 
+              href="/login"
+              style={{
+                padding: '8px 16px',
+                borderRadius: 6,
+                border: '1px solid #e5e7eb',
+                background: '#ffffff',
+                color: '#374151',
+                fontSize: 14,
+                fontWeight: 500,
+                textDecoration: 'none',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#f3f4f6';
+                e.currentTarget.style.borderColor = '#d1d5db';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#ffffff';
+                e.currentTarget.style.borderColor = '#e5e7eb';
+              }}
+            >
+              Login
+            </Link>
+          </>
         )}
       </nav>
       <DriverAppModal

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from 'react';
 import type { MouseEvent } from 'react';
 
 type DriverAppModalProps = {
@@ -11,9 +12,36 @@ type DriverAppModalProps = {
 export default function DriverAppModal({ open, downloadUrl, onClose }: DriverAppModalProps) {
   if (!open) return null;
 
+  const [copied, setCopied] = useState(false);
+
   const handleBackdropClick = (e: MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
       onClose();
+    }
+  };
+
+  const handleShare = async () => {
+    // Prefer native share when available, otherwise fall back to clipboard copy
+    const nav = typeof window !== 'undefined' ? window.navigator : undefined;
+
+    try {
+      if (nav?.share) {
+        await nav.share({
+          title: 'Driver Mobile App',
+          text: 'Install the latest driver app and start accepting orders.',
+          url: downloadUrl,
+        });
+        return;
+      }
+
+      if (nav?.clipboard) {
+        await nav.clipboard.writeText(downloadUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1600);
+      }
+    } catch (error) {
+      // Intentionally swallow errors (user cancel / unsupported)
+      console.error('Share unavailable', error);
     }
   };
 
@@ -74,27 +102,53 @@ export default function DriverAppModal({ open, downloadUrl, onClose }: DriverApp
             </p>
           </div>
 
-          <a
-            href={downloadUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: 'inline-flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              width: '90%',
-              background: '#2563eb',
-              color: '#ffffff',
-              padding: '14px 18px',
-              borderRadius: 12,
-              textDecoration: 'none',
-              fontWeight: 600,
-              fontSize: 15,
-              border: '1px solid #1d4ed8',
-            }}
-          >
-            Download Mobile App
-          </a>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
+            <a
+              href={downloadUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                width: '90%',
+                background: '#2563eb',
+                color: '#ffffff',
+                padding: '14px 18px',
+                borderRadius: 12,
+                textDecoration: 'none',
+                fontWeight: 600,
+                fontSize: 15,
+                border: '1px solid #1d4ed8',
+              }}
+            >
+              Download Mobile App
+            </a>
+
+            <button
+              type="button"
+              onClick={handleShare}
+              style={{
+                display: 'inline-flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                width: '90%',
+                padding: '12px 16px',
+                borderRadius: 12,
+                border: '1px dashed #9ca3af',
+                background: '#f9fafb',
+                color: '#111827',
+                fontWeight: 600,
+                fontSize: 14,
+                cursor: 'pointer',
+              }}
+            >
+              Share Download Link
+            </button>
+            <span style={{ fontSize: 12, color: '#6b7280', height: 16 }}>
+              {copied ? 'Link copied to clipboard' : ''}
+            </span>
+          </div>
 
         </div>
       </div>

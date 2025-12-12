@@ -17,6 +17,8 @@ import { DriverWalletEntity } from '../modules/wallet/entities/driver-wallet.ent
 import { WalletTransactionEntity } from '../modules/wallet/entities/wallet-transaction.entity.js';
 import { WithdrawalRequestEntity } from '../modules/wallet/entities/withdrawal-request.entity.js';
 import { AuditLogEntity } from '../common/audit/audit.entity.js';
+import { RestaurantEntity } from '../modules/restaurants/entities/restaurant.entity.js';
+import { AdminEntity } from '../modules/admins/entities/admin.entity.js';
 
 const databaseUrl = process.env.DATABASE_URL ?? 'postgres://postgres:postgres@localhost:5432/stack_delivery';
 const schema = process.env.DATABASE_SCHEMA ?? 'public';
@@ -40,7 +42,9 @@ export const typeOrmDataSource = new DataSource({
     DriverWalletEntity,
     WalletTransactionEntity,
     WithdrawalRequestEntity,
-    AuditLogEntity
+    AuditLogEntity,
+    RestaurantEntity,
+    AdminEntity
   ],
   synchronize: process.env.NODE_ENV !== 'production', // Auto-create tables in development
   migrations: ['dist/migrations/*.js'],

@@ -11,6 +11,7 @@ import { RolesGuard } from './roles.guard.js';
 import { DriverOtpController } from './driver-auth.controller.js';
 import { DriverEntity } from '../drivers/entities/driver.entity.js';
 import { MapperEntity } from '../drivers/entities/mapper.entity.js';
+import { AdminEntity } from '../admins/entities/admin.entity.js';
 import { CustomJwtService } from './jwt.service.js';
 import { TokenBlacklistService } from './token-blacklist.service.js';
 import { DriversModule } from '../drivers/drivers.module.js';
@@ -23,7 +24,7 @@ import { DriversModule } from '../drivers/drivers.module.js';
         expiresIn: '30d', // Tokens expire in 30 days
       },
     }),
-    TypeOrmModule.forFeature([DriverEntity, MapperEntity]),
+    TypeOrmModule.forFeature([DriverEntity, MapperEntity, AdminEntity]),
     forwardRef(() => DriversModule) // Import DriversModule to use DriversService
   ],
   controllers: [AuthController, DriverOtpController],

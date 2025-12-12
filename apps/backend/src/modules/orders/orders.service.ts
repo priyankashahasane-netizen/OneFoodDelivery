@@ -45,7 +45,8 @@ export class OrdersService {
   async listOrders(filters: ListOrdersDto, adminId?: string) {
     const { page = 1, pageSize = 25, status, paymentType, driverId, assigned, orderType } = filters;
     
-    // Debug logging for assigned filter - log the entire filters object
+    // Debug logging
+    console.log('[listOrders] adminId received:', adminId);
     console.log('[listOrders] Full filters object:', JSON.stringify(filters, null, 2));
     console.log('[listOrders] assigned filter value:', assigned, 'type:', typeof assigned, 'isUndefined:', assigned === undefined, 'isNull:', assigned === null);
     
@@ -66,10 +67,12 @@ export class OrdersService {
       .leftJoinAndSelect('order.driver', 'driver')
       .orderBy('order.createdAt', 'DESC');
 
-    // Restrict to the requesting admin
-    if (adminId) {
-      queryBuilder.andWhere('order.adminId = :adminId', { adminId });
-    }
+    // For now, show all orders regardless of adminId to fix the dashboard issue
+    // TODO: Once orders are properly assigned to admins, we can re-enable this filter
+    // if (adminId) {
+    //   queryBuilder.andWhere('(order.adminId = :adminId OR order.adminId IS NULL)', { adminId });
+    // }
+    console.log('[listOrders] Showing all orders (adminId filter disabled for now)');
 
     // Apply filters
     if (status) {
@@ -114,9 +117,11 @@ export class OrdersService {
     
     // Create a separate count query without the join to get accurate count
     const countQueryBuilder = this.ordersRepository.createQueryBuilder('order');
-    if (adminId) {
-      countQueryBuilder.andWhere('order.adminId = :adminId', { adminId });
-    }
+    // For now, count all orders regardless of adminId
+    // TODO: Once orders are properly assigned to admins, we can re-enable this filter
+    // if (adminId) {
+    //   countQueryBuilder.andWhere('(order.adminId = :adminId OR order.adminId IS NULL)', { adminId });
+    // }
     
     // Apply the same filters to the count query (but without the join)
     if (status) {
@@ -143,6 +148,13 @@ export class OrdersService {
     const total = await countQueryBuilder.getCount();
     
     console.log('[listOrders] Returning', items.length, 'items out of', total, 'total');
+    console.log('[listOrders] AdminId filter status: disabled (showing all orders)');
+    console.log('[listOrders] First order sample:', items.length > 0 ? {
+      id: items[0].id,
+      adminId: items[0].adminId,
+      status: items[0].status,
+      createdAt: items[0].createdAt
+    } : 'no orders');
     // Log first few items to verify driverId values
     if (items.length > 0) {
       console.log('[listOrders] Sample items driverId:', items.slice(0, 3).map((item: any) => ({

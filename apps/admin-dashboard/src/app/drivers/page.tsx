@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import RequireAuth from '../../components/RequireAuth';
@@ -9,7 +9,7 @@ import { authedFetch } from '../../lib/auth';
 
 const fetcher = (url: string) => authedFetch(url).then((r) => r.json());
 
-export default function DriversPage() {
+function DriversPageContent() {
   const { data, mutate, isLoading } = useSWR('/api/drivers', fetcher);
   const searchParams = useSearchParams();
   const [showForm, setShowForm] = useState(false);
@@ -459,6 +459,23 @@ export default function DriversPage() {
         </main>
       </div>
     </RequireAuth>
+  );
+}
+
+export default function DriversPage() {
+  return (
+    <Suspense fallback={
+      <RequireAuth>
+        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+          <Header />
+          <main style={{ padding: 16, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div>Loading...</div>
+          </main>
+        </div>
+      </RequireAuth>
+    }>
+      <DriversPageContent />
+    </Suspense>
   );
 }
 

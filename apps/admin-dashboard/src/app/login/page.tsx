@@ -356,6 +356,25 @@ export default function LoginPage() {
                 Change Phone Number
               </button>
             )}
+
+            <div style={{ 
+              textAlign: 'center', 
+              marginTop: 16,
+              fontSize: 14,
+              color: '#6b7280'
+            }}>
+              Don't have an account?{' '}
+              <a 
+                href="/signup" 
+                style={{ 
+                  color: '#3b82f6', 
+                  textDecoration: 'none',
+                  fontWeight: 500
+                }}
+              >
+                Sign Up
+              </a>
+            </div>
           </div>
         </form>
       </div>

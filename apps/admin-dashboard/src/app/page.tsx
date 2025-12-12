@@ -94,6 +94,14 @@ export default function Home() {
     const restaurants = restaurantsData?.items || restaurantsData || [];
     const recentOrders = recentOrdersData?.items || recentOrdersData || [];
 
+    // Debug logging
+    console.log('[Dashboard Stats] Orders data:', {
+      hasOrdersData: !!ordersData,
+      ordersCount: Array.isArray(orders) ? orders.length : 0,
+      ordersDataStructure: ordersData ? Object.keys(ordersData) : 'no data',
+      sampleOrder: Array.isArray(orders) && orders.length > 0 ? orders[0] : null
+    });
+
     const now = new Date();
     let startDate: Date;
     
@@ -109,18 +117,34 @@ export default function Home() {
 
     const filteredOrders = Array.isArray(orders) ? orders.filter((o: any) => {
       const orderDate = new Date(o.createdAt || o.created_at || 0);
+      const isValidDate = !isNaN(orderDate.getTime());
+      if (!isValidDate) {
+        console.warn('[Dashboard Stats] Invalid order date:', o.createdAt || o.created_at, 'for order:', o.id);
+        return false;
+      }
       return orderDate >= startDate;
     }) : [];
 
-    const totalOrders = filteredOrders.length;
-    const pendingOrders = filteredOrders.filter((o: any) => 
+    // If no orders match the date filter, show all orders instead (for better UX)
+    const ordersToUse = filteredOrders.length > 0 ? filteredOrders : (Array.isArray(orders) ? orders : []);
+
+    console.log('[Dashboard Stats] Filtered orders:', {
+      timeRange,
+      startDate: startDate.toISOString(),
+      totalOrders: Array.isArray(orders) ? orders.length : 0,
+      filteredCount: filteredOrders.length,
+      usingAllOrders: filteredOrders.length === 0 && Array.isArray(orders) && orders.length > 0
+    });
+
+    const totalOrders = ordersToUse.length;
+    const pendingOrders = ordersToUse.filter((o: any) => 
       ['created', 'pending', 'assigned', 'accepted'].includes(o.status)
     ).length;
-    const deliveredOrders = filteredOrders.filter((o: any) => 
+    const deliveredOrders = ordersToUse.filter((o: any) => 
       o.status === 'delivered'
     ).length;
     
-    const totalRevenue = filteredOrders
+    const totalRevenue = ordersToUse
       .filter((o: any) => o.status === 'delivered')
       .reduce((sum: number, o: any) => {
         const charge = parseFloat(o.deliveryCharge || o.delivery_charge || 0);
@@ -151,7 +175,7 @@ export default function Home() {
   const handleLogout = () => {
     clearToken();
     setHasToken(false);
-    router.push('/login');
+    router.push('/');
   };
 
   const handleFareFormChange = (field: string, value: string) => {
@@ -242,7 +266,7 @@ export default function Home() {
             style={{ objectFit: 'contain' }}
           />
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#111827' }}>
-            One Delivery
+            OneDelivery
           </h1>
         </div>
         <nav style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -510,7 +534,7 @@ export default function Home() {
                   letterSpacing: '-0.5px',
                   lineHeight: 1.2,
                 }}>
-                  One Delivery - Last-Mile Delivery <br />Management Platform
+                  OneDelivery - Last-Mile Delivery <br />Management Platform
                 </h1>
 
                 {/* Subtitle */}
@@ -1679,18 +1703,6 @@ export default function Home() {
                     {ordersLoading ? '...' : stats.totalOrders}
                   </h2>
                 </div>
-                <div style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 12,
-                  background: '#eff6ff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 24,
-                }}>
-                  📦
-                </div>
               </div>
               <div style={{ display: 'flex', gap: 16, marginTop: 16, paddingTop: 16, borderTop: '1px solid #e5e7eb' }}>
                 <div>
@@ -1708,40 +1720,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Revenue Card */}
-            <div style={{
-              background: '#ffffff',
-              borderRadius: 12,
-              padding: 24,
-              border: '1px solid #e5e7eb',
-              boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                <div>
-                  <p style={{ margin: 0, fontSize: 14, color: '#6b7280', fontWeight: 500, marginBottom: 8 }}>
-                    Total Revenue
-                  </p>
-                  <h2 style={{ margin: 0, fontSize: 32, fontWeight: 700, color: '#111827' }}>
-                    ${ordersLoading ? '...' : stats.totalRevenue}
-                  </h2>
-                </div>
-                <div style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 12,
-                  background: '#f0fdf4',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 24,
-                }}>
-                  💰
-                </div>
-              </div>
-              <p style={{ margin: 0, marginTop: 16, fontSize: 12, color: '#6b7280' }}>
-                From delivered orders
-              </p>
-            </div>
+          
 
             {/* Drivers Card */}
             <div style={{
@@ -1759,18 +1738,6 @@ export default function Home() {
                   <h2 style={{ margin: 0, fontSize: 32, fontWeight: 700, color: '#111827' }}>
                     {driversLoading ? '...' : stats.totalDrivers}
                   </h2>
-                </div>
-                <div style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 12,
-                  background: '#fef3c7',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 24,
-                }}>
-                  🚗
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 16, marginTop: 16, paddingTop: 16, borderTop: '1px solid #e5e7eb' }}>
@@ -1805,18 +1772,6 @@ export default function Home() {
                   <h2 style={{ margin: 0, fontSize: 32, fontWeight: 700, color: '#111827' }}>
                     {restaurantsLoading ? '...' : stats.totalRestaurants}
                   </h2>
-                </div>
-                <div style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 12,
-                  background: '#fce7f3',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 24,
-                }}>
-                  🍽️
                 </div>
               </div>
               <p style={{ margin: 0, marginTop: 16, fontSize: 12, color: '#6b7280' }}>
@@ -1977,7 +1932,7 @@ export default function Home() {
                   e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
-                <div style={{ fontSize: 24, marginBottom: 8 }}>➕</div>
+                <div style={{ fontSize: 24, marginBottom: 8 }}>📦</div>
                 <h3 style={{ margin: '0 0 4px 0', fontSize: 16, fontWeight: 600, color: '#111827' }}>
                   Create Order
                 </h3>
@@ -2009,7 +1964,7 @@ export default function Home() {
                   e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
-                <div style={{ fontSize: 24, marginBottom: 8 }}>👤</div>
+                <div style={{ fontSize: 24, marginBottom: 8 }}>🚲</div>
                 <h3 style={{ margin: '0 0 4px 0', fontSize: 16, fontWeight: 600, color: '#111827' }}>
                   Add Driver
                 </h3>
@@ -2018,39 +1973,6 @@ export default function Home() {
                 </p>
               </Link>
 
-
-              <Link
-                href="/drivers"
-                style={{
-                  display: 'block',
-                  padding: 20,
-                  background: '#ffffff',
-                  borderRadius: 12,
-                  border: '1px solid #e5e7eb',
-                  textDecoration: 'none',
-                  transition: 'all 0.2s',
-                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = '#3b82f6';
-                  e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = '#e5e7eb';
-                  e.currentTarget.style.boxShadow = '0 1px 3px 0 rgba(0, 0, 0, 0.1)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                <div style={{ fontSize: 24, marginBottom: 8 }}>👤</div>
-                <h3 style={{ margin: '0 0 4px 0', fontSize: 16, fontWeight: 600, color: '#111827' }}>
-                  Manage Drivers
-                </h3>
-                <p style={{ margin: 0, fontSize: 14, color: '#6b7280' }}>
-                  Add or edit driver information
-                </p>
-              </Link>
-
               <Link
                 href="/restaurants"
                 style={{
@@ -2074,39 +1996,7 @@ export default function Home() {
                   e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
-                <div style={{ fontSize: 24, marginBottom: 8 }}>🏪</div>
-                <h3 style={{ margin: '0 0 4px 0', fontSize: 16, fontWeight: 600, color: '#111827' }}>
-                  Manage Restaurants
-                </h3>
-                <p style={{ margin: 0, fontSize: 14, color: '#6b7280' }}>
-                  View and manage restaurant data
-                </p>
-              </Link>
-
-              <Link
-                href="/restaurants"
-                style={{
-                  display: 'block',
-                  padding: 20,
-                  background: '#ffffff',
-                  borderRadius: 12,
-                  border: '1px solid #e5e7eb',
-                  textDecoration: 'none',
-                  transition: 'all 0.2s',
-                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = '#3b82f6';
-                  e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = '#e5e7eb';
-                  e.currentTarget.style.boxShadow = '0 1px 3px 0 rgba(0, 0, 0, 0.1)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                <div style={{ fontSize: 24, marginBottom: 8 }}>➕</div>
+                <div style={{ fontSize: 24, marginBottom: 8 }}>🍽️</div>
                 <h3 style={{ margin: '0 0 4px 0', fontSize: 16, fontWeight: 600, color: '#111827' }}>
                   Add Restaurant
                 </h3>
@@ -2120,312 +2010,6 @@ export default function Home() {
           )}
         </main>
 
-        {/* Footer */}
-        <footer style={{
-          background: '#000000',
-          color: '#ffffff',
-          padding: '60px 24px 24px 24px',
-          marginTop: 'auto',
-        }}>
-          {/* Upper Section */}
-          <div style={{
-            maxWidth: 1400,
-            margin: '0 auto',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: 40,
-            marginBottom: 40,
-          }}>
-            {/* Brand & Social Media */}
-            <div>
-              <h2 style={{ margin: '0 0 20px 0', fontSize: 24, fontWeight: 700 }}>
-                One Delivery
-              </h2>
-              <p style={{ margin: '0 0 16px 0', fontSize: 14, color: '#ffffff' }}>
-                Follow us on
-              </p>
-              <div style={{ display: 'flex', gap: 12, marginBottom: 32 }}>
-                <a href="#" style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: '50%',
-                  background: '#333333',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#ffffff',
-                  textDecoration: 'none',
-                  fontSize: 16,
-                }}>f</a>
-                <a href="#" style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: '50%',
-                  background: '#333333',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#ffffff',
-                  textDecoration: 'none',
-                  fontSize: 16,
-                }}>🐦</a>
-                <a href="#" style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: '50%',
-                  background: '#333333',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#ffffff',
-                  textDecoration: 'none',
-                  fontSize: 16,
-                }}>📷</a>
-                <a href="#" style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: '50%',
-                  background: '#333333',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#ffffff',
-                  textDecoration: 'none',
-                  fontSize: 16,
-                }}>in</a>
-                <a href="#" style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: '50%',
-                  background: '#333333',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#ffffff',
-                  textDecoration: 'none',
-                  fontSize: 16,
-                }}>▶</a>
-              </div>
-            </div>
-
-            {/* Company */}
-            <div>
-              <h3 style={{ margin: '0 0 16px 0', fontSize: 16, fontWeight: 600 }}>
-                Company
-              </h3>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                <li style={{ marginBottom: 12 }}>
-                  <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14 }}>
-                    About Us
-                  </Link>
-                </li>
-                <li style={{ marginBottom: 12 }}>
-                  <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14 }}>
-                    Careers
-                  </Link>
-                </li>
-                <li style={{ marginBottom: 12 }}>
-                  <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14 }}>
-                    Blog
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            {/* Quick Links */}
-            <div>
-              <h3 style={{ margin: '0 0 16px 0', fontSize: 16, fontWeight: 600 }}>
-                Quick Links
-              </h3>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                <li style={{ marginBottom: 12 }}>
-                  <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14 }}>
-                    API Integrations
-                  </Link>
-                </li>
-                <li style={{ marginBottom: 12 }}>
-                  <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14 }}>
-                    Packers & Movers
-                  </Link>
-                </li>
-                <li style={{ marginBottom: 12 }}>
-                  <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14 }}>
-                    Two Wheelers
-                  </Link>
-                </li>
-                <li style={{ marginBottom: 12 }}>
-                  <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14 }}>
-                    Trucks
-                  </Link>
-                </li>
-                <li style={{ marginBottom: 12 }}>
-                  <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14 }}>
-                    Porter Enterprise
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            {/* Support */}
-            <div>
-              <h3 style={{ margin: '0 0 16px 0', fontSize: 16, fontWeight: 600 }}>
-                Support
-              </h3>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                <li style={{ marginBottom: 12 }}>
-                  <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14 }}>
-                    Contact Us
-                  </Link>
-                </li>
-                <li style={{ marginBottom: 12 }}>
-                  <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14 }}>
-                    Privacy Policy
-                  </Link>
-                </li>
-                <li style={{ marginBottom: 12 }}>
-                  <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14 }}>
-                    Terms of Service
-                  </Link>
-                </li>
-                <li style={{ marginBottom: 12 }}>
-                  <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14 }}>
-                    Terms of Service - SSI
-                  </Link>
-                </li>
-                <li style={{ marginBottom: 12 }}>
-                  <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14 }}>
-                    Insurance FAQs
-                  </Link>
-                </li>
-                <li style={{ marginBottom: 12 }}>
-                  <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14 }}>
-                    Driver Partner Terms & Conditions
-                  </Link>
-                </li>
-                <li style={{ marginBottom: 12 }}>
-                  <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14 }}>
-                    Zero Tolerance Policy
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            {/* Countries */}
-            <div>
-              <h3 style={{ margin: '0 0 16px 0', fontSize: 16, fontWeight: 600 }}>
-                Countries
-              </h3>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                <li style={{ marginBottom: 12 }}>
-                  <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14 }}>
-                    United Arab Emirates
-                  </Link>
-                </li>
-                <li style={{ marginBottom: 12 }}>
-                  <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14 }}>
-                    Turkey
-                  </Link>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Domestic Cities Section - Only visible when NOT logged in */}
-          {(!mounted || !hasToken) && (
-          <div style={{
-            maxWidth: 1400,
-            margin: '0 auto 40px auto',
-            borderTop: '1px solid #333333',
-            paddingTop: 40,
-          }}>
-            <h3 style={{ margin: '0 0 24px 0', fontSize: 16, fontWeight: 600 }}>
-              Domestic Cities
-            </h3>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-              gap: 16,
-            }}>
-              <div>
-                <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14, display: 'block', marginBottom: 12 }}>
-                  Delhi NCR
-                </Link>
-                <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14, display: 'block', marginBottom: 12 }}>
-                  Chandigarh
-                </Link>
-                <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14, display: 'block', marginBottom: 12 }}>
-                  Ahmedabad
-                </Link>
-                <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14, display: 'block', marginBottom: 12 }}>
-                  Coimbatore
-                </Link>
-                <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14, display: 'block', marginBottom: 12 }}>
-                  Visakhapatnam
-                </Link>
-              </div>
-              <div>
-                <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14, display: 'block', marginBottom: 12 }}>
-                  Hyderabad
-                </Link>
-                <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14, display: 'block', marginBottom: 12 }}>
-                  Jaipur
-                </Link>
-                <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14, display: 'block', marginBottom: 12 }}>
-                  Surat
-                </Link>
-                <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14, display: 'block', marginBottom: 12 }}>
-                  Kochi
-                </Link>
-                <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14, display: 'block', marginBottom: 12 }}>
-                  Trivandrum
-                </Link>
-              </div>
-              <div>
-                <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14, display: 'block', marginBottom: 12 }}>
-                  Bangalore
-                </Link>
-                <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14, display: 'block', marginBottom: 12 }}>
-                  Chennai
-                </Link>
-                <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14, display: 'block', marginBottom: 12 }}>
-                  Nagpur
-                </Link>
-                <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14, display: 'block', marginBottom: 12 }}>
-                  Ludhiana
-                </Link>
-              </div>
-              <div>
-                <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14, display: 'block', marginBottom: 12 }}>
-                  Mumbai
-                </Link>
-                <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14, display: 'block', marginBottom: 12 }}>
-                  Kolkata
-                </Link>
-                <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14, display: 'block', marginBottom: 12 }}>
-                  Lucknow
-                </Link>
-                <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14, display: 'block', marginBottom: 12 }}>
-                  Nashik
-                </Link>
-              </div>
-              <div>
-                <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14, display: 'block', marginBottom: 12 }}>
-                  Vadodara
-                </Link>
-                <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14, display: 'block', marginBottom: 12 }}>
-                  Indore
-                </Link>
-                <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14, display: 'block', marginBottom: 12 }}>
-                  Pune
-                </Link>
-                <Link href="#" style={{ color: '#ffffff', textDecoration: 'none', fontSize: 14, display: 'block', marginBottom: 12 }}>
-                  Kanpur
-                </Link>
-              </div>
-            </div>
-          </div>
-          )}
-        </footer>
       </div>
   );
 }

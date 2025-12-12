@@ -25,6 +25,7 @@ export class OrdersController {
     console.log('[OrdersController] Raw assigned query param:', rawAssigned, 'type:', typeof rawAssigned);
     console.log('[OrdersController] Transformed filters.assigned:', filters.assigned, 'type:', typeof filters.assigned);
     const adminId = req?.user?.adminId || req?.user?.sub;
+    console.log('[OrdersController] Extracted adminId:', adminId, 'from user:', JSON.stringify(req?.user));
     return this.ordersService.listOrders(filters, adminId);
   }
 
